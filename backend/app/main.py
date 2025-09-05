@@ -290,6 +290,43 @@ async def eleven_call_end(request: Request, session: Session = Depends(get_sessi
 	session.add(evt)
 	return {"status": "ok"}
 
+# Voice Session endpoints
+class VoiceSessionRequest(BaseModel):
+	agent_type: str
+	customer_id: str
+	direction: str = "inbound"
+	locale: str = "en-US"
+	simulation: bool = False
+
+@app.post("/api/backend/voice/sessions")
+def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
+	"""Create a new voice session"""
+	tenant_id = os.getenv("TENANT_ID", "demo-tenant")
+	session_id = generate_id("voice_session")
+	
+	voice_session = models.VoiceSession(
+		id=session_id,
+		tenant_id=tenant_id,
+		customer_id=body.customer_id,
+		direction=body.direction,
+		locale=body.locale,
+		simulation=body.simulation,
+		status="created"
+	)
+	
+	session.add(voice_session)
+	session.commit()
+	
+	return {
+		"session_id": session_id,
+		"customer_id": body.customer_id,
+		"direction": body.direction,
+		"locale": body.locale,
+		"simulation": body.simulation,
+		"status": "created",
+		"created_at": voice_session.created_at.isoformat()
+	}
+
 # Messaging stubs
 class MessagingSessionRequest(BaseModel):
 	customer_id: str

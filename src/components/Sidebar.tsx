@@ -72,6 +72,12 @@ const navigation = [
     description: 'تجربة المساعد الصوتي'
   },
   {
+    name: 'مساعد خدمة العملاء',
+    href: '/support-agent',
+    icon: Bot,
+    description: 'محاكاة تفاعلات خدمة العملاء'
+  },
+  {
     name: 'الإعدادات',
     href: '/settings',
     icon: Settings,
