@@ -1,13 +1,26 @@
 {
   "framework": "nextjs",
   "regions": ["iad1"],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install && pip install -r backend/requirements.txt",
   "env": {
-    "ELEVENLABS_API_KEY": "sk_689820c907accdc0f6cb0ab06aadded1244f59ba49e9a3ce",
-    "ELEVENLABS_SUPPORT_AGENT_ID": "agent_5701k2pjsar8f4gvz6ynd7ks5p5s",
-    "ELEVENLABS_SALES_AGENT_ID": "agent_9401k2pkqd9vfwz9p0p06eddj31f",
+    "ELEVENLABS_API_KEY": "@elevenlabs-api-key",
+    "ELEVENLABS_SUPPORT_AGENT_ID": "@elevenlabs-support-agent-id", 
+    "ELEVENLABS_SALES_AGENT_ID": "@elevenlabs-sales-agent-id",
+    "ELEVENLABS_WEBHOOK_SECRET": "@elevenlabs-webhook-secret",
     "NEXT_PUBLIC_BACKEND_URL": "https://navaiavoiceportal.vercel.app",
-    "NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID": "agent_5701k2pjsar8f4gvz6ynd7ks5p5s",
-    "NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID": "agent_9401k2pkqd9vfwz9p0p06eddj31f"
+    "NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID": "@next-public-elevenlabs-support-agent-id",
+    "NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID": "@next-public-elevenlabs-sales-agent-id"
+  },
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 30
+    },
+    "api/backend/**/*.py": {
+      "runtime": "python3.9",
+      "maxDuration": 30
+    }
   },
   "redirects": [
     {
