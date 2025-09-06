@@ -7,7 +7,8 @@
     "ELEVENLABS_API_KEY": "@elevenlabs-api-key",
     "ELEVENLABS_SUPPORT_AGENT_ID": "@elevenlabs-support-agent-id", 
     "ELEVENLABS_SALES_AGENT_ID": "@elevenlabs-sales-agent-id",
-    "NEXT_PUBLIC_BACKEND_URL": "https://voice-agent-portal.vercel.app",
+    "ELEVENLABS_WEBHOOK_SECRET": "@elevenlabs-webhook-secret",
+    "NEXT_PUBLIC_BACKEND_URL": "@next-public-backend-url",
     "NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID": "@next-public-elevenlabs-support-agent-id",
     "NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID": "@next-public-elevenlabs-sales-agent-id"
   },
