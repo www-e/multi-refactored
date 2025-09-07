@@ -417,4 +417,14 @@ def end_voice_session(session_id: str, db_session: Session = Depends(get_session
 	return {
 		"session_id": voice_session.id,
 		"status": voice_session.status
-	} 
+	}
+
+# Temporary webhook endpoint to prevent 404 errors
+@app.post("/voice/post_call")
+async def voice_post_call_webhook(request: Request):
+	"""Temporary endpoint to handle ElevenLabs post-call webhooks and prevent 404 errors"""
+	try:
+		# Just return success for now to stop the 404 errors
+		return {"status": "ok", "message": "Webhook received (temporarily disabled)"}
+	except Exception as e:
+		return {"status": "error", "message": str(e)}
