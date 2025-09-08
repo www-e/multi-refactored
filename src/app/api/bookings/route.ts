@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server'
-import { bookings } from '@/app/(dashboard)/dashboard/data/seed-data'
 
 export async function GET() {
-  return NextResponse.json(bookings)
+  try {
+    // Fetch from the backend API
+    const response = await fetch('http://127.0.0.1:8000/bookings')
+    if (!response.ok) {
+      throw new Error('Failed to fetch bookings from backend')
+    }
+    const bookings = await response.json()
+    return NextResponse.json(bookings)
+  } catch (error) {
+    console.error('Error fetching bookings:', error)
+    // Fallback to empty array if backend is not available
+    return NextResponse.json([])
+  }
 }
 
 export async function POST(request: Request) {
@@ -16,7 +27,6 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString()
     }
     
-    // في التطبيق الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
     console.log('تم إنشاء حجز جديد:', newBooking)
     
     return NextResponse.json(newBooking, { status: 201 })

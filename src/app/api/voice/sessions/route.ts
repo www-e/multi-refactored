@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // Create backend session only - ElevenLabs connection is now handled by the React SDK
     const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
     
-    const backendResponse = await fetchWithRetry(`${BACKEND_URL}/api/backend/voice/sessions`, {
+    const backendResponse = await fetchWithRetry(`${BACKEND_URL}/voice/sessions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,9 +40,6 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         agent_type: agent_type,
         customer_id: customer_id || `customer_${Date.now()}`,
-        direction: 'inbound',
-        locale: 'en-US',
-        simulation: false,
       }),
     })
 

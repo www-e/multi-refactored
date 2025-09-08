@@ -18,7 +18,10 @@ import {
   MessageSquare,
   Mail,
   Loader2,
-  Volume2
+  Volume2,
+  Check,
+  X,
+  RefreshCw
 } from 'lucide-react'
 
 interface GeneratedAction {
@@ -37,11 +40,39 @@ interface GeneratedAction {
   agentResponse: string
 }
 
+interface BackendBooking {
+  id: string
+  session_id: string
+  customer_name: string
+  phone: string
+  project: string
+  preferred_datetime: string
+  status: string
+  created_at: string
+}
+
+interface BackendTicket {
+  id: string
+  session_id: string
+  customer_name: string
+  phone: string
+  issue: string
+  priority: string
+  project: string
+  status: string
+  created_at: string
+}
+
 export default function SupportAgentPage() {
   const [generatedActions, setGeneratedActions] = useState<GeneratedAction[]>([])
   const [currentTranscript, setCurrentTranscript] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [agentResponse, setAgentResponse] = useState('')
+  
+  // New states for real backend data
+  const [backendBookings, setBackendBookings] = useState<BackendBooking[]>([])
+  const [backendTickets, setBackendTickets] = useState<BackendTicket[]>([])
+  const [isLoadingData, setIsLoadingData] = useState(false)
 
   const voiceAgent = useVoiceAgent({
     onTranscript: (text, isFinal) => {
@@ -62,6 +93,80 @@ export default function SupportAgentPage() {
       console.log('Voice agent status:', status)
     }
   })
+
+  // Fetch real data from backend
+  const fetchBackendData = async () => {
+    setIsLoadingData(true)
+    try {
+      const [bookingsResponse, ticketsResponse] = await Promise.all([
+        fetch('http://127.0.0.1:8000/bookings'),
+        fetch('http://127.0.0.1:8000/tickets')
+      ])
+
+      if (bookingsResponse.ok) {
+        const bookings = await bookingsResponse.json()
+        setBackendBookings(bookings)
+      }
+
+      if (ticketsResponse.ok) {
+        const tickets = await ticketsResponse.json()
+        setBackendTickets(tickets)
+      }
+    } catch (error) {
+      console.error('Error fetching backend data:', error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchBackendData()
+  }, [])
+
+  // Handle approval/denial of bookings
+  const handleBookingAction = async (bookingId: string, action: 'approve' | 'deny') => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: action === 'approve' ? 'confirmed' : 'cancelled'
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh data after successful update
+        fetchBackendData()
+      }
+    } catch (error) {
+      console.error('Error updating booking:', error)
+    }
+  }
+
+  // Handle approval/denial of tickets
+  const handleTicketAction = async (ticketId: string, action: 'approve' | 'deny') => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: action === 'approve' ? 'in_progress' : 'closed'
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh data after successful update
+        fetchBackendData()
+      }
+    } catch (error) {
+      console.error('Error updating ticket:', error)
+    }
+  }
 
   const processUserInput = async (transcript: string) => {
     if (!transcript.trim()) return
@@ -332,6 +437,198 @@ export default function SupportAgentPage() {
               اضغط على "بدء مكالمة صوتية" وتحدث عن مشكلتك أو طلبك. سيقوم المساعد الذكي بفهم كلامك وإنشاء التذكرة أو الموعد أو الاستفسار المناسب تلقائياً.
             </p>
           </div>
+        </div>
+
+        {/* Real Webhook Requests Section */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">طلبات العملاء الجديدة</h2>
+            <Button onClick={fetchBackendData} variant="outline" size="sm" disabled={isLoadingData}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
+              تحديث
+            </Button>
+          </div>
+
+          {isLoadingData ? (
+            <div className="text-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">جاري تحميل الطلبات...</p>
+            </div>
+          ) : (
+            <>
+              {/* Bookings Section */}
+              {backendBookings.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                    طلبات المواعيد ({backendBookings.length})
+                  </h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {backendBookings.map((booking) => (
+                      <div key={booking.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                              <Calendar className="w-4 h-4" />
+                              موعد
+                            </span>
+                            <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {booking.status === 'pending' ? 'في الانتظار' :
+                               booking.status === 'confirmed' ? 'مؤكد' : 'ملغي'}
+                            </span>
+                          </div>
+
+                          <h4 className="font-semibold text-gray-900 mb-2">{booking.project}</h4>
+                          
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-700">{booking.customer_name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600" dir="ltr">{booking.phone}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600">
+                                {new Date(booking.preferred_datetime).toLocaleString('ar-SA')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {booking.status === 'pending' && (
+                            <div className="flex gap-2 pt-4 border-t">
+                              <Button
+                                onClick={() => handleBookingAction(booking.id, 'approve')}
+                                size="sm"
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                موافقة
+                              </Button>
+                              <Button
+                                onClick={() => handleBookingAction(booking.id, 'deny')}
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                رفض
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tickets Section */}
+              {backendTickets.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <Ticket className="w-5 h-5 text-red-600" />
+                    تذاكر الدعم ({backendTickets.length})
+                  </h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {backendTickets.map((ticket) => (
+                      <div key={ticket.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                              <Ticket className="w-4 h-4" />
+                              تذكرة
+                            </span>
+                            <div className="flex gap-1">
+                              <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                                ticket.priority === 'high' ? 'bg-red-100 text-red-800' :
+                                ticket.priority === 'med' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {ticket.priority === 'high' ? 'عالية' :
+                                 ticket.priority === 'med' ? 'متوسطة' : 'منخفضة'}
+                              </span>
+                              <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                                ticket.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                                ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {ticket.status === 'open' ? 'مفتوحة' :
+                                 ticket.status === 'in_progress' ? 'قيد المعالجة' : 'مغلقة'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <h4 className="font-semibold text-gray-900 mb-2">{ticket.project}</h4>
+                          
+                          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="text-xs text-gray-500 mb-1">وصف المشكلة:</div>
+                            <p className="text-sm text-gray-700">{ticket.issue}</p>
+                          </div>
+
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-700">{ticket.customer_name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600" dir="ltr">{ticket.phone}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Clock className="w-4 h-4 text-gray-400" />
+                              <span className="text-gray-600">
+                                {new Date(ticket.created_at).toLocaleString('ar-SA')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {ticket.status === 'open' && (
+                            <div className="flex gap-2 pt-4 border-t">
+                              <Button
+                                onClick={() => handleTicketAction(ticket.id, 'approve')}
+                                size="sm"
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                قبول
+                              </Button>
+                              <Button
+                                onClick={() => handleTicketAction(ticket.id, 'deny')}
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                رفض
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {backendBookings.length === 0 && backendTickets.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-lg border">
+                  <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد طلبات جديدة</h3>
+                  <p className="text-gray-600 max-w-md mx-auto">
+                    عندما يتم إنشاء طلبات جديدة من خلال المكالمات الصوتية، ستظهر هنا للمراجعة والموافقة.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Generated Actions */}

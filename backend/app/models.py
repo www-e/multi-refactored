@@ -55,6 +55,11 @@ class CampaignObjectiveEnum(str, enum.Enum):
     leadgen = "leadgen"
     upsell = "upsell"
 
+class VoiceSessionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class Customer(Base):
     __tablename__ = "customers"
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -117,6 +122,13 @@ class Ticket(Base):
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Webhook-specific fields
+    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
+    customer_name: Mapped[str] = mapped_column(String, nullable=True)
+    phone: Mapped[str] = mapped_column(String, nullable=True)
+    issue: Mapped[str] = mapped_column(Text, nullable=True)
+    project: Mapped[str] = mapped_column(String, nullable=True)
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -130,6 +142,13 @@ class Booking(Base):
     source: Mapped[ChannelEnum] = mapped_column(Enum(ChannelEnum))
     created_by: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Webhook-specific fields
+    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
+    customer_name: Mapped[str] = mapped_column(String, nullable=True)
+    phone: Mapped[str] = mapped_column(String, nullable=True)
+    project: Mapped[str] = mapped_column(String, nullable=True)
+    preferred_datetime: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
 class Campaign(Base):
     __tablename__ = "campaigns"
@@ -189,7 +208,16 @@ class VoiceSession(Base):
     customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
     direction: Mapped[str] = mapped_column(String)  # inbound/outbound
     locale: Mapped[str] = mapped_column(String, default="ar-SA")
-    status: Mapped[str] = mapped_column(String, default="active")  # active/ended
+    status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)
     simulation: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    ended_at: Mapped[datetime] = mapped_column(DateTime, nullable=True) 
+    ended_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    
+    # Webhook-specific fields
+    conversation_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
+    agent_id: Mapped[str] = mapped_column(String, nullable=True)
+    agent_name: Mapped[str] = mapped_column(String, nullable=True)
+    customer_phone: Mapped[str] = mapped_column(String, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=True)
+    extracted_intent: Mapped[str] = mapped_column(String, nullable=True) 

@@ -330,3 +330,9 @@ Tip: Always restart Next after changing `.env.local`.
 - ElevenLabs env config: Provided; requires valid keys and Next restart
 - Playground variable mismatch fix: Pending
 - Full “start conversation” end-to-end test (real ElevenLabs): Pending (after env confirm)
+
+
+
+
+## Potential help
+pd.read_json() and pd.json_normalize()

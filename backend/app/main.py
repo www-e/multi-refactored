@@ -1,350 +1,295 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.responses import ORJSONResponse
+from fastapi import FastAPI, HTTPException, Depends, Request, status
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from .db import engine, Base, get_session
-from .security import create_access_token, hash_password, generate_id
-from . import models
-from pydantic import BaseModel
-import os
-from datetime import datetime
-import hmac
-import hashlib
-import json
 from sse_starlette.sse import EventSourceResponse
 import asyncio
+import json
+import logging
+import time
+from datetime import datetime
+from app.db import get_session, engine
+from app import models
+import random
+import os
+import secrets
+import hmac
+import hashlib
+from dotenv import load_dotenv
 
-Base.metadata.create_all(bind=engine)
+# Load environment variables from .env.local
+load_dotenv(dotenv_path="../.env.local")
 
-app = FastAPI(title="Navaia Backend", default_response_class=ORJSONResponse)
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+app = FastAPI(title="Voice Agent Portal API")
+
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables on startup"""
+    models.Base.metadata.create_all(bind=engine)
+
+# Configure CORS
 app.add_middleware(
 	CORSMiddleware,
-	allow_origins=["*"],
+	allow_origins=["*"],  # Configure appropriately for production
+	allow_credentials=True,
 	allow_methods=["*"],
-	allow_headers=["*"]
+	allow_headers=["*"],
 )
 
-class LoginRequest(BaseModel):
-	username: str
-	password: str
-
-class LoginResponse(BaseModel):
-	token: str
-	role: str = "Admin"
-	tenant_id: str
-
-@app.get("/healthz")
-def healthz():
-	return {"status": "ok"}
-
-@app.post("/auth/login", response_model=LoginResponse)
-def login(req: LoginRequest):
-	if req.username and req.password:
-		tenant_id = os.getenv("TENANT_ID", "demo-tenant")
-		token = create_access_token(subject=req.username, extra={"role": "Admin", "tenant_id": tenant_id})
-		return LoginResponse(token=token, tenant_id=tenant_id)
-	raise HTTPException(status_code=401, detail="invalid credentials")
-
-# Minimal stubs for core resources
-class CreateCustomer(BaseModel):
-	name: str
-	phone: str
-	email: str | None = None
-	language: str | None = None
-
-@app.post("/customers")
-def create_customer(body: CreateCustomer, session: Session = Depends(get_session)):
-	customer = models.Customer(
-		id=generate_id("c"),
-		tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
-		name=body.name,
-		phone=body.phone,
-		email=body.email,
-		language=body.language
-	)
-	session.add(customer)
-	return {"id": customer.id}
-
-@app.get("/customers")
-def list_customers(session: Session = Depends(get_session)):
-	rows = session.query(models.Customer).order_by(models.Customer.created_at.desc()).limit(100).all()
-	return [{"id": r.id, "name": r.name, "phone": r.phone, "created_at": r.created_at.isoformat()} for r in rows]
-
-class CreateBooking(BaseModel):
-	customer_id: str
-	property_code: str
-	start_date: str
-	price_sar: float | None = None
-	source: models.ChannelEnum
-	created_by: models.AIOrHumanEnum
-
-@app.post("/bookings")
-def create_booking(body: CreateBooking, session: Session = Depends(get_session)):
+# Webhook validation helper
+def verify_webhook_signature(payload: bytes, signature: str, secret: str) -> bool:
+	"""Verify ElevenLabs webhook signature using HMAC SHA256."""
 	try:
-		start_dt = datetime.fromisoformat(body.start_date)
-	except Exception:
-		raise HTTPException(status_code=422, detail="start_date must be ISO format")
-	bk = models.Booking(
-		id=generate_id("b"),
-		tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
-		customer_id=body.customer_id,
-		property_code=body.property_code,
-		start_date=start_dt,
-		price_sar=body.price_sar or 0,
-		source=body.source,
-		created_by=body.created_by
-	)
-	session.add(bk)
-	return {"id": bk.id, "status": bk.status}
-
-@app.get("/bookings")
-def list_bookings(session: Session = Depends(get_session)):
-	rows = session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(100).all()
-	return [{"id": r.id, "status": r.status, "price_sar": r.price_sar, "created_at": r.created_at.isoformat()} for r in rows]
-
-@app.post("/bookings/{booking_id}/approve")
-def approve_booking(booking_id: str, session: Session = Depends(get_session)):
-	bk = session.get(models.Booking, booking_id)
-	if not bk:
-		raise HTTPException(status_code=404, detail="booking not found")
-	bk.status = models.BookingStatusEnum.confirmed
-	return {"id": bk.id, "status": bk.status}
-
-@app.post("/bookings/{booking_id}/decline")
-def decline_booking(booking_id: str, session: Session = Depends(get_session)):
-	bk = session.get(models.Booking, booking_id)
-	if not bk:
-		raise HTTPException(status_code=404, detail="booking not found")
-	bk.status = models.BookingStatusEnum.canceled
-	return {"id": bk.id, "status": bk.status}
-
-class CreateTicket(BaseModel):
-	customer_id: str
-	priority: models.TicketPriorityEnum
-	category: str
-	assignee: str | None = None
-
-@app.post("/tickets")
-def create_ticket(body: CreateTicket, session: Session = Depends(get_session)):
-	tk = models.Ticket(
-		id=generate_id("t"),
-		tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
-		customer_id=body.customer_id,
-		priority=body.priority,
-		category=body.category,
-		assignee=body.assignee
-	)
-	session.add(tk)
-	return {"id": tk.id, "status": tk.status}
-
-@app.get("/tickets")
-def list_tickets(session: Session = Depends(get_session)):
-	rows = session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(100).all()
-	return [{"id": r.id, "status": r.status, "priority": r.priority, "category": r.category, "created_at": r.created_at.isoformat()} for r in rows]
-
-class UpdateTicket(BaseModel):
-	status: models.TicketStatusEnum
-	resolution_note: str | None = None
-	assignee: str | None = None
-
-@app.patch("/tickets/{ticket_id}")
-def update_ticket(ticket_id: str, body: UpdateTicket, session: Session = Depends(get_session)):
-	tk = session.get(models.Ticket, ticket_id)
-	if not tk:
-		raise HTTPException(status_code=404, detail="ticket not found")
-	if body.assignee is not None:
-		tk.assignee = body.assignee
-	if body.resolution_note is not None:
-		tk.resolution_note = body.resolution_note
-	tk.status = body.status
-	return {"id": tk.id, "status": tk.status}
-
-@app.post("/tickets/{ticket_id}/approve")
-def approve_ticket(ticket_id: str, session: Session = Depends(get_session)):
-	tk = session.get(models.Ticket, ticket_id)
-	if not tk:
-		raise HTTPException(status_code=404, detail="ticket not found")
-	tk.status = models.TicketStatusEnum.resolved
-	tk.approved_by = "admin"
-	return {"id": tk.id, "status": tk.status}
-
-@app.post("/tickets/{ticket_id}/reject")
-def reject_ticket(ticket_id: str, session: Session = Depends(get_session)):
-	tk = session.get(models.Ticket, ticket_id)
-	if not tk:
-		raise HTTPException(status_code=404, detail="ticket not found")
-	tk.status = models.TicketStatusEnum.in_progress
-	return {"id": tk.id, "status": tk.status}
-
-# Campaigns
-class CreateCampaign(BaseModel):
-	name: str
-	type: models.CampaignTypeEnum
-	objective: str
-	audience_query: dict | None = None
-	schedule: dict | None = None
-
-@app.post("/campaigns")
-def create_campaign(body: CreateCampaign, session: Session = Depends(get_session)):
-	c = models.Campaign(
-		id=generate_id("cmp"),
-		tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
-		name=body.name,
-		type=body.type,
-		objective=body.objective,
-		audience_query=body.audience_query,
-		schedule=body.schedule,
-		status="active"
-	)
-	session.add(c)
-	return {"id": c.id}
-
-@app.get("/campaigns")
-def list_campaigns(session: Session = Depends(get_session)):
-	rows = session.query(models.Campaign).order_by(models.Campaign.created_at.desc()).limit(100).all()
-	return [{"id": r.id, "name": r.name, "type": r.type, "objective": r.objective, "status": r.status, "created_at": r.created_at.isoformat()} for r in rows]
-
-@app.post("/campaigns/{campaign_id}/run")
-def run_campaign(campaign_id: str, session: Session = Depends(get_session)):
-	c = session.get(models.Campaign, campaign_id)
-	if not c:
-		raise HTTPException(status_code=404, detail="campaign not found")
-	m = models.CampaignMetrics(
-		campaign_id=c.id,
-		reached=100,
-		engaged=60,
-		qualified=30,
-		booked=10,
-		revenue_sar=10000.0,
-		roas=2.5
-	)
-	session.add(m)
-	return {"status": "ok"}
-
-# Analytics
-@app.get("/analytics/dashboard")
-def analytics_dashboard(session: Session = Depends(get_session)):
-	# bookings revenue
-	from sqlalchemy import func
-	revenue = session.query(func.coalesce(func.sum(models.Booking.price_sar), 0.0)).scalar() or 0.0
-	# roas avg from campaign metrics
-	avg_roas = session.query(func.avg(models.CampaignMetrics.roas)).scalar() or 0.0
-	# conversion to booking from metrics (booked/engaged)
-	totals = session.query(
-		func.coalesce(func.sum(models.CampaignMetrics.booked), 0),
-		func.coalesce(func.sum(models.CampaignMetrics.engaged), 0)
-	).one()
-	booked_total, engaged_total = int(totals[0] or 0), int(totals[1] or 0)
-	conversion = round((booked_total / engaged_total) * 100, 2) if engaged_total > 0 else 0.0
-	# calls KPIs (stub if no data)
-	calls_count = session.query(func.count(models.Call.id)).scalar() or 0
-	answer_rate = 95 if calls_count == 0 else 90
-	avg_handle = session.query(func.avg(models.Call.handle_sec)).scalar() or 0
-	csat = 4.4
-	return {
-		"totalCalls": calls_count,
-		"answerRate": answer_rate,
-		"avgHandleTime": int(avg_handle),
-		"csat": csat,
-		"revenue": revenue,
-		"roas": float(avg_roas or 0.0),
-		"conversionToBooking": conversion
-	}
-
-
-
-
-
-# ElevenLabs Webhooks (HMAC)
-
-def _hmac_valid(secret: str, body: bytes, signature: str) -> bool:
-	try:
-		expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-		return hmac.compare_digest(expected, signature)
-	except Exception:
+		# ElevenLabs sends the signature as "sha256=<hex_digest>"
+		if not signature.startswith("sha256="):
+			return False
+		
+		expected_signature = signature[7:]  # Remove "sha256=" prefix
+		computed_signature = hmac.new(
+			secret.encode(),
+			payload,
+			hashlib.sha256
+		).hexdigest()
+		
+		return hmac.compare_digest(expected_signature, computed_signature)
+	except Exception as e:
+		logger.error(f"Signature verification error: {e}")
 		return False
 
-@app.post("/webhooks/elevenlabs/call_event")
-async def eleven_call_event(request: Request, session: Session = Depends(get_session)):
-	secret = os.getenv("ELEVENLABS_HMAC_SECRET", "")
-	raw = await request.body()
-	sig = request.headers.get("X-Signature", "")
-	if not _hmac_valid(secret, raw, sig):
-		raise HTTPException(status_code=401, detail="invalid signature")
-	payload = json.loads(raw or b"{}")
-	evt = models.Event(type="elevenlabs.call_event", payload=payload, tenant_id=os.getenv("TENANT_ID", "demo-tenant"))
-	session.add(evt)
-	# Optionally react to actions
-	return {"status": "ok"}
+# Helper function to generate IDs
+def generate_id(prefix: str) -> str:
+	"""Generate a random ID with the given prefix."""
+	return f"{prefix}_{secrets.token_hex(8)}"
 
-@app.post("/webhooks/elevenlabs/call_end")
-async def eleven_call_end(request: Request, session: Session = Depends(get_session)):
-	secret = os.getenv("ELEVENLABS_HMAC_SECRET", "")
-	raw = await request.body()
-	sig = request.headers.get("X-Signature", "")
-	if not _hmac_valid(secret, raw, sig):
-		raise HTTPException(status_code=401, detail="invalid signature")
-	payload = json.loads(raw or b"{}")
-	evt = models.Event(type="elevenlabs.call_end", payload=payload, tenant_id=os.getenv("TENANT_ID", "demo-tenant"))
-	session.add(evt)
-	return {"status": "ok"}
+# Pydantic models for webhooks
+class PostCallWebhookPayload(BaseModel):
+	conversation_id: str
+	agent_id: str
+	agent_name: str
+	customer_phone: str
+	summary: str
+	started_at: str
+	extracted_intent: str
 
-# Voice Session endpoints
 class VoiceSessionRequest(BaseModel):
 	agent_type: str
 	customer_id: str
-	direction: str = "inbound"
-	locale: str = "en-US"
-	simulation: bool = False
 
-@app.post("/api/backend/voice/sessions")
-def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
-	"""Create a new voice session"""
-	tenant_id = os.getenv("TENANT_ID", "demo-tenant")
-	session_id = generate_id("voice_session")
+class VoiceSessionResponse(BaseModel):
+	session_id: str
+	status: str
+	agent_type: str
+	customer_id: str
+	created_at: str
+
+# Root endpoint
+@app.get("/")
+async def root():
+	return {"message": "Voice Agent Portal API", "status": "active"}
+
+# Health check endpoint
+@app.get("/healthz")
+async def health_check():
+	return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+# Post-call webhook endpoint
+@app.post("/voice/post_call")
+async def post_call_webhook(request: Request):
+	"""Handle post-call webhooks from ElevenLabs with HMAC verification."""
+	try:
+		# Get raw body and signature
+		body = await request.body()
+		signature = request.headers.get("ElevenLabs-Signature", "")
+		
+		# Get webhook secret from environment
+		webhook_secret = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
+		if not webhook_secret:
+			logger.error("ELEVENLABS_WEBHOOK_SECRET not configured")
+			raise HTTPException(status_code=500, detail="Webhook secret not configured")
+		
+		# Verify signature
+		if not verify_webhook_signature(body, signature, webhook_secret):
+			logger.error(f"Invalid webhook signature: {signature}")
+			raise HTTPException(status_code=401, detail="Invalid signature")
+		
+		# Parse payload
+		try:
+			payload_dict = json.loads(body.decode())
+			payload = PostCallWebhookPayload(**payload_dict)
+		except Exception as e:
+			logger.error(f"Invalid payload format: {e}")
+			raise HTTPException(status_code=400, detail="Invalid payload format")
+		
+		# Get database session
+		db_session = next(get_session())
+		
+		try:
+			# Create or get customer
+			customer = db_session.query(models.Customer).filter_by(phone=payload.customer_phone).first()
+			if not customer:
+				customer = models.Customer(
+					id=generate_id("cust"),
+					tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
+					name=f"Customer {payload.customer_phone}",
+					phone=payload.customer_phone,
+					created_at=datetime.utcnow()
+				)
+				db_session.add(customer)
+				db_session.flush()  # Get the customer ID
+			
+			# Create voice session record
+			voice_session = models.VoiceSession(
+				id=generate_id("vs"),
+				tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
+				customer_id=customer.id,
+				direction="inbound",
+				conversation_id=payload.conversation_id,
+				agent_id=payload.agent_id,
+				agent_name=payload.agent_name,
+				customer_phone=payload.customer_phone,
+				started_at=datetime.fromisoformat(payload.started_at.replace('Z', '+00:00')),
+				summary=payload.summary,
+				extracted_intent=payload.extracted_intent,
+				status=models.VoiceSessionStatus.COMPLETED,
+				created_at=datetime.utcnow()
+			)
+			db_session.add(voice_session)
+			
+			# Process intent-based actions
+			if payload.extracted_intent == "raise_ticket":
+				# Create support ticket
+				ticket = models.Ticket(
+					id=generate_id("tk"),
+					tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
+					customer_id=customer.id,
+					category="Voice Support",
+					session_id=voice_session.id,
+					customer_name=customer.name,
+					phone=payload.customer_phone,
+					issue=payload.summary,
+					project="Voice Agent Support",
+					priority=models.TicketPriorityEnum.med,
+					status=models.TicketStatusEnum.open,
+					created_at=datetime.utcnow()
+				)
+				db_session.add(ticket)
+				
+			elif payload.extracted_intent == "book_appointment":
+				# Create booking
+				booking = models.Booking(
+					id=generate_id("bk"),
+					tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
+					customer_id=customer.id,
+					session_id=voice_session.id,
+					customer_name=customer.name,
+					phone=payload.customer_phone,
+					property_code="PROP-DEFAULT",
+					start_date=datetime.utcnow(),
+					source=models.ChannelEnum.voice,
+					created_by=models.AIOrHumanEnum.AI,
+					project="Voice Agent Booking",
+					preferred_datetime=datetime.utcnow(),  # Default to now, should be extracted from conversation
+					status=models.BookingStatusEnum.pending,
+					created_at=datetime.utcnow()
+				)
+				db_session.add(booking)
+			
+			db_session.commit()
+			
+			logger.info(f"Processed post-call webhook for conversation {payload.conversation_id}")
+			return {"status": "success", "conversation_id": payload.conversation_id}
+			
+		except Exception as e:
+			db_session.rollback()
+			logger.error(f"Database error: {e}")
+			raise HTTPException(status_code=500, detail="Database error")
+		finally:
+			db_session.close()
+		
+	except HTTPException:
+		raise
+	except Exception as e:
+		logger.error(f"Unexpected error in webhook: {e}")
+		raise HTTPException(status_code=500, detail="Internal server error")
+
+# Mock chat completions endpoint for development
+@app.post("/chat/completions")
+async def chat_completions(request: Request):
+	body = await request.json()
 	
-	voice_session = models.VoiceSession(
-		id=session_id,
-		tenant_id=tenant_id,
-		customer_id=body.customer_id,
-		direction=body.direction,
-		locale=body.locale,
-		simulation=body.simulation,
-		status="created"
-	)
+	messages = body.get("messages", [])
+	user_message = messages[-1].get("content", "") if messages else ""
 	
-	session.add(voice_session)
-	session.commit()
+	# Simple mock responses based on keywords
+	if "ticket" in user_message.lower() or "support" in user_message.lower():
+		response = "I understand you need support. I've created a ticket for your issue and our team will get back to you shortly."
+	elif "booking" in user_message.lower() or "appointment" in user_message.lower():
+		response = "I can help you schedule an appointment. Let me book that for you right away."
+	else:
+		response = "Thank you for contacting us. How can I assist you today?"
 	
 	return {
-		"session_id": session_id,
-		"customer_id": body.customer_id,
-		"direction": body.direction,
-		"locale": body.locale,
-		"simulation": body.simulation,
-		"status": "created",
-		"created_at": voice_session.created_at.isoformat()
+		"id": f"chatcmpl-{secrets.token_hex(8)}",
+		"object": "chat.completion",
+		"created": int(time.time()),
+		"model": "gpt-3.5-turbo",
+		"choices": [{
+			"index": 0,
+			"message": {
+				"role": "assistant",
+				"content": response
+			},
+			"finish_reason": "stop"
+		}],
+		"usage": {
+			"prompt_tokens": 10,
+			"completion_tokens": 20,
+			"total_tokens": 30
+		}
 	}
 
-# Messaging stubs
-class MessagingSessionRequest(BaseModel):
-	customer_id: str
-	simulation: bool = True
+# Mock endpoints for compatibility with the frontend
+@app.get("/analytics")
+async def analytics():
+	return {
+		"total_calls": 150,
+		"successful_calls": 142,
+		"average_duration": "3:24",
+		"success_rate": 94.7
+	}
 
-@app.post("/messaging/sessions")
-def start_messaging_session(body: MessagingSessionRequest):
-	return {"session_id": generate_id("chat"), "customer_id": body.customer_id}
+@app.get("/call-logs")
+async def call_logs():
+	return [
+		{"id": 1, "customer": "+1234567890", "duration": "3:45", "status": "completed", "timestamp": "2024-01-20T10:30:00Z"},
+		{"id": 2, "customer": "+0987654321", "duration": "2:15", "status": "completed", "timestamp": "2024-01-20T11:15:00Z"}
+	]
 
-@app.post("/webhooks/messaging/event")
-async def messaging_event(request: Request, session: Session = Depends(get_session)):
-	raw = await request.body()
-	payload = json.loads(raw or b"{}")
-	evt = models.Event(type="messaging.event", payload=payload, tenant_id=os.getenv("TENANT_ID", "demo-tenant"))
-	session.add(evt)
-	return {"status": "ok"}
+@app.get("/settings")
+async def settings():
+	return {
+		"voice_model": "eleven_turbo_v2",
+		"language": "en",
+		"response_time": "fast"
+	}
 
-# SSE stream (stub)
+@app.post("/campaigns")
+async def create_campaign(request: Request):
+	data = await request.json()
+	return {"id": f"camp_{secrets.token_hex(6)}", "status": "created", **data}
+
+@app.get("/conversations")
+async def conversations():
+	return [
+		{"id": 1, "customer": "John Doe", "status": "active", "started_at": "2024-01-20T10:00:00Z"},
+		{"id": 2, "customer": "Jane Smith", "status": "completed", "started_at": "2024-01-20T09:30:00Z"}
+	]
+
 @app.get("/conversations/stream")
 async def conversations_stream():
 	async def event_generator():
@@ -356,75 +301,152 @@ async def conversations_stream():
 			await asyncio.sleep(5)
 	return EventSourceResponse(event_generator())
 
-# Voice Session endpoints for ElevenLabs integration
-class CreateVoiceSession(BaseModel):
-	customer_id: str
-	direction: str = "inbound"
-	locale: str = "ar-SA"
-	simulation: bool = False
-
-class VoiceSessionResponse(BaseModel):
-	session_id: str
-	status: str
-	customer_id: str
-	created_at: str
-
+# Voice session endpoints
 @app.post("/voice/sessions", response_model=VoiceSessionResponse)
-def create_voice_session(body: CreateVoiceSession, db_session: Session = Depends(get_session)):
-	# Create a voice session record
+def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
 	voice_session = models.VoiceSession(
 		id=generate_id("vs"),
-		tenant_id=os.getenv("TENANT_ID", "demo-tenant"),
+		tenant_id="demo-tenant",
 		customer_id=body.customer_id,
-		direction=body.direction,
-		locale=body.locale,
-		status="active",
-		simulation=body.simulation
+		direction="inbound",
+		conversation_id=generate_id("conv"),
+		status=models.VoiceSessionStatus.ACTIVE
 	)
-	db_session.add(voice_session)
-	db_session.commit()
+	session.add(voice_session)
+	session.commit()
+	session.refresh(voice_session)
 	
 	return VoiceSessionResponse(
 		session_id=voice_session.id,
-		status=voice_session.status,
-		customer_id=voice_session.customer_id,
+		status=voice_session.status.value,
+		agent_type=body.agent_type,
+		customer_id=body.customer_id,
 		created_at=voice_session.created_at.isoformat()
 	)
 
-@app.get("/voice/sessions/{session_id}")
-def get_voice_session(session_id: str, db_session: Session = Depends(get_session)):
-	voice_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.id == session_id).first()
-	if not voice_session:
-		raise HTTPException(status_code=404, detail="Voice session not found")
+# Webhook data endpoints
+@app.get("/voice_sessions")
+def list_voice_sessions(limit: int = 10, db_session: Session = Depends(get_session)):
+	"""List recent voice sessions from webhooks"""
+	sessions = db_session.query(models.VoiceSession)\
+		.filter(models.VoiceSession.conversation_id.isnot(None))\
+		.order_by(models.VoiceSession.created_at.desc())\
+		.limit(limit)\
+		.all()
 	
-	return {
-		"session_id": voice_session.id,
-		"status": voice_session.status,
-		"customer_id": voice_session.customer_id,
-		"created_at": voice_session.created_at.isoformat()
-	}
+	return [
+		{
+			"id": s.id,
+			"conversation_id": s.conversation_id,
+			"agent_id": s.agent_id,
+			"agent_name": s.agent_name,
+			"customer_phone": s.customer_phone,
+			"summary": s.summary,
+			"extracted_intent": s.extracted_intent,
+			"status": s.status.value if s.status else None,
+			"started_at": s.started_at.isoformat() if s.started_at else None,
+			"created_at": s.created_at.isoformat()
+		}
+		for s in sessions
+	]
 
-@app.put("/voice/sessions/{session_id}/end")
-def end_voice_session(session_id: str, db_session: Session = Depends(get_session)):
-	voice_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.id == session_id).first()
-	if not voice_session:
-		raise HTTPException(status_code=404, detail="Voice session not found")
+@app.get("/tickets")
+def list_tickets(limit: int = 10, db_session: Session = Depends(get_session)):
+	"""List recent tickets from webhooks"""
+	tickets = db_session.query(models.Ticket)\
+		.filter(models.Ticket.session_id.isnot(None))\
+		.order_by(models.Ticket.created_at.desc())\
+		.limit(limit)\
+		.all()
 	
-	voice_session.status = "ended"
-	voice_session.ended_at = datetime.utcnow()
-	db_session.commit()
-	
-	return {
-		"session_id": voice_session.id,
-		"status": voice_session.status
-	}
+	return [
+		{
+			"id": t.id,
+			"session_id": t.session_id,
+			"customer_name": t.customer_name,
+			"phone": t.phone,
+			"issue": t.issue,
+			"priority": t.priority.value if t.priority else None,
+			"project": t.project,
+			"status": t.status.value if t.status else None,
+			"created_at": t.created_at.isoformat()
+		}
+		for t in tickets
+	]
 
-# Temporary webhook endpoint to prevent 404 errors
-@app.post("/voice/post_call")
-async def voice_post_call_webhook(request: Request):
-	"""Temporary endpoint to handle ElevenLabs post-call webhooks and prevent 404 errors"""
+@app.get("/bookings")
+def list_bookings(limit: int = 10, db_session: Session = Depends(get_session)):
+	"""List recent bookings from webhooks"""
+	bookings = db_session.query(models.Booking)\
+		.filter(models.Booking.session_id.isnot(None))\
+		.order_by(models.Booking.created_at.desc())\
+		.limit(limit)\
+		.all()
+	
+	return [
+		{
+			"id": b.id,
+			"session_id": b.session_id,
+			"customer_name": b.customer_name,
+			"phone": b.phone,
+			"project": b.project,
+			"preferred_datetime": b.preferred_datetime.isoformat() if b.preferred_datetime else None,
+			"status": b.status.value if b.status else None,
+			"created_at": b.created_at.isoformat()
+		}
+		for b in bookings
+	]
+
+class BookingUpdate(BaseModel):
+	status: str = Field(..., description="New status for the booking")
+
+@app.patch("/bookings/{booking_id}")
+def update_booking(booking_id: str, update: BookingUpdate, db_session: Session = Depends(get_session)):
+	"""Update booking status (approve/deny)"""
+	booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
+	
+	if not booking:
+		raise HTTPException(status_code=404, detail="Booking not found")
+	
 	try:
-		# Just return success for now to stop the 404 errors
-		return {"status": "ok", "message": "Webhook received (temporarily disabled)"}
+		# Update status using enum
+		booking.status = models.BookingStatus(update.status)
+		db_session.commit()
+		
+		return {
+			"id": booking.id,
+			"status": booking.status.value,
+			"message": f"Booking {booking_id} updated successfully"
+		}
+	except ValueError as e:
+		raise HTTPException(status_code=400, detail=f"Invalid status: {update.status}")
 	except Exception as e:
-		return {"status": "error", "message": str(e)}
+		db_session.rollback()
+		raise HTTPException(status_code=500, detail=f"Error updating booking: {str(e)}")
+
+class TicketUpdate(BaseModel):
+	status: str = Field(..., description="New status for the ticket")
+
+@app.patch("/tickets/{ticket_id}")
+def update_ticket(ticket_id: str, update: TicketUpdate, db_session: Session = Depends(get_session)):
+	"""Update ticket status (approve/deny)"""
+	ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+	
+	if not ticket:
+		raise HTTPException(status_code=404, detail="Ticket not found")
+	
+	try:
+		# Update status using enum
+		ticket.status = models.TicketStatus(update.status)
+		db_session.commit()
+		
+		return {
+			"id": ticket.id,
+			"status": ticket.status.value,
+			"message": f"Ticket {ticket_id} updated successfully"
+		}
+	except ValueError as e:
+		raise HTTPException(status_code=400, detail=f"Invalid status: {update.status}")
+	except Exception as e:
+		db_session.rollback()
+		raise HTTPException(status_code=500, detail=f"Error updating ticket: {str(e)}")

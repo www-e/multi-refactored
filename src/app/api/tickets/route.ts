@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server'
-import { tickets } from '@/app/(dashboard)/dashboard/data/seed-data'
 
 export async function GET() {
-  return NextResponse.json(tickets)
+  try {
+    // Fetch from the backend API
+    const response = await fetch('http://127.0.0.1:8000/tickets')
+    if (!response.ok) {
+      throw new Error('Failed to fetch tickets from backend')
+    }
+    const tickets = await response.json()
+    return NextResponse.json(tickets)
+  } catch (error) {
+    console.error('Error fetching tickets:', error)
+    // Fallback to empty array if backend is not available
+    return NextResponse.json([])
+  }
 }
 
 export async function POST(request: Request) {
