@@ -47,6 +47,9 @@ interface BackendBooking {
   phone: string
   project: string
   preferred_datetime: string
+  appointment_date: string
+  appointment_time: string
+  day_name: string
   status: string
   created_at: string
 }
@@ -98,6 +101,44 @@ export default function SupportAgentPage() {
   const fetchBackendData = async () => {
     setIsLoadingData(true)
     try {
+      // First sync with ElevenLabs - get recent conversations and process them
+      console.log('Syncing with ElevenLabs...')
+      
+      try {
+        // Get conversation list
+        const conversationsResponse = await fetch('http://127.0.0.1:8000/elevenlabs/conversations')
+        if (conversationsResponse.ok) {
+          const conversationsData = await conversationsResponse.json()
+          const conversations = conversationsData.conversations || []
+          
+          console.log(`Processing ${Math.min(3, conversations.length)} recent conversations...`)
+          
+          // Process the 3 most recent conversations
+          for (let i = 0; i < Math.min(3, conversations.length); i++) {
+            const conv = conversations[i]
+            const conversationId = conv.conversation_id
+            
+            if (conversationId) {
+              try {
+                const processResponse = await fetch(`http://127.0.0.1:8000/elevenlabs/conversation/${conversationId}/process`, {
+                  method: 'POST'
+                })
+                
+                if (processResponse.ok) {
+                  const processResult = await processResponse.json()
+                  console.log(`Processed conversation ${conversationId}:`, processResult)
+                }
+              } catch (error) {
+                console.warn(`Failed to process conversation ${conversationId}:`, error)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('ElevenLabs sync failed:', error)
+      }
+
+      // Then fetch all current data
       const [bookingsResponse, ticketsResponse] = await Promise.all([
         fetch('http://127.0.0.1:8000/bookings'),
         fetch('http://127.0.0.1:8000/tickets')
@@ -119,9 +160,18 @@ export default function SupportAgentPage() {
     }
   }
 
-  // Load data on component mount
+  // Load data on component mount and set up polling
   useEffect(() => {
     fetchBackendData()
+    
+    // Set up automatic polling every 10 seconds for new appointments
+    const interval = setInterval(() => {
+      console.log('Auto-polling for new appointments...')
+      fetchBackendData()
+    }, 10000) // 10 seconds
+    
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval)
   }, [])
 
   // Handle approval/denial of bookings
@@ -445,14 +495,14 @@ export default function SupportAgentPage() {
             <h2 className="text-2xl font-bold text-gray-900">طلبات العملاء الجديدة</h2>
             <Button onClick={fetchBackendData} variant="outline" size="sm" disabled={isLoadingData}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
-              تحديث
+              تحديث من ElevenLabs
             </Button>
           </div>
 
           {isLoadingData ? (
             <div className="text-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">جاري تحميل الطلبات...</p>
+              <p className="text-gray-600">جاري مزامنة المكالمات من ElevenLabs...</p>
             </div>
           ) : (
             <>
@@ -496,7 +546,7 @@ export default function SupportAgentPage() {
                             <div className="flex items-center gap-2 text-sm">
                               <Clock className="w-4 h-4 text-gray-400" />
                               <span className="text-gray-600">
-                                {new Date(booking.preferred_datetime).toLocaleString('ar-SA')}
+                                {booking.day_name} {booking.appointment_date} - {booking.appointment_time}
                               </span>
                             </div>
                           </div>

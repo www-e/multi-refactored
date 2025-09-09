@@ -206,7 +206,7 @@ class VoiceSession(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
     customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
-    direction: Mapped[str] = mapped_column(String)  # inbound/outbound
+    direction: Mapped[str | None] = mapped_column(String, nullable=True, default="inbound")  # inbound/outbound
     locale: Mapped[str] = mapped_column(String, default="ar-SA")
     status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)
     simulation: Mapped[bool] = mapped_column(Boolean, default=False)
