@@ -63,7 +63,13 @@ export default function PlaygroundPage() {
     {
       id: '1',
       type: 'agent',
-      content: 'مرحباً! أنا مساعدك الصوتي الذكي. كيف يمكنني مساعدتك اليوم؟',
+      content: `يمكنني مساعدتك في:
+• الاستفسارات عن سقيفة ومشاريعها
+• تفاصيل المشاريع والوحدات  
+• حجز مواعيد الزيارات
+• إدارة مواعيد الصيانة
+• رفع الشكاوى والمشاكل
+• وأكثر من ذلك`,
       timestamp: new Date()
     }
   ])
@@ -150,23 +156,43 @@ export default function PlaygroundPage() {
     setMessages(prev => [...prev, newMessage])
   }
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!currentInput.trim()) return
 
     addMessage('user', currentInput)
+    const userMessage = currentInput
     setCurrentInput('')
 
-    // Simulate agent response
-    setTimeout(() => {
-      const responses = [
-        'شكراً لك على هذا السؤال. دعني أساعدك في ذلك.',
-        'ممتاز! هذا ما أحتاجه لمساعدتك بشكل أفضل.',
-        'أفهم طلبك. سأقوم بمعالجته الآن.',
-        'هذا رائع! هل تود أن أعرض عليك خيارات إضافية؟'
-      ]
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-      addMessage('agent', randomResponse)
-    }, 1000)
+    try {
+      // Call the real AI chat API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          agentType: selectedAgent.id,
+          conversationHistory: messages.slice(-5).map(msg => ({
+            role: msg.type === 'agent' ? 'agent' : 'user',
+            content: msg.content
+          }))
+        })
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok || data.error) {
+        addMessage('agent', data.error || 'يوجد مشكلة في الاتصال، يرجى إعادة المحاولة')
+        return
+      }
+
+      const aiResponse = data.response || 'عذراً، لم أتمكن من الرد على استفسارك.'
+      addMessage('agent', aiResponse)
+    } catch (error) {
+      console.error('Chat error:', error)
+      addMessage('agent', 'يوجد مشكلة في الاتصال، يرجى إعادة المحاولة')
+    }
   }
 
   const getDeviceIcon = () => {
@@ -554,75 +580,161 @@ export default function PlaygroundPage() {
               </div>
             ) : (
               // Chat Interface
-              <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-white/20 dark:border-slate-700/20 shadow-lg h-[500px] sm:h-[600px] lg:h-[700px] flex flex-col">
-                {/* Chat Header */}
-                <div className="p-4 sm:p-6 border-b border-white/20 dark:border-slate-700/20">
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${selectedAgent.color} flex items-center justify-center shadow-lg`}>
-                      <selectedAgent.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-slate-900 dark:text-white">
-                        {selectedAgent.name}
-                      </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
-                        متصل الآن
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                      <span className="text-xs text-green-600 dark:text-green-400">نشط</span>
-                    </div>
+              <div className="bg-[#0b141a] dark:bg-[#0b141a] bg-gray-50 rounded-2xl border border-slate-700/20 dark:border-slate-700/20 border-gray-200 shadow-lg h-[500px] sm:h-[600px] lg:h-[700px] flex flex-col overflow-hidden">
+                {/* WhatsApp Header */}
+                <div className="bg-[#2a3942] dark:bg-[#2a3942] bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-200 dark:border-transparent">
+                  <div className="w-10 h-10 rounded-full overflow-hidden">
+                    <img 
+                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face" 
+                      alt="Agent Avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white dark:text-white text-gray-900 font-medium text-sm">
+                      {selectedAgent.name}
+                    </h3>
+                    <p className="text-[#8696a0] dark:text-[#8696a0] text-gray-500 text-xs">
+                      متصل الآن
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <svg className="w-5 h-5 text-[#8696a0] dark:text-[#8696a0] text-gray-500 cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M15.5 6.5A1.5 1.5 0 0114 5h-4a1.5 1.5 0 00-1.5 1.5v1A1.5 1.5 0 0010 9h4a1.5 1.5 0 001.5-1.5v-1zM12 2a6 6 0 00-6 6v1.5A1.5 1.5 0 007.5 11h9a1.5 1.5 0 001.5-1.5V8a6 6 0 00-6-6z"/>
+                      <path d="M6 12v6a2 2 0 002 2h8a2 2 0 002-2v-6H6z"/>
+                    </svg>
+                    <svg className="w-5 h-5 text-[#8696a0] dark:text-[#8696a0] text-gray-500 cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                    </svg>
+                    <svg className="w-5 h-5 text-[#8696a0] dark:text-[#8696a0] text-gray-500 cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                    </svg>
                   </div>
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                {/* WhatsApp Chat Background & Messages */}
+                <div 
+                  className="flex-1 overflow-y-auto p-3 space-y-2 relative"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-opacity='0.03'%3E%3Cpolygon fill='%23ffffff' points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")`,
+                    backgroundColor: '#e5ddd5'
+                  }}
+                >
+                  {/* Date Indicator */}
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-white dark:bg-[#182229] text-gray-600 dark:text-[#8696a0] text-xs px-3 py-1 rounded-lg shadow-sm border border-gray-200 dark:border-transparent">
+                      اليوم
+                    </div>
+                  </div>
+
+                  {/* Encryption Notice */}
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-[#fcf4c4] text-[#5c5c5c] text-xs px-4 py-2 rounded-lg max-w-xs text-center shadow-sm">
+                      <svg className="inline w-3 h-3 mr-1 mb-0.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM15.1 8H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                      </svg>
+                      الرسائل والمكالمات محمية بالتشفير التام. لا يمكن لأحد خارج هذه المحادثة قراءتها أو الاستماع إليها.
+                    </div>
+                  </div>
+
+                  {/* Messages */}
                   {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.type === 'user' ? 'justify-start' : 'justify-end'}`}
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} mb-1`}
                     >
                       <div
-                        className={`max-w-[85%] sm:max-w-[75%] lg:max-w-[70%] p-3 sm:p-4 rounded-2xl shadow-md ${
+                        className={`max-w-[80%] sm:max-w-[70%] px-3 py-2 relative shadow-sm ${
                           message.type === 'user'
-                            ? 'bg-blue-500 text-white ml-2'
-                            : 'bg-gray-100 dark:bg-slate-800 text-slate-900 dark:text-white mr-2'
+                            ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-lg rounded-br-none'
+                            : 'bg-white dark:bg-[#1f2c34] text-gray-900 dark:text-white rounded-lg rounded-bl-none border border-gray-200 dark:border-transparent'
                         }`}
                       >
-                        <p className="text-sm sm:text-base leading-relaxed">{message.content}</p>
-                        <p className={`text-xs mt-2 ${
-                          message.type === 'user' ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
+                        {/* Message tail */}
+                        <div className={`absolute bottom-0 ${
+                          message.type === 'user' 
+                            ? 'right-0 transform translate-x-1' 
+                            : 'left-0 transform -translate-x-1'
                         }`}>
-                          {message.timestamp.toLocaleTimeString('ar-SA', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </p>
+                          <div className={`w-0 h-0 ${
+                            message.type === 'user'
+                              ? 'border-l-[8px] border-l-[#dcf8c6] dark:border-l-[#005c4b] border-b-[8px] border-b-transparent'
+                              : 'border-r-[8px] border-r-white dark:border-r-[#1f2c34] border-b-[8px] border-b-transparent'
+                          }`}></div>
+                        </div>
+
+                        <p className="text-sm leading-relaxed whitespace-pre-line mb-1">{message.content}</p>
+                        
+                        <div className={`flex items-center gap-1 text-xs ${
+                          message.type === 'user' ? 'justify-end text-gray-600 dark:text-[#8696a0]' : 'justify-start text-gray-500 dark:text-[#8696a0]'
+                        }`}>
+                          <span>
+                            {message.timestamp.toLocaleTimeString('ar-SA', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            })}
+                          </span>
+                          {message.type === 'user' && (
+                            <svg className="w-4 h-4 text-blue-500 dark:text-[#53bdeb]" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/>
+                            </svg>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Chat Input */}
-                <div className="p-4 sm:p-6 border-t border-white/20 dark:border-slate-700/20">
-                  <div className="flex space-x-3 space-x-reverse">
+                {/* WhatsApp Input */}
+                <div className="bg-gray-100 dark:bg-[#1f2c34] px-3 py-2 flex items-center gap-2 border-t border-gray-200 dark:border-transparent">
+                  {/* Emoticon */}
+                  <svg className="w-6 h-6 text-gray-500 dark:text-[#8696a0] cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+
+                  {/* Input Container */}
+                  <div className="flex-1 bg-white dark:bg-[#2a3942] rounded-full px-4 py-2 flex items-center gap-2 border border-gray-300 dark:border-transparent">
                     <input
                       type="text"
                       value={currentInput}
                       onChange={(e) => setCurrentInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="اكتب رسالتك هنا..."
-                      className="flex-1 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base touch-manipulation"
+                      placeholder="اكتب رسالة"
+                      className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-[#8696a0] focus:outline-none text-sm"
                     />
+                    
+                    {/* Attach & Camera */}
+                    {!currentInput && (
+                      <>
+                        <svg className="w-5 h-5 text-gray-500 dark:text-[#8696a0] cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+                        </svg>
+                        <svg className="w-5 h-5 text-gray-500 dark:text-[#8696a0] cursor-pointer" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.5 6L12 10.5 8.5 8 12 5.5 15.5 8zM12 17.5L8.5 15 12 12.5 15.5 15 12 17.5z"/>
+                        </svg>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Mic or Send Button */}
+                  {currentInput ? (
                     <button
                       onClick={handleSendMessage}
-                      className="p-3 sm:p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all duration-300 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500/50 touch-manipulation"
+                      className="w-10 h-10 bg-[#00a884] text-white rounded-full flex items-center justify-center hover:bg-[#00a884]/90 transition-colors"
                     >
-                      <Send className="w-5 h-5" />
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                      </svg>
                     </button>
-                  </div>
+                  ) : (
+                    <button className="w-10 h-10 bg-[#00a884] text-white rounded-full flex items-center justify-center hover:bg-[#00a884]/90 transition-colors">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
