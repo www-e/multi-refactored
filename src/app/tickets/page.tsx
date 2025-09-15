@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Ticket, 
   Plus, 
@@ -16,7 +16,8 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
@@ -25,7 +26,12 @@ export default function TicketsPage() {
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   
-  const { tickets, customers, properties, assignTicket, resolveTicket, approveTicket } = useAppStore()
+    const { tickets, customers, properties, assignTicket, resolveTicket, approveTicket, refreshTickets } = useAppStore()
+
+  // Auto-refresh tickets on component mount
+  useEffect(() => {
+    refreshTickets()
+  }, [refreshTickets])
 
   const columns = [
     { id: 'مفتوحة', title: 'مفتوحة', color: 'bg-blue-500' },
@@ -76,7 +82,7 @@ export default function TicketsPage() {
              ticket.priority.includes(searchQuery)
     }
     return true
-  })
+  }).slice(0, 10) // Limit to max 10 tickets
 
   const handleAssignTicket = (ticketId: string, assignee: string) => {
     assignTicket(ticketId, assignee)
@@ -104,13 +110,23 @@ export default function TicketsPage() {
             </p>
           </div>
           
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200"
-          >
-            <Plus className="w-4 h-4" />
-            <span>تذكرة جديدة</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={refreshTickets}
+              className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-all duration-200"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>تحديث</span>
+            </button>
+            
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200"
+            >
+              <Plus className="w-4 h-4" />
+              <span>تذكرة جديدة</span>
+            </button>
+          </div>
         </div>
 
         {/* Search and Filters */}

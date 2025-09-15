@@ -58,18 +58,6 @@ def get_elevenlabs_headers():
         raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
     return {"xi-api-key": api_key, "Content-Type": "application/json"}
 
-# Pydantic models
-class VoiceSessionRequest(BaseModel):
-    agent_type: str
-    customer_id: str
-
-class VoiceSessionResponse(BaseModel):
-    session_id: str
-    status: str
-    agent_type: str
-    customer_id: str
-    created_at: str
-
 # Core endpoints only - remove all debug/test endpoints
 @app.get("/")
 def read_root():
@@ -78,29 +66,6 @@ def read_root():
 @app.get("/healthz")
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
-
-# Voice session endpoint  
-@app.post("/voice/sessions", response_model=VoiceSessionResponse)
-def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
-    voice_session = models.VoiceSession(
-        id=generate_id("vs"),
-        tenant_id="demo-tenant", 
-        customer_id=body.customer_id,
-        direction="inbound",
-        status="active",
-        created_at=datetime.utcnow()
-    )
-    session.add(voice_session)
-    session.commit()
-    session.refresh(voice_session)
-    
-    return VoiceSessionResponse(
-        session_id=voice_session.id,
-        status=voice_session.status,
-        agent_type=body.agent_type,
-        customer_id=body.customer_id,
-        created_at=voice_session.created_at.isoformat()
-    )
 
 # ONLY essential endpoints - remove redundant ones
 @app.get("/bookings")
@@ -129,52 +94,9 @@ def get_bookings(limit: int = 50, db_session: Session = Depends(get_session)):
     
     return result
 
-@app.get("/bookings/recent")
-def get_recent_bookings(db_session: Session = Depends(get_session)):
-    """Get last 10 bookings for dashboard display"""
-    bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(10).all()
-    
-    result = []
-    for booking in bookings:
-        weekday_map = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
-        day_name = weekday_map[booking.preferred_datetime.weekday()] if booking.preferred_datetime else ""
-        
-        result.append({
-            "id": booking.id,
-            "session_id": booking.session_id,
-            "customer_name": booking.customer_name,
-            "phone": booking.phone,
-            "project": booking.project,
-            "preferred_datetime": booking.preferred_datetime.isoformat() if booking.preferred_datetime else None,
-            "appointment_date": booking.start_date.isoformat() if booking.start_date else None,
-            "appointment_time": booking.preferred_datetime.strftime("%H:%M") if booking.preferred_datetime else None,
-            "day_name": day_name,
-            "status": booking.status.value if booking.status else "pending",
-            "created_at": booking.created_at.isoformat()
-        })
-    
-    return result
-
 @app.get("/tickets")
 def get_tickets(limit: int = 50, db_session: Session = Depends(get_session)):
     tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(limit).all()
-    
-    return [{
-        "id": ticket.id,
-        "category": ticket.category,
-        "customer_name": ticket.customer_name,
-        "phone": ticket.phone,
-        "issue": ticket.issue,
-        "project": ticket.project,
-        "priority": ticket.priority.value if ticket.priority else "medium",
-        "status": ticket.status.value if ticket.status else "open",
-        "created_at": ticket.created_at.isoformat()
-    } for ticket in tickets]
-
-@app.get("/tickets/recent")
-def get_recent_tickets(db_session: Session = Depends(get_session)):
-    """Get last 10 tickets for dashboard display"""
-    tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(10).all()
     
     return [{
         "id": ticket.id,

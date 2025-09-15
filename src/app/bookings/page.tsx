@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Calendar, 
   Plus, 
@@ -16,7 +16,8 @@ import {
   Edit,
   Eye,
   Phone,
-  Mail
+  Mail,
+  RefreshCw
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 
@@ -25,7 +26,12 @@ export default function BookingsPage() {
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'calendar' | 'table'>('table')
   
-  const { bookings, customers, properties, approveBooking, rejectBooking } = useAppStore()
+  const { bookings, customers, properties, approveBooking, rejectBooking, refreshBookings } = useAppStore()
+
+  // Auto-refresh bookings on component mount
+  useEffect(() => {
+    refreshBookings()
+  }, [refreshBookings])
 
   const getCustomerById = (id: string) => customers.find(c => c.id === id)
   const getPropertyById = (id: string) => properties.find(p => p.id === id)
@@ -58,7 +64,7 @@ export default function BookingsPage() {
              property?.code.includes(searchQuery)
     }
     return true
-  })
+  }).slice(0, 10) // Limit to max 10 bookings
 
   const pendingBookings = filteredBookings.filter(booking => booking.status === 'معلق')
   const confirmedBookings = filteredBookings.filter(booking => booking.status === 'مؤكد')
@@ -85,10 +91,20 @@ export default function BookingsPage() {
             </p>
           </div>
           
-          <button className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200">
-            <Plus className="w-4 h-4" />
-            <span>حجز جديد</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={refreshBookings}
+              className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-all duration-200"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>تحديث</span>
+            </button>
+            
+            <button className="flex items-center space-x-2 space-x-reverse px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all duration-200">
+              <Plus className="w-4 h-4" />
+              <span>حجز جديد</span>
+            </button>
+          </div>
         </div>
 
         {/* View Mode Toggle */}

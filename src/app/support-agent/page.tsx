@@ -140,8 +140,8 @@ export default function SupportAgentPage() {
 
       // Then fetch all current data
       const [bookingsResponse, ticketsResponse] = await Promise.all([
-        fetch('http://127.0.0.1:8000/bookings'),
-        fetch('http://127.0.0.1:8000/tickets')
+        fetch('http://127.0.0.1:8000/bookings/recent'),
+        fetch('http://127.0.0.1:8000/tickets/recent')
       ])
 
       if (bookingsResponse.ok) {
@@ -407,26 +407,26 @@ export default function SupportAgentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+  <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6">
+  <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">مساعد خدمة العملاء الذكي</h1>
-          <p className="text-gray-600">تحدث مع المساعد الصوتي وسيتم إنشاء الإجراءات المناسبة تلقائياً</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">مساعد خدمة العملاء الذكي</h1>
+          <p className="text-gray-600 dark:text-slate-400">تحدث مع المساعد الصوتي وسيتم إنشاء الإجراءات المناسبة تلقائياً</p>
         </div>
 
         {/* Voice Control Panel */}
-        <div className="bg-white rounded-lg shadow-sm border p-8 mb-8">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 p-8 mb-8">
           <div className="text-center">
             <div className="mb-6">
               {voiceAgent.isConnected ? (
-                <div className="inline-flex items-center gap-3 px-6 py-3 bg-green-100 text-green-800 rounded-full">
+                <div className="inline-flex items-center gap-3 px-6 py-3 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-full">
                   <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="font-medium">متصل - جاهز للاستماع</span>
                 </div>
               ) : (
-                <div className="inline-flex items-center gap-3 px-6 py-3 bg-gray-100 text-gray-600 rounded-full">
-                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                <div className="inline-flex items-center gap-3 px-6 py-3 bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded-full">
+                  <div className="w-3 h-3 bg-gray-400 dark:bg-slate-500 rounded-full"></div>
                   <span className="font-medium">غير متصل</span>
                 </div>
               )}
@@ -457,16 +457,16 @@ export default function SupportAgentPage() {
 
             {/* Current Transcript */}
             {currentTranscript && (
-              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-800">ما تقوله الآن:</span>
+                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-300">ما تقوله الآن:</span>
                 </div>
-                <p className="text-blue-900">{currentTranscript}</p>
+                <p className="text-blue-900 dark:text-blue-100">{currentTranscript}</p>
                 {isProcessing && (
                   <div className="flex items-center gap-2 mt-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                    <span className="text-sm text-blue-600">جاري المعالجة...</span>
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                    <span className="text-sm text-blue-600 dark:text-blue-400">جاري المعالجة...</span>
                   </div>
                 )}
               </div>
@@ -474,16 +474,16 @@ export default function SupportAgentPage() {
 
             {/* Agent Response */}
             {agentResponse && (
-              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Volume2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-green-800">رد المساعد:</span>
+                  <Volume2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <span className="text-sm font-medium text-green-800 dark:text-green-300">رد المساعد:</span>
                 </div>
-                <p className="text-green-900">{agentResponse}</p>
+                <p className="text-green-900 dark:text-green-100">{agentResponse}</p>
               </div>
             )}
 
-            <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+            <p className="text-sm text-gray-500 dark:text-slate-400 max-w-2xl mx-auto">
               اضغط على "بدء مكالمة صوتية" وتحدث عن مشكلتك أو طلبك. سيقوم المساعد الذكي بفهم كلامك وإنشاء التذكرة أو الموعد أو الاستفسار المناسب تلقائياً.
             </p>
           </div>
@@ -492,7 +492,7 @@ export default function SupportAgentPage() {
         {/* Real Webhook Requests Section */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">طلبات العملاء الجديدة</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">طلبات العملاء الجديدة</h2>
             <Button onClick={fetchBackendData} variant="outline" size="sm" disabled={isLoadingData}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
               تحديث من ElevenLabs
@@ -501,58 +501,58 @@ export default function SupportAgentPage() {
 
           {isLoadingData ? (
             <div className="text-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-gray-600">جاري مزامنة المكالمات من ElevenLabs...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-slate-400">جاري مزامنة المكالمات من ElevenLabs...</p>
             </div>
           ) : (
             <>
               {/* Bookings Section */}
               {backendBookings.length > 0 && (
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     طلبات المواعيد ({backendBookings.length})
                   </h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {backendBookings.map((booking) => (
-                      <div key={booking.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                      <div key={booking.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 hover:shadow-md transition-shadow">
                         <div className="p-6">
                           <div className="flex items-center justify-between mb-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                               <Calendar className="w-4 h-4" />
                               موعد
                             </span>
                             <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
+                              booking.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                              booking.status === 'confirmed' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                              'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
                             }`}>
                               {booking.status === 'pending' ? 'في الانتظار' :
                                booking.status === 'confirmed' ? 'مؤكد' : 'ملغي'}
                             </span>
                           </div>
 
-                          <h4 className="font-semibold text-gray-900 mb-2">{booking.project}</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{booking.project}</h4>
                           
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center gap-2 text-sm">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-700">{booking.customer_name}</span>
+                              <User className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-700 dark:text-slate-300">{booking.customer_name}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                              <Phone className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600" dir="ltr">{booking.phone}</span>
+                              <Phone className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-600 dark:text-slate-400" dir="ltr">{booking.phone}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                              <Clock className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <Clock className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-600 dark:text-slate-400">
                                 {booking.day_name} {booking.appointment_date} - {booking.appointment_time}
                               </span>
                             </div>
                           </div>
 
                           {booking.status === 'pending' && (
-                            <div className="flex gap-2 pt-4 border-t">
+                            <div className="flex gap-2 pt-4 border-t dark:border-slate-600">
                               <Button
                                 onClick={() => handleBookingAction(booking.id, 'approve')}
                                 size="sm"
@@ -565,7 +565,7 @@ export default function SupportAgentPage() {
                                 onClick={() => handleBookingAction(booking.id, 'deny')}
                                 size="sm"
                                 variant="outline"
-                                className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                                className="flex-1 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                               >
                                 <X className="w-4 h-4 mr-1" />
                                 رفض
@@ -582,32 +582,32 @@ export default function SupportAgentPage() {
               {/* Tickets Section */}
               {backendTickets.length > 0 && (
                 <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Ticket className="w-5 h-5 text-red-600" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+                    <Ticket className="w-5 h-5 text-red-600 dark:text-red-400" />
                     تذاكر الدعم ({backendTickets.length})
                   </h3>
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                     {backendTickets.map((ticket) => (
-                      <div key={ticket.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                      <div key={ticket.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 hover:shadow-md transition-shadow">
                         <div className="p-6">
                           <div className="flex items-center justify-between mb-4">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800">
                               <Ticket className="w-4 h-4" />
                               تذكرة
                             </span>
                             <div className="flex gap-1">
                               <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                                ticket.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                ticket.priority === 'med' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
+                                ticket.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                                ticket.priority === 'med' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                                'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                               }`}>
                                 {ticket.priority === 'high' ? 'عالية' :
                                  ticket.priority === 'med' ? 'متوسطة' : 'منخفضة'}
                               </span>
                               <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                                ticket.status === 'open' ? 'bg-blue-100 text-blue-800' :
-                                ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
+                                ticket.status === 'open' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
+                                ticket.status === 'in_progress' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
+                                'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                               }`}>
                                 {ticket.status === 'open' ? 'مفتوحة' :
                                  ticket.status === 'in_progress' ? 'قيد المعالجة' : 'مغلقة'}
@@ -615,32 +615,32 @@ export default function SupportAgentPage() {
                             </div>
                           </div>
 
-                          <h4 className="font-semibold text-gray-900 mb-2">{ticket.project}</h4>
+                          <h4 className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{ticket.project}</h4>
                           
-                          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                            <div className="text-xs text-gray-500 mb-1">وصف المشكلة:</div>
-                            <p className="text-sm text-gray-700">{ticket.issue}</p>
+                          <div className="mb-4 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                            <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">وصف المشكلة:</div>
+                            <p className="text-sm text-gray-700 dark:text-slate-300">{ticket.issue}</p>
                           </div>
 
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center gap-2 text-sm">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-700">{ticket.customer_name}</span>
+                              <User className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-700 dark:text-slate-300">{ticket.customer_name}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                              <Phone className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600" dir="ltr">{ticket.phone}</span>
+                              <Phone className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-600 dark:text-slate-400" dir="ltr">{ticket.phone}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm">
-                              <Clock className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-600">
+                              <Clock className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                              <span className="text-gray-600 dark:text-slate-400">
                                 {new Date(ticket.created_at).toLocaleString('ar-SA')}
                               </span>
                             </div>
                           </div>
 
                           {ticket.status === 'open' && (
-                            <div className="flex gap-2 pt-4 border-t">
+                            <div className="flex gap-2 pt-4 border-t dark:border-slate-600">
                               <Button
                                 onClick={() => handleTicketAction(ticket.id, 'approve')}
                                 size="sm"
@@ -653,7 +653,7 @@ export default function SupportAgentPage() {
                                 onClick={() => handleTicketAction(ticket.id, 'deny')}
                                 size="sm"
                                 variant="outline"
-                                className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                                className="flex-1 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20"
                               >
                                 <X className="w-4 h-4 mr-1" />
                                 رفض
@@ -669,10 +669,10 @@ export default function SupportAgentPage() {
 
               {/* Empty State */}
               {backendBookings.length === 0 && backendTickets.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-lg border">
-                  <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد طلبات جديدة</h3>
-                  <p className="text-gray-600 max-w-md mx-auto">
+                <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700">
+                  <MessageSquare className="w-16 h-16 text-gray-300 dark:text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">لا توجد طلبات جديدة</h3>
+                  <p className="text-gray-600 dark:text-slate-400 max-w-md mx-auto">
                     عندما يتم إنشاء طلبات جديدة من خلال المكالمات الصوتية، ستظهر هنا للمراجعة والموافقة.
                   </p>
                 </div>
@@ -684,10 +684,10 @@ export default function SupportAgentPage() {
         {/* Generated Actions */}
         {generatedActions.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-4">الإجراءات المنشأة ({generatedActions.length})</h2>
+            <h2 className="text-xl font-semibold dark:text-slate-100 mb-4">الإجراءات المنشأة ({generatedActions.length})</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {generatedActions.map((action) => (
-                <div key={action.id} className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow">
+                <div key={action.id} className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 hover:shadow-md transition-shadow">
                   <div className="p-6">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">

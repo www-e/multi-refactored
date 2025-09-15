@@ -57,6 +57,11 @@ interface AppState {
   runCampaign: (id: string) => void
   stopCampaign: (id: string) => void
   
+  // Refresh functions - fetch real data from backend
+  refreshTickets: () => Promise<void>
+  refreshBookings: () => Promise<void>
+  refreshAllData: () => Promise<void>
+  
   // Selections
   setSelectedCustomer: (customer: Customer | null) => void
   setSelectedConversation: (conversation: Conversation | null) => void
@@ -321,11 +326,11 @@ const initialLiveOps: LiveOps = {
 export const useAppStore = create<AppState>()(
   devtools(
     (set, get) => ({
-      // Initial state
+      // Initial state - start with empty arrays for real data
       customers: seedCustomers,
       conversations: seedConversations,
-      tickets: seedTickets,
-      bookings: seedBookings,
+      tickets: [], // Will be populated by refreshTickets()
+      bookings: [], // Will be populated by refreshBookings()
       campaigns: seedCampaigns,
       properties: seedProperties,
       dashboardKPIs: initialKPIs,
@@ -506,6 +511,38 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           conversations: [newMessage, ...state.conversations]
         }))
+      },
+
+      // Refresh functions - fetch real data from backend (max 10 items)
+      refreshTickets: async () => {
+        try {
+          const response = await fetch('http://127.0.0.1:8000/tickets/recent')
+          if (response.ok) {
+            const tickets = await response.json()
+            set({ tickets })
+          }
+        } catch (error) {
+          console.error('Failed to refresh tickets:', error)
+        }
+      },
+
+      refreshBookings: async () => {
+        try {
+          const response = await fetch('http://127.0.0.1:8000/bookings/recent')
+          if (response.ok) {
+            const bookings = await response.json()
+            set({ bookings })
+          }
+        } catch (error) {
+          console.error('Failed to refresh bookings:', error)
+        }
+      },
+
+      refreshAllData: async () => {
+        await Promise.all([
+          get().refreshTickets(),
+          get().refreshBookings()
+        ])
       }
     }),
     {

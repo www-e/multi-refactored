@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 
 export async function GET() {
   try {
-    // Fetch from the backend API
-    const response = await fetch('http://127.0.0.1:8000/tickets')
+    // Fetch from the backend API - only recent 10 tickets
+    const response = await fetch('http://127.0.0.1:8000/tickets/recent')
     if (!response.ok) {
       throw new Error('Failed to fetch tickets from backend')
     }

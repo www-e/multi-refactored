@@ -26,7 +26,20 @@ import { useAppStore } from '@/lib/store'
 
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d')
-  const { dashboardKPIs, liveOps, simulateInboundCall, simulateInboundMessage } = useAppStore()
+  const { 
+    dashboardKPIs, 
+    liveOps, 
+    tickets,
+    bookings,
+    simulateInboundCall, 
+    simulateInboundMessage,
+    refreshAllData 
+  } = useAppStore()
+
+  // Auto-refresh data on component mount
+  useEffect(() => {
+    refreshAllData()
+  }, [refreshAllData])
 
   const periods = [
     { value: '1d', label: 'اليوم' },
