@@ -17,7 +17,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في الإرسال
     await new Promise(resolve => setTimeout(resolve, 2000))
     
-    console.log('تم إرسال رسالة واتساب:', messageData)
     
     return NextResponse.json({
       success: true,

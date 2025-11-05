@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     // محاكاة نجاح الدفع
     paymentData.status = 'completed'
     
-    console.log('تم معالجة الدفع:', paymentData)
     
     return NextResponse.json({
       success: true,

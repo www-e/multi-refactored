@@ -21,7 +21,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في المعالجة
     await new Promise(resolve => setTimeout(resolve, 1200))
     
-    console.log('تم إنشاء عميل محتمل جديد:', newLead)
     
     return NextResponse.json({
       success: true,

@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     }
     
     // في التطبيق الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
-    console.log('تم إنشاء تذكرة جديدة:', newTicket)
     
     return NextResponse.json(newTicket, { status: 201 })
   } catch (error) {

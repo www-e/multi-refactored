@@ -27,16 +27,13 @@ export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
   
   const conversation = useConversation({
     onConnect: () => {
-      console.log('ElevenLabs conversation connected')
       options.onStatusChange?.('connected')
     },
     onDisconnect: () => {
-      console.log('ElevenLabs conversation disconnected')
       options.onStatusChange?.('idle')
       setCurrentSession(null)
     },
     onMessage: (message) => {
-      console.log('ElevenLabs message:', message)
       // Handle transcript updates based on the actual SDK message structure
       if (message.source === 'user') {
         options.onTranscript?.(message.message, true)

@@ -93,7 +93,7 @@ export default function SupportAgentPage() {
       console.error('Voice agent error:', error)
     },
     onStatusChange: (status) => {
-      console.log('Voice agent status:', status)
+      // Status tracked via voiceAgent state
     }
   })
 
@@ -102,7 +102,6 @@ export default function SupportAgentPage() {
     setIsLoadingData(true)
     try {
       // First sync with ElevenLabs - get recent conversations and process them
-      console.log('Syncing with ElevenLabs...')
       
       try {
         // Get conversation list
@@ -110,8 +109,6 @@ export default function SupportAgentPage() {
         if (conversationsResponse.ok) {
           const conversationsData = await conversationsResponse.json()
           const conversations = conversationsData.conversations || []
-          
-          console.log(`Processing ${Math.min(3, conversations.length)} recent conversations...`)
           
           // Process the 3 most recent conversations
           for (let i = 0; i < Math.min(3, conversations.length); i++) {
@@ -126,7 +123,7 @@ export default function SupportAgentPage() {
                 
                 if (processResponse.ok) {
                   const processResult = await processResponse.json()
-                  console.log(`Processed conversation ${conversationId}:`, processResult)
+                  // Conversation processed successfully
                 }
               } catch (error) {
                 console.warn(`Failed to process conversation ${conversationId}:`, error)
@@ -166,7 +163,6 @@ export default function SupportAgentPage() {
     
     // Set up automatic polling every 10 seconds for new appointments
     const interval = setInterval(() => {
-      console.log('Auto-polling for new appointments...')
       fetchBackendData()
     }, 10000) // 10 seconds
     

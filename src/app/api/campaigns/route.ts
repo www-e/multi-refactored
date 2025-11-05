@@ -17,7 +17,6 @@ export async function POST(request: Request) {
     }
     
     // في التطبيق الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
-    console.log('تم إنشاء حملة جديدة:', newCampaign)
     
     return NextResponse.json(newCampaign, { status: 201 })
   } catch (error) {

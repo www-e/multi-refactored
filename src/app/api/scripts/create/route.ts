@@ -19,7 +19,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في المعالجة
     await new Promise(resolve => setTimeout(resolve, 800))
     
-    console.log('تم إنشاء برنامج نصي جديد:', newScript)
     
     return NextResponse.json({
       success: true,

@@ -27,7 +27,6 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString()
     }
     
-    console.log('تم إنشاء حجز جديد:', newBooking)
     
     return NextResponse.json(newBooking, { status: 201 })
   } catch (error) {

@@ -25,7 +25,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في المعالجة
     await new Promise(resolve => setTimeout(resolve, 1500))
     
-    console.log('تم إنشاء حملة جديدة:', newCampaign)
     
     return NextResponse.json({
       success: true,

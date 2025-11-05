@@ -104,7 +104,7 @@ export default function PlaygroundPage() {
       setTimeout(() => setError(null), 5000)
     },
     onStatusChange: (newStatus) => {
-      console.log('Voice status changed:', newStatus)
+      // Status change handled via UI state
     }
   })
 

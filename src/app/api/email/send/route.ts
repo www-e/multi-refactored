@@ -18,7 +18,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في الإرسال
     await new Promise(resolve => setTimeout(resolve, 1500))
     
-    console.log('تم إرسال رسالة بريد إلكتروني:', emailData)
     
     return NextResponse.json({
       success: true,

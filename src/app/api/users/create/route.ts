@@ -18,7 +18,6 @@ export async function POST(request: Request) {
     // محاكاة تأخير في المعالجة
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    console.log('تم إنشاء مستخدم جديد:', newUser)
     
     return NextResponse.json({
       success: true,
