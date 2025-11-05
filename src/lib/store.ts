@@ -85,7 +85,7 @@ const seedCustomers: Customer[] = [
     name: 'أحمد العتيبي',
     phone: '+966501234567',
     email: 'ahmed@example.com',
-    budget: 12000,
+    budget: 3000000,
     neighborhoods: ['حي الملقا', 'حي القيروان'],
     stage: 'مؤهل',
     consents: { marketing: true, recording: true, whatsapp: true },
@@ -97,7 +97,7 @@ const seedCustomers: Customer[] = [
     name: 'نورة السبيعي',
     phone: '+966507654321',
     email: 'noura@example.com',
-    budget: 8000,
+    budget: 2000000,
     neighborhoods: ['حي حطين', 'حي الندى'],
     stage: 'جديد',
     consents: { marketing: false, recording: true, whatsapp: false },
@@ -109,12 +109,36 @@ const seedCustomers: Customer[] = [
     name: 'محمد القحطاني',
     phone: '+966509876543',
     email: 'mohammed@example.com',
-    budget: 15000,
+    budget: 3500000,
     neighborhoods: ['حي الملقا', 'حي التعاون'],
     stage: 'حجز',
     consents: { marketing: true, recording: true, whatsapp: true },
     createdAt: new Date(Date.now() - 259200000).toISOString(),
     updatedAt: new Date(Date.now() - 259200000).toISOString()
+  },
+  {
+    id: '4',
+    name: 'سعد الغامدي',
+    phone: '+966508765432',
+    email: 'saad@example.com',
+    budget: 2500000,
+    neighborhoods: ['حي حطين', 'حي الملقا'],
+    stage: 'مؤهل',
+    consents: { marketing: true, recording: true, whatsapp: true },
+    createdAt: new Date(Date.now() - 345600000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: '5',
+    name: 'فاطمة الحربي',
+    phone: '+966503456789',
+    email: 'fatima@example.com',
+    budget: 4500000,
+    neighborhoods: ['حي التعاون', 'حي الندى'],
+    stage: 'مؤهل',
+    consents: { marketing: false, recording: true, whatsapp: true },
+    createdAt: new Date(Date.now() - 432000000).toISOString(),
+    updatedAt: new Date(Date.now() - 172800000).toISOString()
   }
 ]
 
@@ -125,13 +149,13 @@ const seedConversations: Conversation[] = [
     type: 'صوت',
     customerId: '1',
     transcript: [
-      { role: 'user', text: 'أهلاً، أبحث عن شقة في حي الملقا', ts: Date.now() - 300000 },
-      { role: 'agent', text: 'أهلاً وسهلاً! عندنا خيارات ممتازة في حي الملقا. ما هي ميزانيتك؟', ts: Date.now() - 280000 },
-      { role: 'user', text: 'حوالي 12,000 ريال شهرياً', ts: Date.now() - 260000 },
-      { role: 'agent', text: 'ممتاز! عندنا شقة بغرفتين نوم مفروشة بسعر 11,500 ريال. هل تود حجز زيارة؟', ts: Date.now() - 240000 }
+      { role: 'user', text: 'أهلاً، أبحث عن شقة للشراء في حي الملقا', ts: Date.now() - 300000 },
+      { role: 'agent', text: 'أهلاً وسهلاً! عندنا خيارات ممتازة للشراء في حي الملقا. ما هي ميزانيتك؟', ts: Date.now() - 280000 },
+      { role: 'user', text: 'حوالي 3 مليون ريال', ts: Date.now() - 260000 },
+      { role: 'agent', text: 'ممتاز! عندنا شقة بغرفتين نوم مفروشة بسعر 2.85 مليون ريال. هل تود حجز زيارة؟', ts: Date.now() - 240000 }
     ],
-    summary: 'عميل يبحث عن شقة في حي الملقا بميزانية 12,000 ريال',
-    entities: { neighborhood: 'حي الملقا', budgetSAR: 12000, bedrooms: 2 },
+    summary: 'عميل يبحث عن شقة للشراء في حي الملقا بميزانية 3 مليون ريال',
+    entities: { neighborhood: 'حي الملقا', budgetSAR: 3000000, bedrooms: 2 },
     sentiment: 'إيجابي',
     status: 'مفتوحة',
     createdAt: new Date(Date.now() - 3600000).toISOString(),
@@ -142,11 +166,11 @@ const seedConversations: Conversation[] = [
     type: 'رسالة',
     customerId: '2',
     transcript: [
-      { role: 'user', text: 'هل عندكم شقق متاحة في حي حطين؟', ts: Date.now() - 600000 },
-      { role: 'agent', text: 'نعم! عندنا شقة بغرفة نوم واحدة مفروشة بسعر 7,500 ريال شهرياً', ts: Date.now() - 580000 },
+      { role: 'user', text: 'هل عندكم شقق للبيع في حي حطين؟', ts: Date.now() - 600000 },
+      { role: 'agent', text: 'نعم! عندنا شقة بغرفة نوم واحدة مفروشة بسعر 1.85 مليون ريال', ts: Date.now() - 580000 },
       { role: 'user', text: 'ممكن أعرف المزيد عن الشقة؟', ts: Date.now() - 560000 }
     ],
-    summary: 'عميلة تسأل عن شقق في حي حطين',
+    summary: 'عميلة تسأل عن شقق للبيع في حي حطين',
     entities: { neighborhood: 'حي حطين' },
     sentiment: 'محايد',
     status: 'مفتوحة',
@@ -160,7 +184,8 @@ const seedTickets: EnhancedTicket[] = [
   {
     id: '1',
     customerId: '1',
-    priority: 'متوسط',
+    propertyId: '1',
+    priority: 'عالٍ',
     category: 'كهرباء',
     status: 'مفتوحة',
     slaDueAt: new Date(Date.now() + 86400000).toISOString(),
@@ -170,6 +195,7 @@ const seedTickets: EnhancedTicket[] = [
   {
     id: '2',
     customerId: '3',
+    propertyId: '2',
     priority: 'عالٍ',
     category: 'سباكة',
     status: 'قيد_المعالجة',
@@ -177,6 +203,54 @@ const seedTickets: EnhancedTicket[] = [
     slaDueAt: new Date(Date.now() + 43200000).toISOString(),
     createdAt: new Date(Date.now() - 7200000).toISOString(),
     updatedAt: new Date(Date.now() - 7200000).toISOString()
+  },
+  {
+    id: '3',
+    customerId: '2',
+    propertyId: '3',
+    priority: 'متوسط',
+    category: 'مفاتيح',
+    status: 'بانتظار_الموافقة',
+    assignee: 'خالد الأمن',
+    slaDueAt: new Date(Date.now() + 172800000).toISOString(),
+    createdAt: new Date(Date.now() - 14400000).toISOString(),
+    updatedAt: new Date(Date.now() - 7200000).toISOString(),
+    resolutionNote: 'تم تغيير القفل وتسليم المفاتيح الجديدة للعميلة'
+  },
+  {
+    id: '4',
+    customerId: '1',
+    propertyId: '1',
+    priority: 'منخفض',
+    category: 'تنظيف',
+    status: 'محلولة',
+    assignee: 'سارة التنظيف',
+    slaDueAt: new Date(Date.now() - 86400000).toISOString(),
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString(),
+    resolutionNote: 'تم تنظيف الشقة بالكامل وتعقيمها جيداً'
+  },
+  {
+    id: '5',
+    customerId: '2',
+    priority: 'عالٍ',
+    category: 'أخرى',
+    status: 'مفتوحة',
+    slaDueAt: new Date(Date.now() + 21600000).toISOString(),
+    createdAt: new Date(Date.now() - 1800000).toISOString(),
+    updatedAt: new Date(Date.now() - 1800000).toISOString()
+  },
+  {
+    id: '6',
+    customerId: '3',
+    propertyId: '2',
+    priority: 'متوسط',
+    category: 'كهرباء',
+    status: 'قيد_المعالجة',
+    assignee: 'فهد الكهرباء',
+    slaDueAt: new Date(Date.now() + 259200000).toISOString(),
+    createdAt: new Date(Date.now() - 21600000).toISOString(),
+    updatedAt: new Date(Date.now() - 10800000).toISOString()
   }
 ]
 
@@ -189,7 +263,7 @@ const seedBookings: EnhancedBooking[] = [
     startDate: '2024-02-15',
     endDate: '2024-02-16',
     status: 'معلق',
-    price: 11500,
+    price: 2850000,
     source: 'صوت',
     createdBy: 'AI',
     createdAt: new Date(Date.now() - 86400000).toISOString(),
@@ -202,11 +276,63 @@ const seedBookings: EnhancedBooking[] = [
     startDate: '2024-02-20',
     endDate: '2024-02-21',
     status: 'مؤكد',
-    price: 12000,
+    price: 3200000,
     source: 'صوت',
     createdBy: 'AI',
     createdAt: new Date(Date.now() - 172800000).toISOString(),
     updatedAt: new Date(Date.now() - 172800000).toISOString()
+  },
+  {
+    id: '3',
+    customerId: '2',
+    propertyId: '3',
+    startDate: '2024-02-18',
+    endDate: '2024-02-19',
+    status: 'مكتمل',
+    price: 1850000,
+    source: 'رسالة',
+    createdBy: 'بشري',
+    createdAt: new Date(Date.now() - 259200000).toISOString(),
+    updatedAt: new Date(Date.now() - 86400000).toISOString()
+  },
+  {
+    id: '4',
+    customerId: '1',
+    propertyId: '1',
+    startDate: '2024-02-22',
+    endDate: '2024-02-23',
+    status: 'ملغي',
+    price: 2850000,
+    source: 'صوت',
+    createdBy: 'AI',
+    createdAt: new Date(Date.now() - 345600000).toISOString(),
+    updatedAt: new Date(Date.now() - 172800000).toISOString()
+  },
+  {
+    id: '5',
+    customerId: '2',
+    propertyId: '3',
+    startDate: '2024-02-25',
+    endDate: '2024-02-26',
+    status: 'معلق',
+    price: 1850000,
+    source: 'رسالة',
+    createdBy: 'AI',
+    createdAt: new Date(Date.now() - 43200000).toISOString(),
+    updatedAt: new Date(Date.now() - 43200000).toISOString()
+  },
+  {
+    id: '6',
+    customerId: '3',
+    propertyId: '2',
+    startDate: '2024-02-28',
+    endDate: '2024-03-01',
+    status: 'مؤكد',
+    price: 3200000,
+    source: 'صوت',
+    createdBy: 'بشري',
+    createdAt: new Date(Date.now() - 21600000).toISOString(),
+    updatedAt: new Date(Date.now() - 10800000).toISOString()
   }
 ]
 
@@ -263,8 +389,8 @@ const seedProperties: Property[] = [
     bedrooms: 2,
     bathrooms: 2,
     furnished: true,
-    monthlyPriceSAR: 11500,
-    yearlyPriceSAR: 115000,
+    monthlyPriceSAR: 2850000,
+    yearlyPriceSAR: 2850000,
     images: ['/images/mg13-1.jpg', '/images/mg13-2.jpg'],
     availability: 'متاح'
   },
@@ -277,8 +403,8 @@ const seedProperties: Property[] = [
     bedrooms: 3,
     bathrooms: 2,
     furnished: false,
-    monthlyPriceSAR: 12000,
-    yearlyPriceSAR: 120000,
+    monthlyPriceSAR: 3200000,
+    yearlyPriceSAR: 3200000,
     images: ['/images/mg132-1.jpg'],
     availability: 'محجوز'
   },
@@ -291,9 +417,37 @@ const seedProperties: Property[] = [
     bedrooms: 1,
     bathrooms: 1,
     furnished: true,
-    monthlyPriceSAR: 7500,
-    yearlyPriceSAR: 75000,
+    monthlyPriceSAR: 1850000,
+    yearlyPriceSAR: 1850000,
     images: ['/images/wh41-1.jpg'],
+    availability: 'متاح'
+  },
+  {
+    id: '4',
+    code: 'الندى - ND22',
+    city: 'الرياض',
+    neighborhood: 'حي الندى',
+    rooms: 3,
+    bedrooms: 2,
+    bathrooms: 2,
+    furnished: true,
+    monthlyPriceSAR: 2350000,
+    yearlyPriceSAR: 2350000,
+    images: ['/images/nd22-1.jpg'],
+    availability: 'متاح'
+  },
+  {
+    id: '5',
+    code: 'التعاون - TC51',
+    city: 'الرياض',
+    neighborhood: 'حي التعاون',
+    rooms: 4,
+    bedrooms: 3,
+    bathrooms: 3,
+    furnished: false,
+    monthlyPriceSAR: 4250000,
+    yearlyPriceSAR: 4250000,
+    images: ['/images/tc51-1.jpg', '/images/tc51-2.jpg'],
     availability: 'متاح'
   }
 ]
@@ -326,11 +480,11 @@ const initialLiveOps: LiveOps = {
 export const useAppStore = create<AppState>()(
   devtools(
     (set, get) => ({
-      // Initial state - start with empty arrays for real data
+      // Initial state - using seed data for demo
       customers: seedCustomers,
       conversations: seedConversations,
-      tickets: [], // Will be populated by refreshTickets()
-      bookings: [], // Will be populated by refreshBookings()
+      tickets: seedTickets, // Using seed data instead of empty array
+      bookings: seedBookings, // Using seed data instead of empty array
       campaigns: seedCampaigns,
       properties: seedProperties,
       dashboardKPIs: initialKPIs,
@@ -513,29 +667,15 @@ export const useAppStore = create<AppState>()(
         }))
       },
 
-      // Refresh functions - fetch real data from backend (max 10 items)
+      // Refresh functions - use dummy data only (no API calls)
       refreshTickets: async () => {
-        try {
-          const response = await fetch('http://127.0.0.1:8000/tickets/recent')
-          if (response.ok) {
-            const tickets = await response.json()
-            set({ tickets })
-          }
-        } catch (error) {
-          console.error('Failed to refresh tickets:', error)
-        }
+        // Simply ensure we have the seed data loaded
+        set({ tickets: seedTickets })
       },
 
       refreshBookings: async () => {
-        try {
-          const response = await fetch('http://127.0.0.1:8000/bookings/recent')
-          if (response.ok) {
-            const bookings = await response.json()
-            set({ bookings })
-          }
-        } catch (error) {
-          console.error('Failed to refresh bookings:', error)
-        }
+        // Simply ensure we have the seed data loaded  
+        set({ bookings: seedBookings })
       },
 
       refreshAllData: async () => {
