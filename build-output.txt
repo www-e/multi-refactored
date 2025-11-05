@@ -1,0 +1,23 @@
+
+> navaia-voice-agent-portal@0.1.0 build
+> next build
+
+   ▲ Next.js 14.0.4
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+   Downloading swc package @next/swc-darwin-arm64...
+(node:32060) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+./src/app/playground/page.tsx
+587:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+Failed to compile.
+
+src/app/voice-sessions/page.tsx
+Type error: File '/Users/rakanalrasheed/Desktop/NAVAIA/Voice_agent_portal/src/app/voice-sessions/page.tsx' is not a module.
+

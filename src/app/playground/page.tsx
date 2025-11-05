@@ -583,12 +583,8 @@ export default function PlaygroundPage() {
               <div className="bg-[#0b141a] dark:bg-[#0b141a] bg-gray-50 rounded-2xl border border-slate-700/20 dark:border-slate-700/20 border-gray-200 shadow-lg h-[500px] sm:h-[600px] lg:h-[700px] flex flex-col overflow-hidden">
                 {/* WhatsApp Header */}
                 <div className="bg-[#2a3942] dark:bg-[#2a3942] bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-200 dark:border-transparent">
-                  <div className="w-10 h-10 rounded-full overflow-hidden">
-                    <img 
-                      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face" 
-                      alt="Agent Avatar" 
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center">
+                    <selectedAgent.icon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-white dark:text-white text-gray-900 font-medium text-sm">
