@@ -84,3 +84,6 @@ build-output.txt
 .Trashes
 ehthumbs.db
 Thumbs.db 
+
+docs/
+package-lock.json
