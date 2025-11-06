@@ -42,9 +42,12 @@ export default function SettingsPage() {
     notificationEmail: 'manager@navaia.com'
   })
 
+  const [saveSuccess, setSaveSuccess] = useState(false)
+
   const handleSave = () => {
     // Simulate saving settings
-    alert('تم حفظ الإعدادات بنجاح!')
+    setSaveSuccess(true)
+    setTimeout(() => setSaveSuccess(false), 3000)
   }
 
   const daysOfWeek = [
@@ -344,6 +347,13 @@ export default function SettingsPage() {
               <span>حفظ الإعدادات</span>
             </button>
           </div>
+
+          {/* Success Notification */}
+          {saveSuccess && (
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in z-50">
+              ✓ تم حفظ الإعدادات بنجاح!
+            </div>
+          )}
         </div>
       </div>
     </div>

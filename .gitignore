@@ -67,6 +67,10 @@ backend/*.db
 *.log
 logs/*.log
 backend/uvicorn.log
+dev-servers.log
+frontend.log
+backend.log
+build-output.txt
 
 # IDE
 .vscode/settings.json
