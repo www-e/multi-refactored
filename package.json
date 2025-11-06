@@ -8,6 +8,7 @@
     "dev:backend": "cd backend && .venv312/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
     "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" --names \"backend,frontend\" --prefix-colors \"blue,green\"",
     "build": "next build",
+    "build:analyze": "ANALYZE=true next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
@@ -38,7 +39,9 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.0.1",
     "concurrently": "^9.2.0",
-    "prettier": "^3.1.0"
+    "prettier": "^3.1.0",
+    "ts-prune": "^0.10.3"
   }
 }
