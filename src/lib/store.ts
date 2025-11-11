@@ -1,5 +1,5 @@
-import { create } from 'zustand'
-import { devtools } from 'zustand/middleware'
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 import { 
   Customer, 
   Conversation, 
@@ -8,685 +8,172 @@ import {
   EnhancedCampaign,
   DashboardKPIs,
   LiveOps,
-  Property,
-  Neighborhood
-} from '@/app/(shared)/types'
+  Property
+} from '@/app/(shared)/types';
+import { 
+  getTickets, 
+  getBookings, 
+  updateBookingStatus, 
+  updateTicketStatus 
+} from './apiClient';
 
 interface AppState {
   // Core data
-  customers: Customer[]
-  conversations: Conversation[]
-  tickets: EnhancedTicket[]
-  bookings: EnhancedBooking[]
-  campaigns: EnhancedCampaign[]
-  properties: Property[]
+  customers: Customer[];
+  conversations: Conversation[];
+  tickets: EnhancedTicket[];
+  bookings: EnhancedBooking[];
+  campaigns: EnhancedCampaign[];
+  properties: Property[];
   
   // Dashboard state
-  dashboardKPIs: DashboardKPIs
-  liveOps: LiveOps
-  
-  // UI state
-  selectedCustomer: Customer | null
-  selectedConversation: Conversation | null
-  selectedTicket: EnhancedTicket | null
-  selectedBooking: EnhancedBooking | null
-  selectedCampaign: EnhancedCampaign | null
+  dashboardKPIs: DashboardKPIs;
+  liveOps: LiveOps;
   
   // Actions
-  addCustomer: (customer: Customer) => void
-  updateCustomer: (id: string, updates: Partial<Customer>) => void
-  deleteCustomer: (id: string) => void
+  addTicket: (ticket: EnhancedTicket) => void;
+  updateTicket: (id: string, updates: Partial<EnhancedTicket>) => void;
+  assignTicket: (id: string, assignee: string) => Promise<void>;
+  resolveTicket: (id: string, resolution: string) => Promise<void>;
+  approveTicket: (id: string, approver: string) => Promise<void>;
   
-  addConversation: (conversation: Conversation) => void
-  updateConversation: (id: string, updates: Partial<Conversation>) => void
-  closeConversation: (id: string) => void
+  addBooking: (booking: EnhancedBooking) => void;
+  updateBooking: (id: string, updates: Partial<EnhancedBooking>) => void;
+  approveBooking: (id: string) => Promise<void>;
+  rejectBooking: (id: string) => Promise<void>;
+
+  runCampaign: (id: string) => void;
+  stopCampaign: (id: string) => void;
   
-  addTicket: (ticket: EnhancedTicket) => void
-  updateTicket: (id: string, updates: Partial<EnhancedTicket>) => void
-  assignTicket: (id: string, assignee: string) => void
-  resolveTicket: (id: string, resolution: string) => void
-  approveTicket: (id: string, approver: string) => void
-  
-  addBooking: (booking: EnhancedBooking) => void
-  updateBooking: (id: string, updates: Partial<EnhancedBooking>) => void
-  approveBooking: (id: string) => void
-  rejectBooking: (id: string) => void
-  
-  addCampaign: (campaign: EnhancedCampaign) => void
-  updateCampaign: (id: string, updates: Partial<EnhancedCampaign>) => void
-  runCampaign: (id: string) => void
-  stopCampaign: (id: string) => void
-  
-  // Refresh functions - fetch real data from backend
-  refreshTickets: () => Promise<void>
-  refreshBookings: () => Promise<void>
-  refreshAllData: () => Promise<void>
-  
-  // Selections
-  setSelectedCustomer: (customer: Customer | null) => void
-  setSelectedConversation: (conversation: Conversation | null) => void
-  setSelectedTicket: (ticket: EnhancedTicket | null) => void
-  setSelectedBooking: (booking: EnhancedBooking | null) => void
-  setSelectedCampaign: (campaign: EnhancedCampaign | null) => void
-  
-  // Live updates
-  updateLiveOps: (updates: Partial<LiveOps>) => void
-  updateDashboardKPIs: (updates: Partial<DashboardKPIs>) => void
-  
-  // Simulate real-time updates
-  simulateInboundCall: () => void
-  simulateInboundMessage: () => void
+  // Data fetching functions
+  refreshTickets: () => Promise<void>;
+  refreshBookings: () => Promise<void>;
+  refreshAllData: () => Promise<void>;
 }
 
-// Seed data for Arabic customers
-const seedCustomers: Customer[] = [
-  {
-    id: '1',
-    name: 'أحمد العتيبي',
-    phone: '+966501234567',
-    email: 'ahmed@example.com',
-    budget: 3000000,
-    neighborhoods: ['حي الملقا', 'حي القيروان'],
-    stage: 'مؤهل',
-    consents: { marketing: true, recording: true, whatsapp: true },
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
+// Default initial state
+const initialState = {
+  customers: [],
+  conversations: [],
+  tickets: [],
+  bookings: [],
+  campaigns: [],
+  properties: [],
+  dashboardKPIs: {
+    totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
+    avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
   },
-  {
-    id: '2',
-    name: 'نورة السبيعي',
-    phone: '+966507654321',
-    email: 'noura@example.com',
-    budget: 2000000,
-    neighborhoods: ['حي حطين', 'حي الندى'],
-    stage: 'جديد',
-    consents: { marketing: false, recording: true, whatsapp: false },
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 172800000).toISOString()
+  liveOps: {
+    currentCalls: [],
+    aiTransferredChats: [],
   },
-  {
-    id: '3',
-    name: 'محمد القحطاني',
-    phone: '+966509876543',
-    email: 'mohammed@example.com',
-    budget: 3500000,
-    neighborhoods: ['حي الملقا', 'حي التعاون'],
-    stage: 'حجز',
-    consents: { marketing: true, recording: true, whatsapp: true },
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    updatedAt: new Date(Date.now() - 259200000).toISOString()
-  },
-  {
-    id: '4',
-    name: 'سعد الغامدي',
-    phone: '+966508765432',
-    email: 'saad@example.com',
-    budget: 2500000,
-    neighborhoods: ['حي حطين', 'حي الملقا'],
-    stage: 'مؤهل',
-    consents: { marketing: true, recording: true, whatsapp: true },
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: '5',
-    name: 'فاطمة الحربي',
-    phone: '+966503456789',
-    email: 'fatima@example.com',
-    budget: 4500000,
-    neighborhoods: ['حي التعاون', 'حي الندى'],
-    stage: 'مؤهل',
-    consents: { marketing: false, recording: true, whatsapp: true },
-    createdAt: new Date(Date.now() - 432000000).toISOString(),
-    updatedAt: new Date(Date.now() - 172800000).toISOString()
-  }
-]
-
-// Seed data for conversations
-const seedConversations: Conversation[] = [
-  {
-    id: '1',
-    type: 'صوت',
-    customerId: '1',
-    transcript: [
-      { role: 'user', text: 'أهلاً، أبحث عن شقة للشراء في حي الملقا', ts: Date.now() - 300000 },
-      { role: 'agent', text: 'أهلاً وسهلاً! عندنا خيارات ممتازة للشراء في حي الملقا. ما هي ميزانيتك؟', ts: Date.now() - 280000 },
-      { role: 'user', text: 'حوالي 3 مليون ريال', ts: Date.now() - 260000 },
-      { role: 'agent', text: 'ممتاز! عندنا شقة بغرفتين نوم مفروشة بسعر 2.85 مليون ريال. هل تود حجز زيارة؟', ts: Date.now() - 240000 }
-    ],
-    summary: 'عميل يبحث عن شقة للشراء في حي الملقا بميزانية 3 مليون ريال',
-    entities: { neighborhood: 'حي الملقا', budgetSAR: 3000000, bedrooms: 2 },
-    sentiment: 'إيجابي',
-    status: 'مفتوحة',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString()
-  },
-  {
-    id: '2',
-    type: 'رسالة',
-    customerId: '2',
-    transcript: [
-      { role: 'user', text: 'هل عندكم شقق للبيع في حي حطين؟', ts: Date.now() - 600000 },
-      { role: 'agent', text: 'نعم! عندنا شقة بغرفة نوم واحدة مفروشة بسعر 1.85 مليون ريال', ts: Date.now() - 580000 },
-      { role: 'user', text: 'ممكن أعرف المزيد عن الشقة؟', ts: Date.now() - 560000 }
-    ],
-    summary: 'عميلة تسأل عن شقق للبيع في حي حطين',
-    entities: { neighborhood: 'حي حطين' },
-    sentiment: 'محايد',
-    status: 'مفتوحة',
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    updatedAt: new Date(Date.now() - 7200000).toISOString()
-  }
-]
-
-// Seed data for tickets
-const seedTickets: EnhancedTicket[] = [
-  {
-    id: '1',
-    customerId: '1',
-    propertyId: '1',
-    priority: 'عالٍ',
-    category: 'كهرباء',
-    status: 'مفتوحة',
-    slaDueAt: new Date(Date.now() + 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString()
-  },
-  {
-    id: '2',
-    customerId: '3',
-    propertyId: '2',
-    priority: 'عالٍ',
-    category: 'سباكة',
-    status: 'قيد_المعالجة',
-    assignee: 'أحمد الصيانة',
-    slaDueAt: new Date(Date.now() + 43200000).toISOString(),
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    updatedAt: new Date(Date.now() - 7200000).toISOString()
-  },
-  {
-    id: '3',
-    customerId: '2',
-    propertyId: '3',
-    priority: 'متوسط',
-    category: 'مفاتيح',
-    status: 'بانتظار_الموافقة',
-    assignee: 'خالد الأمن',
-    slaDueAt: new Date(Date.now() + 172800000).toISOString(),
-    createdAt: new Date(Date.now() - 14400000).toISOString(),
-    updatedAt: new Date(Date.now() - 7200000).toISOString(),
-    resolutionNote: 'تم تغيير القفل وتسليم المفاتيح الجديدة للعميلة'
-  },
-  {
-    id: '4',
-    customerId: '1',
-    propertyId: '1',
-    priority: 'منخفض',
-    category: 'تنظيف',
-    status: 'محلولة',
-    assignee: 'سارة التنظيف',
-    slaDueAt: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-    resolutionNote: 'تم تنظيف الشقة بالكامل وتعقيمها جيداً'
-  },
-  {
-    id: '5',
-    customerId: '2',
-    priority: 'عالٍ',
-    category: 'أخرى',
-    status: 'مفتوحة',
-    slaDueAt: new Date(Date.now() + 21600000).toISOString(),
-    createdAt: new Date(Date.now() - 1800000).toISOString(),
-    updatedAt: new Date(Date.now() - 1800000).toISOString()
-  },
-  {
-    id: '6',
-    customerId: '3',
-    propertyId: '2',
-    priority: 'متوسط',
-    category: 'كهرباء',
-    status: 'قيد_المعالجة',
-    assignee: 'فهد الكهرباء',
-    slaDueAt: new Date(Date.now() + 259200000).toISOString(),
-    createdAt: new Date(Date.now() - 21600000).toISOString(),
-    updatedAt: new Date(Date.now() - 10800000).toISOString()
-  }
-]
-
-// Seed data for bookings
-const seedBookings: EnhancedBooking[] = [
-  {
-    id: '1',
-    customerId: '1',
-    propertyId: '1',
-    startDate: '2024-02-15',
-    endDate: '2024-02-16',
-    status: 'معلق',
-    price: 2850000,
-    source: 'صوت',
-    createdBy: 'AI',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: '2',
-    customerId: '3',
-    propertyId: '2',
-    startDate: '2024-02-20',
-    endDate: '2024-02-21',
-    status: 'مؤكد',
-    price: 3200000,
-    source: 'صوت',
-    createdBy: 'AI',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 172800000).toISOString()
-  },
-  {
-    id: '3',
-    customerId: '2',
-    propertyId: '3',
-    startDate: '2024-02-18',
-    endDate: '2024-02-19',
-    status: 'مكتمل',
-    price: 1850000,
-    source: 'رسالة',
-    createdBy: 'بشري',
-    createdAt: new Date(Date.now() - 259200000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: '4',
-    customerId: '1',
-    propertyId: '1',
-    startDate: '2024-02-22',
-    endDate: '2024-02-23',
-    status: 'ملغي',
-    price: 2850000,
-    source: 'صوت',
-    createdBy: 'AI',
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    updatedAt: new Date(Date.now() - 172800000).toISOString()
-  },
-  {
-    id: '5',
-    customerId: '2',
-    propertyId: '3',
-    startDate: '2024-02-25',
-    endDate: '2024-02-26',
-    status: 'معلق',
-    price: 1850000,
-    source: 'رسالة',
-    createdBy: 'AI',
-    createdAt: new Date(Date.now() - 43200000).toISOString(),
-    updatedAt: new Date(Date.now() - 43200000).toISOString()
-  },
-  {
-    id: '6',
-    customerId: '3',
-    propertyId: '2',
-    startDate: '2024-02-28',
-    endDate: '2024-03-01',
-    status: 'مؤكد',
-    price: 3200000,
-    source: 'صوت',
-    createdBy: 'بشري',
-    createdAt: new Date(Date.now() - 21600000).toISOString(),
-    updatedAt: new Date(Date.now() - 10800000).toISOString()
-  }
-]
-
-// Seed data for campaigns
-const seedCampaigns: EnhancedCampaign[] = [
-  {
-    id: '1',
-    name: 'حملة الصيف - تجديد العقود',
-    type: 'صوتية',
-    objective: 'تجديدات',
-    audienceQuery: 'عملاء حاليون، عقود تنتهي خلال 3 أشهر',
-    status: 'نشطة',
-    metrics: {
-      reached: 150,
-      engaged: 89,
-      qualified: 45,
-      booked: 15,
-      revenue: 180000,
-      roas: 3.2
-    },
-    attribution: 'AI',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString()
-  },
-  {
-    id: '2',
-    name: 'حملة العيد - ترويج خاص',
-    type: 'رسائل',
-    objective: 'ترويج',
-    audienceQuery: 'عملاء محتملون، ميزانية 8,000-15,000 ريال',
-    status: 'نشطة',
-    metrics: {
-      reached: 200,
-      engaged: 120,
-      qualified: 67,
-      booked: 23,
-      revenue: 276000,
-      roas: 2.8
-    },
-    attribution: 'AI',
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 172800000).toISOString()
-  }
-]
-
-// Seed data for properties
-const seedProperties: Property[] = [
-  {
-    id: '1',
-    code: 'المجيدية - MG13',
-    city: 'الرياض',
-    neighborhood: 'حي الملقا',
-    rooms: 3,
-    bedrooms: 2,
-    bathrooms: 2,
-    furnished: true,
-    monthlyPriceSAR: 2850000,
-    yearlyPriceSAR: 2850000,
-    images: ['/images/mg13-1.jpg', '/images/mg13-2.jpg'],
-    availability: 'متاح'
-  },
-  {
-    id: '2',
-    code: 'المجيدية - MG132',
-    city: 'الرياض',
-    neighborhood: 'حي الملقا',
-    rooms: 4,
-    bedrooms: 3,
-    bathrooms: 2,
-    furnished: false,
-    monthlyPriceSAR: 3200000,
-    yearlyPriceSAR: 3200000,
-    images: ['/images/mg132-1.jpg'],
-    availability: 'محجوز'
-  },
-  {
-    id: '3',
-    code: 'بيات - WH41',
-    city: 'الرياض',
-    neighborhood: 'حي حطين',
-    rooms: 2,
-    bedrooms: 1,
-    bathrooms: 1,
-    furnished: true,
-    monthlyPriceSAR: 1850000,
-    yearlyPriceSAR: 1850000,
-    images: ['/images/wh41-1.jpg'],
-    availability: 'متاح'
-  },
-  {
-    id: '4',
-    code: 'الندى - ND22',
-    city: 'الرياض',
-    neighborhood: 'حي الندى',
-    rooms: 3,
-    bedrooms: 2,
-    bathrooms: 2,
-    furnished: true,
-    monthlyPriceSAR: 2350000,
-    yearlyPriceSAR: 2350000,
-    images: ['/images/nd22-1.jpg'],
-    availability: 'متاح'
-  },
-  {
-    id: '5',
-    code: 'التعاون - TC51',
-    city: 'الرياض',
-    neighborhood: 'حي التعاون',
-    rooms: 4,
-    bedrooms: 3,
-    bathrooms: 3,
-    furnished: false,
-    monthlyPriceSAR: 4250000,
-    yearlyPriceSAR: 4250000,
-    images: ['/images/tc51-1.jpg', '/images/tc51-2.jpg'],
-    availability: 'متاح'
-  }
-]
-
-// Initial dashboard KPIs
-const initialKPIs: DashboardKPIs = {
-  totalCalls: 1842,
-  answerRate: 62,
-  conversionToBooking: 21,
-  revenue: 1420000,
-  roas: 3.2,
-  avgHandleTime: 180,
-  csat: 4.4,
-  missedCalls: 23,
-  aiTransferred: 8,
-  systemStatus: 'AI_يعمل'
-}
-
-// Initial live ops
-const initialLiveOps: LiveOps = {
-  currentCalls: [
-    { id: '1', customerName: 'أحمد العتيبي', duration: '2:15', status: 'وارد' },
-    { id: '2', customerName: 'نورة السبيعي', duration: '1:45', status: 'وارد' }
-  ],
-  aiTransferredChats: [
-    { id: '1', customerName: 'محمد القحطاني', reason: 'طلب ممثل بشري', waitingTime: '0:30' }
-  ]
-}
+};
 
 export const useAppStore = create<AppState>()(
   devtools(
     (set, get) => ({
-      // Initial state - using seed data for demo
-      customers: seedCustomers,
-      conversations: seedConversations,
-      tickets: seedTickets, // Using seed data instead of empty array
-      bookings: seedBookings, // Using seed data instead of empty array
-      campaigns: seedCampaigns,
-      properties: seedProperties,
-      dashboardKPIs: initialKPIs,
-      liveOps: initialLiveOps,
+      ...initialState,
       
-      // Selections
-      selectedCustomer: null,
-      selectedConversation: null,
-      selectedTicket: null,
-      selectedBooking: null,
-      selectedCampaign: null,
-      
-      // Customer actions
-      addCustomer: (customer) => set((state) => ({
-        customers: [...state.customers, customer]
-      })),
-      
-      updateCustomer: (id, updates) => set((state) => ({
-        customers: state.customers.map(c => 
-          c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      deleteCustomer: (id) => set((state) => ({
-        customers: state.customers.filter(c => c.id !== id)
-      })),
-      
-      // Conversation actions
-      addConversation: (conversation) => set((state) => ({
-        conversations: [...state.conversations, conversation]
-      })),
-      
-      updateConversation: (id, updates) => set((state) => ({
-        conversations: state.conversations.map(c => 
-          c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      closeConversation: (id) => set((state) => ({
-        conversations: state.conversations.map(c => 
-          c.id === id ? { ...c, status: 'مغلقة', updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      // Ticket actions
-      addTicket: (ticket) => set((state) => ({
-        tickets: [...state.tickets, ticket]
-      })),
-      
-      updateTicket: (id, updates) => set((state) => ({
-        tickets: state.tickets.map(t => 
-          t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-        )
-      })),
-      
-      assignTicket: (id, assignee) => set((state) => ({
-        tickets: state.tickets.map(t => 
-          t.id === id ? { ...t, assignee, status: 'قيد_المعالجة', updatedAt: new Date().toISOString() } : t
-        )
-      })),
-      
-      resolveTicket: (id, resolution) => set((state) => ({
-        tickets: state.tickets.map(t => 
-          t.id === id ? { ...t, resolutionNote: resolution, status: 'بانتظار_الموافقة', updatedAt: new Date().toISOString() } : t
-        )
-      })),
-      
-      approveTicket: (id, approver) => set((state) => ({
-        tickets: state.tickets.map(t => 
-          t.id === id ? { ...t, approvedBy: approver, status: 'محلولة', updatedAt: new Date().toISOString() } : t
-        )
-      })),
-      
-      // Booking actions
-      addBooking: (booking) => set((state) => ({
-        bookings: [...state.bookings, booking]
-      })),
-      
-      updateBooking: (id, updates) => set((state) => ({
-        bookings: state.bookings.map(b => 
-          b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b
-        )
-      })),
-      
-      approveBooking: (id) => set((state) => ({
-        bookings: state.bookings.map(b => 
-          b.id === id ? { ...b, status: 'مؤكد', updatedAt: new Date().toISOString() } : b
-        )
-      })),
-      
-      rejectBooking: (id) => set((state) => ({
-        bookings: state.bookings.map(b => 
-          b.id === id ? { ...b, status: 'ملغي', updatedAt: new Date().toISOString() } : b
-        )
-      })),
-      
-      // Campaign actions
-      addCampaign: (campaign) => set((state) => ({
-        campaigns: [...state.campaigns, campaign]
-      })),
-      
-      updateCampaign: (id, updates) => set((state) => ({
-        campaigns: state.campaigns.map(c => 
-          c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      runCampaign: (id) => set((state) => ({
-        campaigns: state.campaigns.map(c => 
-          c.id === id ? { ...c, status: 'نشطة', updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      stopCampaign: (id) => set((state) => ({
-        campaigns: state.campaigns.map(c => 
-          c.id === id ? { ...c, status: 'موقوفة', updatedAt: new Date().toISOString() } : c
-        )
-      })),
-      
-      // Selection setters
-      setSelectedCustomer: (customer) => set({ selectedCustomer: customer }),
-      setSelectedConversation: (conversation) => set({ selectedConversation: conversation }),
-      setSelectedTicket: (ticket) => set({ selectedTicket: ticket }),
-      setSelectedBooking: (booking) => set({ selectedBooking: booking }),
-      setSelectedCampaign: (campaign) => set({ selectedCampaign: campaign }),
-      
-      // Live updates
-      updateLiveOps: (updates) => set((state) => ({
-        liveOps: { ...state.liveOps, ...updates }
-      })),
-      
-      updateDashboardKPIs: (updates) => set((state) => ({
-        dashboardKPIs: { ...state.dashboardKPIs, ...updates }
-      })),
-      
-      // Simulation functions
-      simulateInboundCall: () => {
-        const newCall: Conversation = {
-          id: `call-${Date.now()}`,
-          type: 'صوت',
-          customerId: '1',
-          transcript: [
-            { role: 'user', text: 'أهلاً، أبحث عن شقة للإيجار', ts: Date.now() }
-          ],
-          summary: 'مكالمة واردة جديدة',
-          entities: {},
-          sentiment: 'محايد',
-          status: 'مفتوحة',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        
-        set((state) => ({
-          conversations: [newCall, ...state.conversations],
-          dashboardKPIs: {
-            ...state.dashboardKPIs,
-            totalCalls: state.dashboardKPIs.totalCalls + 1
-          }
-        }))
-      },
-      
-      simulateInboundMessage: () => {
-        const newMessage: Conversation = {
-          id: `msg-${Date.now()}`,
-          type: 'رسالة',
-          customerId: '2',
-          transcript: [
-            { role: 'user', text: 'مرحباً، هل عندكم شقق متاحة؟', ts: Date.now() }
-          ],
-          summary: 'رسالة واردة جديدة',
-          entities: {},
-          sentiment: 'محايد',
-          status: 'مفتوحة',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        
-        set((state) => ({
-          conversations: [newMessage, ...state.conversations]
-        }))
-      },
+      // --- LOCAL "WRITE" ACTIONS (for non-persistent data or new items) ---
+      addTicket: (ticket) => set((state) => ({ tickets: [ticket, ...state.tickets] })),
+      updateTicket: (id, updates) => set((state) => ({ tickets: state.tickets.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t) })),
+      addBooking: (booking) => set((state) => ({ bookings: [booking, ...state.bookings] })),
+      updateBooking: (id, updates) => set((state) => ({ bookings: state.bookings.map(b => b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b) })),
+      runCampaign: (id) => set((state) => ({ campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'نشطة' } : c) })),
+      stopCampaign: (id) => set((state) => ({ campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'موقوفة' } : c) })),
 
-      // Refresh functions - use dummy data only (no API calls)
+      // --- ASYNC DATA FETCHING ACTIONS ---
       refreshTickets: async () => {
-        // Simply ensure we have the seed data loaded
-        set({ tickets: seedTickets })
+        try {
+          const tickets = await getTickets();
+          set({ tickets });
+        } catch (error) { console.error("Error refreshing tickets:", error); set({ tickets: [] }); }
       },
-
       refreshBookings: async () => {
-        // Simply ensure we have the seed data loaded  
-        set({ bookings: seedBookings })
+        try {
+          const bookings = await getBookings();
+          set({ bookings });
+        } catch (error) { console.error("Error refreshing bookings:", error); set({ bookings: [] }); }
+      },
+      refreshAllData: async () => {
+        await Promise.all([get().refreshTickets(), get().refreshBookings()]);
       },
 
-      refreshAllData: async () => {
-        await Promise.all([
-          get().refreshTickets(),
-          get().refreshBookings()
-        ])
-      }
+      // --- FULLY IMPLEMENTED ASYNC "WRITE" ACTIONS ---
+      
+      // BOOKING ACTIONS
+      approveBooking: async (id: string) => {
+        try {
+          await updateBookingStatus(id, 'confirmed');
+          set((state) => ({
+            bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'مؤكد', updatedAt: new Date().toISOString() } : b)
+          }));
+        } catch (error) {
+          console.error(`Failed to approve booking ${id}:`, error);
+          // In a real app, you would trigger a user-facing notification here.
+        }
+      },
+      
+      rejectBooking: async (id: string) => {
+        try {
+          await updateBookingStatus(id, 'canceled');
+          set((state) => ({
+            bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'ملغي', updatedAt: new Date().toISOString() } : b)
+          }));
+        } catch (error) {
+          console.error(`Failed to reject booking ${id}:`, error);
+        }
+      },
+
+      // TICKET ACTIONS
+      assignTicket: async (id: string, assignee: string) => {
+        try {
+          // NOTE: The backend PATCH endpoint currently only supports 'status'.
+          // For a real implementation, it would need to support changing the 'assignee' as well.
+          // We will update the status optimistically here.
+          await updateTicketStatus(id, 'in_progress');
+          set((state) => ({
+            tickets: state.tickets.map(t => 
+              t.id === id ? { ...t, assignee, status: 'قيد_المعالجة', updatedAt: new Date().toISOString() } : t
+            )
+          }));
+        } catch (error) {
+          console.error(`Failed to assign ticket ${id}:`, error);
+        }
+      },
+
+      resolveTicket: async (id: string, resolution: string) => {
+        try {
+          // NOTE: The backend would need to be updated to accept a 'resolutionNote' in its PATCH request.
+          // For now, we only update the status.
+          await updateTicketStatus(id, 'resolved'); // Assuming 'resolved' is the status for manager approval. Let's use 'pending_approval' from your model.
+          await updateTicketStatus(id, 'pending_approval');
+          set((state) => ({
+            tickets: state.tickets.map(t => 
+              t.id === id ? { ...t, resolutionNote: resolution, status: 'بانتظار_الموافقة', updatedAt: new Date().toISOString() } : t
+            )
+          }));
+        } catch (error) {
+          console.error(`Failed to resolve ticket ${id}:`, error);
+        }
+      },
+
+      approveTicket: async (id: string, approver: string) => {
+        try {
+          // NOTE: The backend would need to be updated to accept an 'approvedBy' field.
+          await updateTicketStatus(id, 'resolved');
+          set((state) => ({
+            tickets: state.tickets.map(t => 
+              t.id === id ? { ...t, approvedBy: approver, status: 'محلولة', updatedAt: new Date().toISOString() } : t
+            )
+          }));
+        } catch(error) {
+          console.error(`Failed to approve ticket ${id}:`, error);
+        }
+      },
     }),
     {
-      name: 'navaia-store'
+      name: 'navaia-live-store',
     }
   )
-) 
+);

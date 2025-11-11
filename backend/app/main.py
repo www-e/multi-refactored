@@ -12,7 +12,7 @@ from app.db import get_session, engine
 from app import models
 
 # Minimal logging setup
-logging.basicConfig(level=logging.WARNING)  # Reduce log noise
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Load env once at module level
@@ -58,7 +58,13 @@ def get_elevenlabs_headers():
         raise HTTPException(status_code=500, detail="ElevenLabs API key not configured")
     return {"xi-api-key": api_key, "Content-Type": "application/json"}
 
-# Pydantic models
+# --- Pydantic Models for our new endpoints ---
+class BookingStatusUpdateRequest(BaseModel):
+    status: models.BookingStatusEnum
+
+class TicketStatusUpdateRequest(BaseModel):
+    status: models.TicketStatusEnum
+
 class VoiceSessionRequest(BaseModel):
     agent_type: str
     customer_id: str
@@ -70,7 +76,8 @@ class VoiceSessionResponse(BaseModel):
     customer_id: str
     created_at: str
 
-# Core endpoints only - remove all debug/test endpoints
+# --- API Endpoints ---
+
 @app.get("/")
 def read_root():
     return {"status": "Voice Agent Portal API", "version": "1.9-optimized"}
@@ -79,7 +86,6 @@ def read_root():
 def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
-# Voice session endpoint  
 @app.post("/voice/sessions", response_model=VoiceSessionResponse)
 def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
     voice_session = models.VoiceSession(
@@ -102,36 +108,33 @@ def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(g
         created_at=voice_session.created_at.isoformat()
     )
 
-# ONLY essential endpoints - remove redundant ones
+# --- Booking Endpoints ---
+
 @app.get("/bookings")
+# ... (existing get_bookings code remains the same)
 def get_bookings(limit: int = 50, db_session: Session = Depends(get_session)):
     bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(limit).all()
     
     result = []
     for booking in bookings:
-        # Fast Arabic day calculation
         weekday_map = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
         day_name = weekday_map[booking.preferred_datetime.weekday()] if booking.preferred_datetime else ""
         
         result.append({
-            "id": booking.id,
-            "session_id": booking.session_id,
-            "customer_name": booking.customer_name,
-            "phone": booking.phone,
-            "project": booking.project,
+            "id": booking.id, "session_id": booking.session_id, "customer_name": booking.customer_name,
+            "phone": booking.phone, "project": booking.project,
             "preferred_datetime": booking.preferred_datetime.isoformat() if booking.preferred_datetime else None,
             "appointment_date": booking.start_date.isoformat() if booking.start_date else None,
             "appointment_time": booking.preferred_datetime.strftime("%H:%M") if booking.preferred_datetime else None,
-            "day_name": day_name,
-            "status": booking.status.value if booking.status else "pending",
+            "day_name": day_name, "status": booking.status.value if booking.status else "pending",
             "created_at": booking.created_at.isoformat()
         })
     
     return result
 
 @app.get("/bookings/recent")
+# ... (existing get_recent_bookings code remains the same)
 def get_recent_bookings(db_session: Session = Depends(get_session)):
-    """Get last 10 bookings for dashboard display"""
     bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(10).all()
     
     result = []
@@ -140,82 +143,87 @@ def get_recent_bookings(db_session: Session = Depends(get_session)):
         day_name = weekday_map[booking.preferred_datetime.weekday()] if booking.preferred_datetime else ""
         
         result.append({
-            "id": booking.id,
-            "session_id": booking.session_id,
-            "customer_name": booking.customer_name,
-            "phone": booking.phone,
-            "project": booking.project,
+            "id": booking.id, "session_id": booking.session_id, "customer_name": booking.customer_name,
+            "phone": booking.phone, "project": booking.project,
             "preferred_datetime": booking.preferred_datetime.isoformat() if booking.preferred_datetime else None,
             "appointment_date": booking.start_date.isoformat() if booking.start_date else None,
             "appointment_time": booking.preferred_datetime.strftime("%H:%M") if booking.preferred_datetime else None,
-            "day_name": day_name,
-            "status": booking.status.value if booking.status else "pending",
+            "day_name": day_name, "status": booking.status.value if booking.status else "pending",
             "created_at": booking.created_at.isoformat()
         })
     
     return result
 
+# --- NEW: BOOKING STATUS UPDATE ENDPOINT ---
+@app.patch("/bookings/{booking_id}")
+def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, db_session: Session = Depends(get_session)):
+    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+        
+    booking.status = body.status
+    db_session.commit()
+    db_session.refresh(booking)
+    
+    return {"message": "Booking status updated successfully", "id": booking.id, "new_status": booking.status.value}
+
+# --- Ticket Endpoints ---
+
 @app.get("/tickets")
+# ... (existing get_tickets code remains the same)
 def get_tickets(limit: int = 50, db_session: Session = Depends(get_session)):
     tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(limit).all()
     
-    return [{
-        "id": ticket.id,
-        "category": ticket.category,
-        "customer_name": ticket.customer_name,
-        "phone": ticket.phone,
-        "issue": ticket.issue,
-        "project": ticket.project,
-        "priority": ticket.priority.value if ticket.priority else "medium",
-        "status": ticket.status.value if ticket.status else "open",
-        "created_at": ticket.created_at.isoformat()
-    } for ticket in tickets]
+    return [{"id": t.id, "category": t.category, "customer_name": t.customer_name, "phone": t.phone, "issue": t.issue, "project": t.project, "priority": t.priority.value if t.priority else "medium", "status": t.status.value if t.status else "open", "created_at": t.created_at.isoformat()} for t in tickets]
 
 @app.get("/tickets/recent")
+# ... (existing get_recent_tickets code remains the same)
 def get_recent_tickets(db_session: Session = Depends(get_session)):
-    """Get last 10 tickets for dashboard display"""
     tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(10).all()
     
-    return [{
-        "id": ticket.id,
-        "category": ticket.category,
-        "customer_name": ticket.customer_name,
-        "phone": ticket.phone,
-        "issue": ticket.issue,
-        "project": ticket.project,
-        "priority": ticket.priority.value if ticket.priority else "medium",
-        "status": ticket.status.value if ticket.status else "open",
-        "created_at": ticket.created_at.isoformat()
-    } for ticket in tickets]
+    return [{"id": t.id, "category": t.category, "customer_name": t.customer_name, "phone": t.phone, "issue": t.issue, "project": t.project, "priority": t.priority.value if t.priority else "medium", "status": t.status.value if t.status else "open", "created_at": t.created_at.isoformat()} for t in tickets]
+
+# --- NEW: TICKET STATUS UPDATE ENDPOINT ---
+@app.patch("/tickets/{ticket_id}")
+def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, db_session: Session = Depends(get_session)):
+    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+        
+    ticket.status = body.status
+    db_session.commit()
+    db_session.refresh(ticket)
+    
+    return {"message": "Ticket status updated successfully", "id": ticket.id, "new_status": ticket.status.value}
+
+
+# --- ElevenLabs Endpoints ---
 
 @app.get("/elevenlabs/conversations")
+# ... (existing fetch_elevenlabs_conversations code remains the same)
 async def fetch_elevenlabs_conversations():
-    """Fast ElevenLabs conversation fetch"""
     try:
         headers = get_elevenlabs_headers()
         url = "https://api.elevenlabs.io/v1/convai/conversations"
-        
         async with http_session.get(url, headers=headers) as response:
             if response.status == 200:
                 data = await response.json()
-                return {
-                    "status": "success",
-                    "conversations": data.get("conversations", []),
-                    "total": len(data.get("conversations", []))
-                }
+                return {"status": "success", "conversations": data.get("conversations", []), "total": len(data.get("conversations", []))}
             else:
                 raise HTTPException(status_code=response.status, detail="ElevenLabs API error")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/elevenlabs/conversation/{conversation_id}/process")
+# ... (existing process_conversation_fast code remains the same)
 async def process_conversation_fast(conversation_id: str, db_session: Session = Depends(get_session)):
-    """Fast single conversation processing - optimized version"""
     try:
         headers = get_elevenlabs_headers()
         url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"
         
-        # Fast API call
         async with http_session.get(url, headers=headers) as response:
             if response.status != 200:
                 raise HTTPException(status_code=response.status, detail="Failed to fetch conversation")
@@ -224,111 +232,54 @@ async def process_conversation_fast(conversation_id: str, db_session: Session = 
             analysis = data.get("analysis", {})
             data_collection = analysis.get("data_collection_results", {})
             
-            # Fast data extraction
             intent = data_collection.get("extracted_intent", {}).get("value", "")
             customer_name = data_collection.get("customer_name", {}).get("value", "")
             customer_phone = data_collection.get("phone", {}).get("value", "")
             preferred_datetime = data_collection.get("preferred_datetime", {}).get("value", "")
             project = data_collection.get("project", {}).get("value", "")
             
-            # Get phone from metadata if missing
             if not customer_phone:
                 phone_metadata = data.get("metadata", {}).get("phone_call", {})
                 customer_phone = phone_metadata.get("external_number", "")
             
             call_summary = analysis.get("call_summary_title", "")
             
-            # Fast database operations
-            existing_session = db_session.query(models.VoiceSession).filter(
-                models.VoiceSession.conversation_id == conversation_id
-            ).first()
+            existing_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.conversation_id == conversation_id).first()
             
             if existing_session:
-                # Quick update
                 existing_session.summary = call_summary
                 existing_session.extracted_intent = intent
                 existing_session.customer_phone = customer_phone
                 existing_session.status = models.VoiceSessionStatus.COMPLETED
                 voice_session = existing_session
             else:
-                # Create new session
-                voice_session = models.VoiceSession(
-                    id=generate_id("vs"),
-                    tenant_id="demo-tenant",
-                    customer_id=f"customer_{conversation_id}",
-                    conversation_id=conversation_id,
-                    agent_id=data.get("agent_id", ""),
-                    customer_phone=customer_phone,
-                    summary=call_summary,
-                    extracted_intent=intent,
-                    status=models.VoiceSessionStatus.COMPLETED,
-                    created_at=datetime.utcnow()
-                )
+                voice_session = models.VoiceSession(id=generate_id("vs"), tenant_id="demo-tenant", customer_id=f"customer_{conversation_id}", conversation_id=conversation_id, agent_id=data.get("agent_id", ""), customer_phone=customer_phone, summary=call_summary, extracted_intent=intent, status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.utcnow())
                 db_session.add(voice_session)
                 db_session.flush()
             
             booking_created = False
             
-            # Fast booking creation for appointments only
             if intent == "book_appointment" and preferred_datetime and customer_phone:
-                existing_booking = db_session.query(models.Booking).filter(
-                    models.Booking.session_id == voice_session.id
-                ).first()
-                
+                existing_booking = db_session.query(models.Booking).filter(models.Booking.session_id == voice_session.id).first()
                 if not existing_booking:
                     try:
                         appointment_dt = datetime.fromisoformat(preferred_datetime.replace('Z', '+00:00'))
-                        
-                        # Fast customer creation
                         customer = db_session.query(models.Customer).filter_by(phone=customer_phone).first()
                         if not customer:
-                            customer = models.Customer(
-                                id=generate_id("cust"),
-                                tenant_id="demo-tenant",
-                                name=customer_name or f"Customer {customer_phone}",
-                                phone=customer_phone,
-                                created_at=datetime.utcnow()
-                            )
+                            customer = models.Customer(id=generate_id("cust"), tenant_id="demo-tenant", name=customer_name or f"Customer {customer_phone}", phone=customer_phone, created_at=datetime.utcnow())
                             db_session.add(customer)
                             db_session.flush()
                         
-                        # Fast booking creation
-                        booking = models.Booking(
-                            id=generate_id("bk"),
-                            tenant_id="demo-tenant",
-                            customer_id=customer.id,
-                            session_id=voice_session.id,
-                            customer_name=customer.name,
-                            phone=customer_phone,
-                            property_code=project or "PROP-DEFAULT",
-                            start_date=appointment_dt.date(),
-                            source=models.ChannelEnum.voice,
-                            created_by=models.AIOrHumanEnum.AI,
-                            project=project or "Voice Booking",
-                            preferred_datetime=appointment_dt,
-                            status=models.BookingStatusEnum.pending,
-                            created_at=datetime.utcnow()
-                        )
+                        booking = models.Booking(id=generate_id("bk"), tenant_id="demo-tenant", customer_id=customer.id, session_id=voice_session.id, customer_name=customer.name, phone=customer_phone, property_code=project or "PROP-DEFAULT", start_date=appointment_dt.date(), source=models.ChannelEnum.voice, created_by=models.AIOrHumanEnum.AI, project=project or "Voice Booking", preferred_datetime=appointment_dt, status=models.BookingStatusEnum.pending, created_at=datetime.utcnow())
                         db_session.add(booking)
                         booking_created = True
                     except Exception:
-                        pass  # Skip invalid dates silently
+                        pass
             
             db_session.commit()
             
-            return {
-                "status": "success",
-                "conversation_id": conversation_id,
-                "processed": {
-                    "intent": intent,
-                    "project": project,
-                    "datetime": preferred_datetime,
-                    "booking_created": booking_created
-                }
-            }
+            return {"status": "success", "conversation_id": conversation_id, "processed": {"intent": intent, "project": project, "datetime": preferred_datetime, "booking_created": booking_created}}
     
     except Exception as e:
         db_session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
-# Remove ALL debug/test/unused endpoints to keep it lean and fast
