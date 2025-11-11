@@ -11,23 +11,17 @@ import {
   Users,
   Phone,
   AlertCircle,
-  CheckCircle,
-  XCircle,
-  Clock,
 } from 'lucide-react';
-
-// Import our new components
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { DashboardStatsGrid } from '@/components/features/dashboard/DashboardStatsGrid';
+import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
   const {
     dashboardKPIs,
     liveOps,
-    simulateInboundCall,
-    simulateInboundMessage,
     refreshAllData,
   } = useAppStore();
 
@@ -35,7 +29,6 @@ export default function DashboardPage() {
     refreshAllData();
   }, [refreshAllData]);
 
-  // This data can be moved to a constants file later
   const periods = [
     { value: '1d', label: 'اليوم' },
     { value: '7d', label: '7 أيام' },
@@ -43,36 +36,9 @@ export default function DashboardPage() {
     { value: '90d', label: '90 يوم' },
   ];
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'وارد': return 'text-success';
-      case 'فائت': return 'text-destructive';
-      default: return 'text-slate-500';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'وارد': return <CheckCircle className="w-4 h-4 text-success" />;
-      case 'فائت': return <XCircle className="w-4 h-4 text-destructive" />;
-      default: return <Clock className="w-4 h-4 text-slate-500" />;
-    }
-  };
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (Math.random() > 0.7) simulateInboundCall();
-      if (Math.random() > 0.8) simulateInboundMessage();
-    }, 30000); // Every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [simulateInboundCall, simulateInboundMessage]);
-
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* REFACTORED HEADER */}
         <PageHeader
           title="لوحة التحكم"
           subtitle="نظرة شاملة على أداء المساعد الصوتي والعمليات"
@@ -92,10 +58,8 @@ export default function DashboardPage() {
           ))}
         </PageHeader>
 
-        {/* REFACTORED KPI CARDS */}
         <DashboardStatsGrid kpis={dashboardKPIs} />
 
-        {/* Additional KPIs (using our new Card component) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="text-center">
             <div className="text-3xl font-bold text-primary mb-2">{dashboardKPIs.roas}x</div>
@@ -105,7 +69,6 @@ export default function DashboardPage() {
               <span className="text-sm text-success mr-1">+0.3</span>
             </div>
           </Card>
-
           <Card className="text-center">
             <div className="text-3xl font-bold text-emerald-600 mb-2">
               {Math.floor(dashboardKPIs.avgHandleTime / 60)}:
@@ -117,7 +80,6 @@ export default function DashboardPage() {
               <span className="text-sm text-success mr-1">-12s</span>
             </div>
           </Card>
-
           <Card className="text-center">
             <div className="text-3xl font-bold text-blue-600 mb-2">{dashboardKPIs.csat}/5</div>
             <div className="text-sm text-slate-600 dark:text-slate-400">رضا العملاء (CSAT)</div>
@@ -128,7 +90,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Live Ops Panel (using our new Card component) */}
         <Card>
           <CardHeader>
             <div className="flex items-center space-x-3 space-x-reverse">
@@ -137,9 +98,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <CardTitle>العمليات الحية</CardTitle>
-                <p className="text-slate-600 dark:text-slate-400">
-                  مراقبة المكالمات والرسائل في الوقت الفعلي
-                </p>
+                <p className="text-slate-600 dark:text-slate-400">مراقبة المكالمات والرسائل في الوقت الفعلي</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 space-x-reverse">
@@ -152,31 +111,24 @@ export default function DashboardPage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                المكالمات الحالية
-              </h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">المكالمات الحالية</h3>
               <div className="space-y-3">
                 {liveOps.currentCalls.map((call) => (
                   <div key={call.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
                     <div className="flex items-center space-x-3 space-x-reverse">
-                      {getStatusIcon(call.status)}
+                       <StatusBadge status={call.status as any} type="icon" />
                       <div>
                         <p className="font-medium text-slate-900 dark:text-slate-100">{call.customerName}</p>
                         <p className="text-sm text-slate-500">المدة: {call.duration}</p>
                       </div>
                     </div>
-                    <span className={`text-sm font-medium ${getStatusColor(call.status)}`}>
-                      {call.status}
-                    </span>
+                    <StatusBadge status={call.status as any} />
                   </div>
                 ))}
               </div>
             </div>
-
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                الرسائل المحولة من AI
-              </h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">الرسائل المحولة من AI</h3>
               <div className="space-y-3">
                 {liveOps.aiTransferredChats.map((chat) => (
                   <div key={chat.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
@@ -195,7 +147,6 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Charts and Tables Row (using our new Card component) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -203,38 +154,14 @@ export default function DashboardPage() {
               <BarChart3 className="w-5 h-5 text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-              {/* Funnel chart content remains the same for now */}
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">تم الوصول</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">350</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: '100%' }}></div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">تفاعل</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">209</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: '60%' }}></div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">مؤهل</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">112</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: '32%' }}></div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">حجز</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">38</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: '11%' }}></div>
-              </div>
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">تم الوصول</span><span className="font-semibold text-slate-900 dark:text-slate-100">350</span></div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '100%' }}></div></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">تفاعل</span><span className="font-semibold text-slate-900 dark:text-slate-100">209</span></div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '60%' }}></div></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">مؤهل</span><span className="font-semibold text-slate-900 dark:text-slate-100">112</span></div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '32%' }}></div></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">حجز</span><span className="font-semibold text-slate-900 dark:text-slate-100">38</span></div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '11%' }}></div></div>
             </div>
           </Card>
           <Card>
@@ -243,20 +170,9 @@ export default function DashboardPage() {
               <TrendingUp className="w-5 h-5 text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-               {/* Revenue vs Target content remains the same for now */}
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">2,000,000 ر.س</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '71%' }}></div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">1,420,000 ر.س</span>
-              </div>
-              
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span><span className="font-semibold text-slate-900 dark:text-slate-100">2,000,000 ر.س</span></div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-emerald-500 h-2 rounded-full" style={{ width: '71%' }}></div></div>
+              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span><span className="font-semibold text-slate-900 dark:text-slate-100">1,420,000 ر.س</span></div>
               <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                 <div className="text-2xl font-bold text-emerald-600">71%</div>
                 <div className="text-sm text-slate-600 dark:text-slate-400">من الهدف</div>
@@ -265,21 +181,14 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Quick Actions (using our new Card component) */}
         <Card>
           <CardTitle className="mb-6">إجراءات سريعة</CardTitle>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button 
-              onClick={simulateInboundCall}
-              className="flex flex-col items-center p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl text-white hover:scale-105 transition-transform duration-200"
-            >
+            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
               <Phone className="w-8 h-8 mb-2" />
               <span className="font-medium">محاكاة مكالمة</span>
             </button>
-            <button 
-              onClick={simulateInboundMessage}
-              className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200"
-            >
+            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
               <MessageSquare className="w-8 h-8 mb-2" />
               <span className="font-medium">محاكاة رسالة</span>
             </button>

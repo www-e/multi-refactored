@@ -1,39 +1,51 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+
+// TODO: Implement authentication and authorization for this route.
 
 export async function GET() {
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Fetch from the backend API - only recent 10 tickets
-    const response = await fetch('http://127.0.0.1:8000/tickets/recent')
+    const response = await fetch(`${backendUrl}/tickets/recent`);
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch tickets from backend')
+      const errorBody = await response.text();
+      console.error(`Error from backend service: ${response.status} ${errorBody}`);
+      return NextResponse.json(
+        { error: `Failed to fetch tickets from backend: ${response.statusText}` },
+        { status: response.status }
+      );
     }
-    const tickets = await response.json()
-    return NextResponse.json(tickets)
+    
+    const tickets = await response.json();
+    return NextResponse.json(tickets);
+
   } catch (error) {
-    console.error('Error fetching tickets:', error)
-    // Fallback to empty array if backend is not available
-    return NextResponse.json([])
+    console.error('Error fetching tickets:', error);
+    return NextResponse.json(
+      { error: 'An internal server error occurred while fetching tickets.' },
+      { status: 502 }
+    );
   }
 }
 
 export async function POST(request: Request) {
+  // TODO: Add authentication here.
+
   try {
-    const body = await request.json()
-    
-    // إنشاء تذكرة جديدة
+    const body = await request.json();
     const newTicket = {
       id: Date.now().toString(),
       ...body,
       createdAt: new Date().toISOString()
-    }
-    
-    // في التطبيق الحقيقي، سيتم حفظ البيانات في قاعدة البيانات
-    
-    return NextResponse.json(newTicket, { status: 201 })
+    };
+    return NextResponse.json(newTicket, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'خطأ في معالجة الطلب' },
-      { status: 400 }
-    )
+    console.error('Error processing POST request for tickets:', error);
+    return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 400 });
   }
-} 
+}

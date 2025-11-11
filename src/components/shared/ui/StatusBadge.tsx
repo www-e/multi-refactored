@@ -12,6 +12,7 @@ const statusStyles: Record<TStatus, string> = {
   نشطة: 'bg-success text-white',
   موقوفة: 'bg-warning text-white',
   مكتملة: 'bg-info text-white',
+  مكتمل: 'bg-info text-white',
   // Customer Stage
   جديد: 'bg-blue-500 text-white',
   مؤهل: 'bg-yellow-500 text-white',

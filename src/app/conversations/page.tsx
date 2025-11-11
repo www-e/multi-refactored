@@ -1,71 +1,98 @@
 'use client';
 
-import { useState } from 'react';
-import {
-  Phone,
-  MessageSquare,
-  FileText,
-  PhoneOutgoing,
-  PhoneIncoming,
-} from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
-
-// NOTE: The hardcoded data has been kept for this refactor.
-// In a real app, this would come from the useAppStore hook.
-const phoneCallsData = [
-    { id: '1', type: 'outbound', customerName: 'ناصر الزامل', summary: 'مكالمة صادرة لتأكيد موعد صيانة التكييف' },
-    { id: '2', type: 'inbound', customerName: 'محمد القحطاني', summary: 'مكالمة واردة للاستفسار عن مشاريع قريبة' },
-];
+import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 
 export default function ConversationsPage() {
-  const [activeTab, setActiveTab] = useState<'calls' | 'messages' | 'all'>('calls');
-  const [selectedCallId, setSelectedCallId] = useState<string | null>('1');
+  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const selectedCall = phoneCallsData.find(c => c.id === selectedCallId);
+  // FIX: Connect to live data store
+  const { conversations, customers, refreshAllData } = useAppStore();
+
+  // Fetch initial data
+  useEffect(() => {
+    // In a real app, this would be refreshConversations() and refreshCustomers()
+    if (conversations.length === 0) {
+        refreshAllData();
+    }
+  }, [conversations, refreshAllData]);
+
+  // PERFORMANCE FIX: Create a Customer lookup map to avoid searching inside a loop.
+  const customerMap = useMemo(() => 
+    new Map(customers.map(c => [c.id, c.name])),
+    [customers]
+  );
+
+  const filteredConversations = conversations.filter(conv => {
+    const customerName = customerMap.get(conv.customerId) || '';
+    return (
+        conv.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        customerName.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+  
+  const selectedConv = conversations.find(c => c.id === selectedConvId);
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="المحادثات" subtitle="إدارة المكالمات والرسائل مع العملاء" />
         
-        <div className="flex gap-6">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
             <SearchFilterBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               searchPlaceholder="البحث في المحادثات..."
               onFilterClick={() => alert('Filter')}
             />
-            <div className="space-y-3">
-              {phoneCallsData.map(call => (
-                <Card
-                  key={call.id}
-                  onClick={() => setSelectedCallId(call.id)}
-                  className={`p-4 cursor-pointer transition-all ${selectedCallId === call.id ? 'ring-2 ring-primary' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-slate-900 dark:text-slate-100">{call.customerName}</h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">{call.summary}</p>
+            {conversations.length === 0 ? (
+                <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل المحادثات...</p></Card>
+            ) : (
+                <div className="space-y-3">
+                {filteredConversations.map(conv => (
+                    <Card
+                    key={conv.id}
+                    onClick={() => setSelectedConvId(conv.id)}
+                    className={`p-4 cursor-pointer transition-all ${selectedConvId === conv.id ? 'ring-2 ring-primary' : ''}`}
+                    >
+                    <div className="flex items-center justify-between">
+                        <div>
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{customerMap.get(conv.customerId) || 'عميل غير معروف'}</h3>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">{conv.summary}</p>
+                        </div>
+                        <StatusBadge status={conv.type} type="icon" />
                     </div>
-                    {call.type === 'inbound' ? <PhoneIncoming className="w-5 h-5 text-green-500" /> : <PhoneOutgoing className="w-5 h-5 text-blue-500" />}
-                  </div>
-                </Card>
-              ))}
-            </div>
+                    </Card>
+                ))}
+                </div>
+            )}
           </div>
           
-          <div className="w-96 hidden lg:block">
-            {selectedCall && (
+          <div className="hidden lg:block">
+            {selectedConv ? (
               <Card className="sticky top-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">تفاصيل المكالمة</h3>
-                <p>العميل: {selectedCall.customerName}</p>
-                <p>الملخص: {selectedCall.summary}</p>
-                {/* Transcript and other details would go here */}
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">تفاصيل المحادثة</h3>
+                <p><strong>العميل:</strong> {customerMap.get(selectedConv.customerId)}</p>
+                <p><strong>الملخص:</strong> {selectedConv.summary}</p>
+                <div className="mt-4 pt-4 border-t">
+                    <h4 className="font-semibold mb-2">النص الكامل:</h4>
+                    <div className="space-y-2 text-sm max-h-96 overflow-y-auto">
+                        {selectedConv.transcript.map((msg, idx) => (
+                            <p key={idx} className={msg.role === 'user' ? 'text-blue-600' : ''}><strong>{msg.role}:</strong> {msg.text}</p>
+                        ))}
+                    </div>
+                </div>
               </Card>
+            ) : (
+                 <Card className="sticky top-6 text-center py-12">
+                    <p className="text-slate-500">اختر محادثة لعرض تفاصيلها</p>
+                </Card>
             )}
           </div>
         </div>

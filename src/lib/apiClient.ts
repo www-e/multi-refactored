@@ -1,6 +1,5 @@
 import { EnhancedBooking, EnhancedTicket } from "@/app/(shared)/types";
 
-// (apiClient helper function remains the same)
 async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
   const url = `${baseUrl}${endpoint}`;
@@ -23,8 +22,6 @@ async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T>
   return Promise.resolve(undefined as T);
 }
 
-// --- EXPORTED API FUNCTIONS ---
-
 // Read operations
 export const getBookings = (): Promise<EnhancedBooking[]> => apiClient<EnhancedBooking[]>('/api/bookings/recent');
 export const getTickets = (): Promise<EnhancedTicket[]> => apiClient<EnhancedTicket[]>('/api/tickets/recent');
@@ -37,8 +34,7 @@ export const createVoiceSession = (agentType: 'support' | 'sales'): Promise<any>
   });
 };
 
-// --- NEW: Write operations ---
-
+// Write operations
 export const updateBookingStatus = (bookingId: string, status: 'confirmed' | 'canceled'): Promise<any> => {
   return apiClient<any>(`/api/bookings/${bookingId}`, {
     method: 'PATCH',
@@ -46,14 +42,15 @@ export const updateBookingStatus = (bookingId: string, status: 'confirmed' | 'ca
   });
 };
 
-export const updateTicketStatus = (ticketId: string, status: 'in_progress' | 'resolved' | 'closed'): Promise<any> => {
+// FIX: Added 'pending_approval' to the list of allowed statuses.
+export const updateTicketStatus = (ticketId: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval'): Promise<any> => {
   return apiClient<any>(`/api/tickets/${ticketId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 };
 
-// Logging (remains the same)
+// Logging
 export const postLog = (level: 'info' | 'warn' | 'error', message: string, meta?: any): Promise<void> => {
   return apiClient<void>('/api/logs', {
     method: 'POST',

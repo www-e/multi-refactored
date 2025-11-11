@@ -51,7 +51,6 @@ interface AppState {
   refreshAllData: () => Promise<void>;
 }
 
-// Default initial state
 const initialState = {
   customers: [],
   conversations: [],
@@ -74,7 +73,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       ...initialState,
       
-      // --- LOCAL "WRITE" ACTIONS (for non-persistent data or new items) ---
+      // Local actions
       addTicket: (ticket) => set((state) => ({ tickets: [ticket, ...state.tickets] })),
       updateTicket: (id, updates) => set((state) => ({ tickets: state.tickets.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t) })),
       addBooking: (booking) => set((state) => ({ bookings: [booking, ...state.bookings] })),
@@ -82,71 +81,44 @@ export const useAppStore = create<AppState>()(
       runCampaign: (id) => set((state) => ({ campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'نشطة' } : c) })),
       stopCampaign: (id) => set((state) => ({ campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'موقوفة' } : c) })),
 
-      // --- ASYNC DATA FETCHING ACTIONS ---
+      // Async data fetching
       refreshTickets: async () => {
-        try {
-          const tickets = await getTickets();
-          set({ tickets });
-        } catch (error) { console.error("Error refreshing tickets:", error); set({ tickets: [] }); }
+        try { const tickets = await getTickets(); set({ tickets }); } catch (error) { console.error("Error refreshing tickets:", error); set({ tickets: [] }); }
       },
       refreshBookings: async () => {
-        try {
-          const bookings = await getBookings();
-          set({ bookings });
-        } catch (error) { console.error("Error refreshing bookings:", error); set({ bookings: [] }); }
+        try { const bookings = await getBookings(); set({ bookings }); } catch (error) { console.error("Error refreshing bookings:", error); set({ bookings: [] }); }
       },
       refreshAllData: async () => {
         await Promise.all([get().refreshTickets(), get().refreshBookings()]);
       },
 
-      // --- FULLY IMPLEMENTED ASYNC "WRITE" ACTIONS ---
-      
-      // BOOKING ACTIONS
+      // Async write actions
       approveBooking: async (id: string) => {
         try {
           await updateBookingStatus(id, 'confirmed');
-          set((state) => ({
-            bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'مؤكد', updatedAt: new Date().toISOString() } : b)
-          }));
-        } catch (error) {
-          console.error(`Failed to approve booking ${id}:`, error);
-          // In a real app, you would trigger a user-facing notification here.
-        }
+          set((state) => ({ bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'مؤكد', updatedAt: new Date().toISOString() } : b) }));
+        } catch (error) { console.error(`Failed to approve booking ${id}:`, error); }
       },
       
       rejectBooking: async (id: string) => {
         try {
           await updateBookingStatus(id, 'canceled');
-          set((state) => ({
-            bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'ملغي', updatedAt: new Date().toISOString() } : b)
-          }));
-        } catch (error) {
-          console.error(`Failed to reject booking ${id}:`, error);
-        }
+          set((state) => ({ bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'ملغي', updatedAt: new Date().toISOString() } : b) }));
+        } catch (error) { console.error(`Failed to reject booking ${id}:`, error); }
       },
 
-      // TICKET ACTIONS
       assignTicket: async (id: string, assignee: string) => {
         try {
-          // NOTE: The backend PATCH endpoint currently only supports 'status'.
-          // For a real implementation, it would need to support changing the 'assignee' as well.
-          // We will update the status optimistically here.
           await updateTicketStatus(id, 'in_progress');
           set((state) => ({
-            tickets: state.tickets.map(t => 
-              t.id === id ? { ...t, assignee, status: 'قيد_المعالجة', updatedAt: new Date().toISOString() } : t
-            )
+            tickets: state.tickets.map(t => t.id === id ? { ...t, assignee, status: 'قيد_المعالجة', updatedAt: new Date().toISOString() } : t)
           }));
-        } catch (error) {
-          console.error(`Failed to assign ticket ${id}:`, error);
-        }
+        } catch (error) { console.error(`Failed to assign ticket ${id}:`, error); }
       },
 
       resolveTicket: async (id: string, resolution: string) => {
         try {
-          // NOTE: The backend would need to be updated to accept a 'resolutionNote' in its PATCH request.
-          // For now, we only update the status.
-          await updateTicketStatus(id, 'resolved'); // Assuming 'resolved' is the status for manager approval. Let's use 'pending_approval' from your model.
+          // FIX: Removed the incorrect, redundant API call. Only call it once with the correct status.
           await updateTicketStatus(id, 'pending_approval');
           set((state) => ({
             tickets: state.tickets.map(t => 
@@ -160,7 +132,6 @@ export const useAppStore = create<AppState>()(
 
       approveTicket: async (id: string, approver: string) => {
         try {
-          // NOTE: The backend would need to be updated to accept an 'approvedBy' field.
           await updateTicketStatus(id, 'resolved');
           set((state) => ({
             tickets: state.tickets.map(t => 

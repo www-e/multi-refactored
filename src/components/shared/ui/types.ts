@@ -4,7 +4,7 @@ export type TStatus =
   // Universal
   | "نشطة"
   | "موقوفة"
-  | "مكتملة"
+  | "مكتملة" // This was the original value
   | "جديد"
   | "مؤهل"
   | "حجز"
@@ -19,6 +19,7 @@ export type TStatus =
   | "معلق"
   | "مؤكد"
   | "ملغي"
+  | "مكتمل" // FIX: Changed from 'مكتملة' to match the EnhancedBooking type
   // Priority
   | "عاجل"
   | "عالٍ"

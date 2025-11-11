@@ -123,7 +123,6 @@ export default function AnalyticsPage() {
                   <StatsCard key={stat.label} {...stat} />
                 ))}
               </div>
-              {/* Other charts would go here, wrapped in <Card> */}
             </div>
           )}
 

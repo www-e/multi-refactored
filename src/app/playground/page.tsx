@@ -127,7 +127,10 @@ export default function PlaygroundPage() {
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {messages.map(msg => (
                         <div key={msg.id} className={`flex items-end gap-2 ${msg.type === 'user' ? 'justify-end' : ''}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${msg.type === 'agent' ? 'bg-slate-200' : 'bg-blue-500 text-white'}`}><msg.type === 'agent' ? <Bot size={18} /> : <User size={18} /></div>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.type === 'agent' ? 'bg-slate-200' : 'bg-blue-500 text-white'}`}>
+                                {/* FIX: Replaced invalid <msg.type> syntax with a standard ternary operator */}
+                                {msg.type === 'agent' ? <Bot size={18} /> : <User size={18} />}
+                            </div>
                             <div className={`max-w-md p-3 rounded-lg ${msg.type === 'agent' ? 'bg-slate-100 dark:bg-slate-800' : 'bg-blue-500 text-white'}`}>{msg.content}</div>
                         </div>
                     ))}

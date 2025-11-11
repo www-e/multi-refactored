@@ -1,38 +1,51 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+
+// TODO: Implement authentication and authorization for this route.
 
 export async function GET() {
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Fetch from the backend API - only recent 10 bookings
-    const response = await fetch('http://127.0.0.1:8000/bookings/recent')
+    const response = await fetch(`${backendUrl}/bookings/recent`);
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch bookings from backend')
+      const errorBody = await response.text();
+      console.error(`Error from backend service: ${response.status} ${errorBody}`);
+      return NextResponse.json(
+        { error: `Failed to fetch bookings from backend: ${response.statusText}` },
+        { status: response.status }
+      );
     }
-    const bookings = await response.json()
-    return NextResponse.json(bookings)
+    
+    const bookings = await response.json();
+    return NextResponse.json(bookings);
+
   } catch (error) {
-    console.error('Error fetching bookings:', error)
-    // Fallback to empty array if backend is not available
-    return NextResponse.json([])
+    console.error('Error fetching bookings:', error);
+    return NextResponse.json(
+      { error: 'An internal server error occurred while fetching bookings.' },
+      { status: 502 } // 502 Bad Gateway
+    );
   }
 }
 
 export async function POST(request: Request) {
+  // TODO: Add authentication here.
+  
   try {
-    const body = await request.json()
-    
-    // إنشاء حجز جديد
+    const body = await request.json();
     const newBooking = {
       id: Date.now().toString(),
       ...body,
       createdAt: new Date().toISOString()
-    }
-    
-    
-    return NextResponse.json(newBooking, { status: 201 })
+    };
+    return NextResponse.json(newBooking, { status: 201 });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'خطأ في معالجة الطلب' },
-      { status: 400 }
-    )
+    console.error('Error processing POST request for bookings:', error);
+    return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 400 });
   }
-} 
+}

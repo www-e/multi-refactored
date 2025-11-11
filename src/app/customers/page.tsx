@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, User, Phone, Mail, MapPin, DollarSign, PhoneCall, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Customer } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -12,11 +12,11 @@ import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
-  // In a real app, this data would come from the store or props
+  // In a real app, this interaction data would be calculated or fetched.
   const interactions = { conversations: 3, tickets: 1, bookings: 2 };
 
   return (
-    <Card onClick={onSelect} className="cursor-pointer hover:shadow-xl transition-shadow">
+    <Card onClick={onSelect} className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all">
       <div className="flex items-center justify-between mb-4">
         <div className="w-12 h-12 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center">
           <User className="w-6 h-6 text-white" />
@@ -47,7 +47,7 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
         <ActionButton icon={PhoneCall} label="اتصال" className="flex-1 text-sm" />
         <ActionButton icon={MessageSquare} label="رسالة" variant="secondary" className="flex-1 bg-info hover:bg-info/90 text-sm" />
       </div>
@@ -58,9 +58,22 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const { customers } = useAppStore();
   
-  const filteredCustomers = customers.filter(c => c.name.includes(searchQuery));
+  // FIX: Connect to the live data store
+  const { customers, refreshAllData } = useAppStore();
+
+  // Fetch initial data
+  useEffect(() => {
+    // In a real app, this would be refreshCustomers()
+    if (customers.length === 0) {
+        refreshAllData(); 
+    }
+  }, [customers, refreshAllData]);
+  
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.phone.includes(searchQuery)
+  );
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
@@ -72,22 +85,27 @@ export default function CustomersPage() {
         <SearchFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          searchPlaceholder="البحث في العملاء..."
+          searchPlaceholder="البحث بالاسم أو رقم الهاتف..."
           onFilterClick={() => alert('Filter clicked')}
         />
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCustomers.map((customer) => (
-            <CustomerCard key={customer.id} customer={customer} onSelect={() => setSelectedCustomer(customer)} />
-          ))}
-        </div>
+        {customers.length === 0 ? (
+           <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل العملاء...</p></Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCustomers.map((customer) => (
+              <CustomerCard key={customer.id} customer={customer} onSelect={() => setSelectedCustomer(customer)} />
+            ))}
+          </div>
+        )}
 
         <Modal isOpen={!!selectedCustomer} onClose={() => setSelectedCustomer(null)} title="تفاصيل العميل">
           {selectedCustomer && (
-            <div>
-              <p>الاسم: {selectedCustomer.name}</p>
+            <div className="space-y-2">
+              <h4 className="text-xl font-semibold">{selectedCustomer.name}</h4>
               <p>الهاتف: {selectedCustomer.phone}</p>
               <p>المرحلة: <StatusBadge status={selectedCustomer.stage} /></p>
+              <p>الميزانية: {selectedCustomer.budget?.toLocaleString()} ر.س</p>
             </div>
           )}
         </Modal>

@@ -1,21 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  Plus,
-  RefreshCw,
-  User,
-  MoreVertical,
-  Edit,
-  Eye,
-} from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, RefreshCw, Edit, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { DataTable } from '@/components/shared/data/DataTable';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
-import { Card } from '@/components/shared/ui/Card';
 import { Modal } from '@/components/shared/ui/Modal';
 import { EnhancedBooking } from '@/app/(shared)/types';
 
@@ -23,23 +15,28 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
 
-  const { bookings, customers, properties, refreshBookings } = useAppStore();
+  const { bookings, customers, properties, refreshBookings, approveBooking, rejectBooking } = useAppStore();
 
   useEffect(() => {
+    // We can expand this to fetch customers and properties if they are not present
     refreshBookings();
   }, [refreshBookings]);
 
-  const getCustomerById = (id: string) => customers.find((c) => c.id === id);
-  const getPropertyById = (id: string) => properties.find((p) => p.id === id);
+  // --- PERFORMANCE OPTIMIZATION ---
+  // Create efficient lookup maps for customers and properties.
+  // useMemo ensures these maps are only recreated when the underlying data changes.
+  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
+  const propertyMap = useMemo(() => new Map(properties.map(p => [p.id, p])), [properties]);
 
   const filteredBookings = bookings.filter(booking => {
     if (!searchQuery) return true;
-    const customer = getCustomerById(booking.customerId);
-    const property = getPropertyById(booking.propertyId);
+    const customer = customerMap.get(booking.customerId);
+    const property = propertyMap.get(booking.propertyId);
+    const lowerCaseQuery = searchQuery.toLowerCase();
     return (
-      customer?.name.includes(searchQuery) ||
-      customer?.phone.includes(searchQuery) ||
-      property?.code.includes(searchQuery)
+      customer?.name.toLowerCase().includes(lowerCaseQuery) ||
+      customer?.phone.includes(searchQuery) || // Phone search should be exact
+      property?.code.toLowerCase().includes(lowerCaseQuery)
     );
   });
 
@@ -48,21 +45,9 @@ export default function BookingsPage() {
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <PageHeader
-          title="الحجوزات والمواعيد"
-          subtitle="إدارة حجوزات العملاء والمواعيد"
-        >
-          <ActionButton
-            icon={RefreshCw}
-            label="تحديث"
-            onClick={refreshBookings}
-            variant="secondary"
-          />
-          <ActionButton
-            icon={Plus}
-            label="حجز جديد"
-            onClick={() => alert('New Booking Modal')}
-          />
+        <PageHeader title="الحجوزات والمواعيد" subtitle="إدارة حجوزات العملاء والمواعيد">
+          <ActionButton icon={RefreshCw} label="تحديث" onClick={refreshBookings} variant="secondary" />
+          <ActionButton icon={Plus} label="حجز جديد" onClick={() => alert('New Booking Modal')} />
         </PageHeader>
 
         <SearchFilterBar
@@ -74,8 +59,11 @@ export default function BookingsPage() {
 
         <DataTable headers={TABLE_HEADERS}>
           {filteredBookings.map((booking) => {
-            const customer = getCustomerById(booking.customerId);
-            const property = getPropertyById(booking.propertyId);
+            // O(1) instant lookup instead of O(n) .find()
+            const customer = customerMap.get(booking.customerId);
+            const property = propertyMap.get(booking.propertyId);
+            
+            // Render nothing if related data is missing to prevent crashes
             if (!customer || !property) return null;
 
             return (
@@ -103,30 +91,21 @@ export default function BookingsPage() {
                 </td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 text-slate-400 hover:text-primary rounded-lg">
-                      <Edit className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
+                    <button className="p-2 text-slate-400 hover:text-primary rounded-lg"><Edit className="w-4 h-4" /></button>
                   </div>
                 </td>
               </tr>
             );
-          })}
+})}
         </DataTable>
 
-        <Modal
-          isOpen={!!selectedBooking}
-          onClose={() => setSelectedBooking(null)}
-          title="تفاصيل الحجز"
-        >
+        <Modal isOpen={!!selectedBooking} onClose={() => setSelectedBooking(null)} title="تفاصيل الحجز">
           {selectedBooking && (
             <div>
-              <p>العميل: {getCustomerById(selectedBooking.customerId)?.name}</p>
-              <p>العقار: {getPropertyById(selectedBooking.propertyId)?.code}</p>
+              <p>العميل: {customerMap.get(selectedBooking.customerId)?.name}</p>
+              <p>العقار: {propertyMap.get(selectedBooking.propertyId)?.code}</p>
               <p>السعر: {selectedBooking.price.toLocaleString()} ر.س</p>
-              {/* Add more details here */}
             </div>
           )}
         </Modal>
