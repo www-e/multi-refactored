@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { 
-  Bot, Phone, MessageSquare, Mic, MicOff, Send, User, Settings, Volume2, VolumeX,
-  Zap, Calendar, Loader2, AlertCircle, Headphones, Activity, PhoneOff,
-  Wifi, WifiOff, Battery, Smartphone, Tablet, Monitor
+  Bot, Phone, MessageSquare, Send, User,
+  Zap, Loader2,  Headphones, PhoneOff,
+   Smartphone,  Monitor
 } from 'lucide-react';
 import { useVoiceAgent } from '@/hooks/useVoiceAgent';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';

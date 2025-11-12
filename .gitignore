@@ -88,3 +88,6 @@ Thumbs.db
 
 docs/
 package-lock.json
+
+
+.vscode/

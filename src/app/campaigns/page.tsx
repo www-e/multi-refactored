@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState} from 'react';
 import { Plus, Play, Pause, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { EnhancedCampaign } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
-import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
+import { Card, CardHeader} from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
 

@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Phone,
   Mail,
-  Menu,
   X,
   ChevronLeft,
   ChevronRight

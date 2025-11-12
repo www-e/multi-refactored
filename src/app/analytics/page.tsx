@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import {
   Activity,
-  BarChart3,
   Download,
   Phone,
   Clock,

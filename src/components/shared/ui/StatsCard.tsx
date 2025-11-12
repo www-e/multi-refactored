@@ -1,4 +1,3 @@
-import { LucideIcon } from 'lucide-react';
 import { Card } from './Card';
 import { ChangeIndicator } from './ChangeIndicator';
 import { IStatsCard } from './types';

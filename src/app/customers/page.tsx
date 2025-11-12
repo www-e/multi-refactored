@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect} from 'react';
 import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Customer } from '@/app/(shared)/types';
