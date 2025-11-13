@@ -6,6 +6,7 @@ import { Tajawal } from 'next/font/google'
 import '@/styles/globals.css'
 import ThemeToggle from '@/components/ThemeToggle'
 import ClientLayout from '@/components/ClientLayout'
+import ErrorBoundary from '@/components/shared/ui/ErrorBoundary'
 
 const tajawal = Tajawal({ subsets: ['arabic'], weight: ['400','500','700','800'] })
 
@@ -22,10 +23,12 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${tajawal.className} bg-background text-foreground`}>
-        <ClientLayout>
-          {children}
-        </ClientLayout>
-        <ThemeToggle />
+        <ErrorBoundary>
+          <ClientLayout>
+            {children}
+          </ClientLayout>
+          <ThemeToggle />
+        </ErrorBoundary>
       </body>
     </html>
   )

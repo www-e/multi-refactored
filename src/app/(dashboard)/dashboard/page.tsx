@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { DashboardStatsGrid } from '@/components/features/dashboard/DashboardStatsGrid';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
@@ -59,7 +60,9 @@ export default function DashboardPage() {
           ))}
         </PageHeader>
 
-        <DashboardStatsGrid kpis={dashboardKPIs} isLoading={dashboardLoading} />
+        <ErrorBoundary>
+          <DashboardStatsGrid kpis={dashboardKPIs} isLoading={dashboardLoading} />
+        </ErrorBoundary>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="text-center">

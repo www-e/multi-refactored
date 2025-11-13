@@ -3,23 +3,35 @@ import { EnhancedBooking, EnhancedTicket } from "@/app/(shared)/types";
 async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
   const url = `${baseUrl}${endpoint}`;
-  const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
-  if (!response.ok) {
-    let errorMessage = `API Error: ${response.status} ${response.statusText}`;
-    try {
-      const errorBody = await response.json();
-      errorMessage = errorBody.error || errorMessage;
-    } catch (e) { /* Ignore */ }
-    throw new Error(errorMessage);
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      ...options,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+      try {
+        const errorBody = await response.json();
+        errorMessage = errorBody.error || errorMessage;
+      } catch (e) { /* Ignore */ }
+
+      // Log for debugging
+      console.error('API Error:', errorMessage, { url, status: response.status });
+      throw new Error(errorMessage);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json() as Promise<T>;
+    }
+    return Promise.resolve(undefined as T);
+  } catch (error) {
+    // Log network or other errors
+    console.error('Network Error:', error);
+    throw new Error('فشل الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.');
   }
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return response.json() as Promise<T>;
-  }
-  return Promise.resolve(undefined as T);
 }
 
 // Read operations

@@ -10,6 +10,7 @@ import { Modal } from '@/components/shared/ui/Modal';
 import { EnhancedTicket } from '@/app/(shared)/types';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 
 const TICKET_COLUMNS = [
     { id: 'مفتوحة', title: 'مفتوحة' },
@@ -65,72 +66,74 @@ export default function TicketsPage() {
           onFilterClick={() => alert('Filter clicked')}
         />
 
-        {ticketsLoading ? (
-          <div className="space-y-6">
-            {TICKET_COLUMNS.map(column => (
-              <div key={column.id}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{column.title}</h3>
-                  <div className="h-6 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                </div>
-                <div className="space-y-3">
-                  {[...Array(3)].map((_, index) => (
-                    <div key={index} className="p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 animate-pulse">
-                      <div className="flex justify-between items-start">
-                        <div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                        <div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+        <ErrorBoundary>
+          {ticketsLoading ? (
+            <div className="space-y-6">
+              {TICKET_COLUMNS.map(column => (
+                <div key={column.id}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{column.title}</h3>
+                    <div className="h-6 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                  </div>
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, index) => (
+                      <div key={index} className="p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 animate-pulse">
+                        <div className="flex justify-between items-start">
+                          <div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+                          <div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+                        </div>
+                        <div className="mt-1 h-3 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+                        <div className="mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <div className="h-3 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                      </div>
-                      <div className="mt-1 h-3 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                      <div className="mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-                        <div className="h-3 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {TICKET_COLUMNS.map(column => (
-              <div key={column.id}>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">{column.title}</h3>
-                  <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-full text-sm">
-                      {filteredTickets.filter(t => t.status === column.id).length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {filteredTickets
-                    .filter(t => t.status === column.id)
-                    .map(ticket => {
-                      const customer = customerMap.get(ticket.customerId);
-                      const property = ticket.propertyId ? propertyMap.get(ticket.propertyId) : null;
-                      if (!customer) return null;
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              {TICKET_COLUMNS.map(column => (
+                <div key={column.id}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{column.title}</h3>
+                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-1 rounded-full text-sm">
+                        {filteredTickets.filter(t => t.status === column.id).length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {filteredTickets
+                      .filter(t => t.status === column.id)
+                      .map(ticket => {
+                        const customer = customerMap.get(ticket.customerId);
+                        const property = ticket.propertyId ? propertyMap.get(ticket.propertyId) : null;
+                        if (!customer) return null;
 
-                      return (
-                          <Card key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="p-4 cursor-pointer hover:shadow-xl">
-                              <div className="flex justify-between items-start">
-                                  <p className="font-medium text-slate-800 dark:text-slate-200">{customer.name}</p>
-                                  <StatusBadge status={ticket.priority} />
-                              </div>
-                              <div className="flex items-center gap-2 mt-2 text-sm text-slate-600 dark:text-slate-400">
-                                  <span>{getCategoryIcon(ticket.category)}</span>
-                                  <span>{ticket.category}</span>
-                              </div>
-                              {property && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin size={12} />{property.code}</p>}
-                              {ticket.assignee && <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center gap-1"><User size={12} />{ticket.assignee}</p>}
-                          </Card>
-                      )
-                  })}
+                        return (
+                            <Card key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="p-4 cursor-pointer hover:shadow-xl">
+                                <div className="flex justify-between items-start">
+                                    <p className="font-medium text-slate-800 dark:text-slate-200">{customer.name}</p>
+                                    <StatusBadge status={ticket.priority} />
+                                </div>
+                                <div className="flex items-center gap-2 mt-2 text-sm text-slate-600 dark:text-slate-400">
+                                    <span>{getCategoryIcon(ticket.category)}</span>
+                                    <span>{ticket.category}</span>
+                                </div>
+                                {property && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin size={12} />{property.code}</p>}
+                                {ticket.assignee && <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center gap-1"><User size={12} />{ticket.assignee}</p>}
+                            </Card>
+                        )
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </ErrorBoundary>
 
         <Modal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} title="تفاصيل التذكرة">
             {selectedTicket && <div><p>العميل: {customerMap.get(selectedTicket.customerId)?.name}</p></div>}
