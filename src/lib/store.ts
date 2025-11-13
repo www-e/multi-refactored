@@ -25,18 +25,23 @@ interface AppState {
   bookings: EnhancedBooking[];
   campaigns: EnhancedCampaign[];
   properties: Property[];
-  
+
+  // Loading states
+  ticketsLoading: boolean;
+  bookingsLoading: boolean;
+  dashboardLoading: boolean;
+
   // Dashboard state
   dashboardKPIs: DashboardKPIs;
   liveOps: LiveOps;
-  
+
   // Actions
   addTicket: (ticket: EnhancedTicket) => void;
   updateTicket: (id: string, updates: Partial<EnhancedTicket>) => void;
   assignTicket: (id: string, assignee: string) => Promise<void>;
   resolveTicket: (id: string, resolution: string) => Promise<void>;
   approveTicket: (id: string, approver: string) => Promise<void>;
-  
+
   addBooking: (booking: EnhancedBooking) => void;
   updateBooking: (id: string, updates: Partial<EnhancedBooking>) => void;
   approveBooking: (id: string) => Promise<void>;
@@ -44,7 +49,7 @@ interface AppState {
 
   runCampaign: (id: string) => void;
   stopCampaign: (id: string) => void;
-  
+
   // Data fetching functions
   refreshTickets: () => Promise<void>;
   refreshBookings: () => Promise<void>;
@@ -58,6 +63,9 @@ const initialState = {
   bookings: [],
   campaigns: [],
   properties: [],
+  ticketsLoading: false,
+  bookingsLoading: false,
+  dashboardLoading: false,
   dashboardKPIs: {
     totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
     avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
@@ -83,13 +91,36 @@ export const useAppStore = create<AppState>()(
 
       // Async data fetching
       refreshTickets: async () => {
-        try { const tickets = await getTickets(); set({ tickets }); } catch (error) { console.error("Error refreshing tickets:", error); set({ tickets: [] }); }
+        set({ ticketsLoading: true });
+        try {
+          const tickets = await getTickets();
+          set({ tickets });
+        } catch (error) {
+          console.error("Error refreshing tickets:", error);
+          set({ tickets: [] });
+        } finally {
+          set({ ticketsLoading: false });
+        }
       },
       refreshBookings: async () => {
-        try { const bookings = await getBookings(); set({ bookings }); } catch (error) { console.error("Error refreshing bookings:", error); set({ bookings: [] }); }
+        set({ bookingsLoading: true });
+        try {
+          const bookings = await getBookings();
+          set({ bookings });
+        } catch (error) {
+          console.error("Error refreshing bookings:", error);
+          set({ bookings: [] });
+        } finally {
+          set({ bookingsLoading: false });
+        }
       },
       refreshAllData: async () => {
-        await Promise.all([get().refreshTickets(), get().refreshBookings()]);
+        set({ dashboardLoading: true });
+        try {
+          await Promise.all([get().refreshTickets(), get().refreshBookings()]);
+        } finally {
+          set({ dashboardLoading: false });
+        }
       },
 
       // Async write actions

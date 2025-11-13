@@ -23,6 +23,7 @@ export default function DashboardPage() {
     dashboardKPIs,
     liveOps,
     refreshAllData,
+    dashboardLoading,
   } = useAppStore();
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function DashboardPage() {
           ))}
         </PageHeader>
 
-        <DashboardStatsGrid kpis={dashboardKPIs} />
+        <DashboardStatsGrid kpis={dashboardKPIs} isLoading={dashboardLoading} />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="text-center">

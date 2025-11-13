@@ -9,13 +9,14 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { DataTable } from '@/components/shared/data/DataTable';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
+import { Card } from '@/components/shared/ui/Card';
 import { EnhancedBooking } from '@/app/(shared)/types';
 
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
 
-  const { bookings, customers, properties, refreshBookings, approveBooking, rejectBooking } = useAppStore();
+  const { bookings, customers, properties, refreshBookings, approveBooking, rejectBooking, bookingsLoading } = useAppStore();
 
   useEffect(() => {
     // We can expand this to fetch customers and properties if they are not present
@@ -57,48 +58,104 @@ export default function BookingsPage() {
           onFilterClick={() => alert('Filter clicked')}
         />
 
-        <DataTable headers={TABLE_HEADERS}>
-          {filteredBookings.map((booking) => {
-            // O(1) instant lookup instead of O(n) .find()
-            const customer = customerMap.get(booking.customerId);
-            const property = propertyMap.get(booking.propertyId);
-            
-            // Render nothing if related data is missing to prevent crashes
-            if (!customer || !property) return null;
+        {bookingsLoading ? (
+          <Card className="p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50 dark:bg-slate-800/50">
+                  <tr>
+                    {TABLE_HEADERS.map((header) => (
+                      <th
+                        key={header}
+                        className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {[...Array(5)].map((_, index) => (
+                    <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="p-4">
+                        <div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                        <div className="mt-2 h-3 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                      </td>
+                      <td className="p-4">
+                        <div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                        <div className="mt-2 h-3 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                      </td>
+                      <td className="p-4">
+                        <div className="h-4 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                      </td>
+                      <td className="p-4">
+                        <div className="h-4 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-5 w-5 bg-slate-200/60 dark:bg-slate-700/60 rounded-full animate-pulse"></div>
+                          <div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="h-6 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                          <div className="h-8 w-8 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ) : (
+          <DataTable headers={TABLE_HEADERS}>
+            {filteredBookings.map((booking) => {
+              // O(1) instant lookup instead of O(n) .find()
+              const customer = customerMap.get(booking.customerId);
+              const property = propertyMap.get(booking.propertyId);
 
-            return (
-              <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td className="p-4">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">{customer.name}</div>
-                  <div className="text-sm text-slate-500">{customer.phone}</div>
-                </td>
-                <td className="p-4">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">{property.code}</div>
-                  <div className="text-sm text-slate-500">{property.neighborhood}</div>
-                </td>
-                <td className="p-4 text-sm text-slate-900 dark:text-slate-100">
-                  {new Date(booking.startDate).toLocaleDateString('ar-SA')}
-                </td>
-                <td className="p-4 font-semibold text-primary">{booking.price.toLocaleString()} ر.س</td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={booking.source} type="icon" />
-                    <StatusBadge status={booking.createdBy} />
-                  </div>
-                </td>
-                <td className="p-4">
-                  <StatusBadge status={booking.status} />
-                </td>
-                <td className="p-4">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
-                    <button className="p-2 text-slate-400 hover:text-primary rounded-lg"><Edit className="w-4 h-4" /></button>
-                  </div>
-                </td>
-              </tr>
-            );
-})}
-        </DataTable>
+              // Render nothing if related data is missing to prevent crashes
+              if (!customer || !property) return null;
+
+              return (
+                <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="p-4">
+                    <div className="font-medium text-slate-900 dark:text-slate-100">{customer.name}</div>
+                    <div className="text-sm text-slate-500">{customer.phone}</div>
+                  </td>
+                  <td className="p-4">
+                    <div className="font-medium text-slate-900 dark:text-slate-100">{property.code}</div>
+                    <div className="text-sm text-slate-500">{property.neighborhood}</div>
+                  </td>
+                  <td className="p-4 text-sm text-slate-900 dark:text-slate-100">
+                    {new Date(booking.startDate).toLocaleDateString('ar-SA')}
+                  </td>
+                  <td className="p-4 font-semibold text-primary">{booking.price.toLocaleString()} ر.س</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={booking.source} type="icon" />
+                      <StatusBadge status={booking.createdBy} />
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <StatusBadge status={booking.status} />
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
+                      <button className="p-2 text-slate-400 hover:text-primary rounded-lg"><Edit className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </DataTable>
+        )}
 
         <Modal isOpen={!!selectedBooking} onClose={() => setSelectedBooking(null)} title="تفاصيل الحجز">
           {selectedBooking && (

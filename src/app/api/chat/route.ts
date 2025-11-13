@@ -56,10 +56,15 @@ export const POST = auth0.withApiAuthRequired(async function chat(request: NextR
 اسأل عن: نوع العقار المطلوب، المنطقة المفضلة، الميزانية، توقيت الانتقال`
     }
     // Call OpenRouter API with real AI
+    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+    if (!openRouterApiKey) {
+      return Response.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
+    }
+
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer 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',
+        'Authorization': `Bearer ${openRouterApiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
         'X-Title': 'NAVAIA Voice Agent Portal'
