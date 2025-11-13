@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import datetime
 import os
 import logging
@@ -84,8 +85,22 @@ def read_root(_=Depends(require_auth)):
     return {"status": "Voice Agent Portal API", "version": "1.9-optimized"}
 
 @app.get("/healthz")
-def health_check(_=Depends(require_auth)):
+def health_check():
+    """Health check endpoint - does not require authentication for monitoring tools"""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/ready")
+def ready_check():
+    """Readiness check endpoint - does not require authentication for load balancers"""
+    # Check if database is available
+    try:
+        db = next(get_session())
+        db.execute(text("SELECT 1"))
+        db.close()
+        return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        return {"status": "not_ready", "error": str(e), "timestamp": datetime.utcnow().isoformat()}
 
 @app.post("/voice/sessions", response_model=VoiceSessionResponse)
 def create_voice_session(_=Depends(require_auth), body: VoiceSessionRequest = None, session: Session = Depends(get_session)):

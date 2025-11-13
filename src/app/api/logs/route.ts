@@ -27,7 +27,18 @@ export const POST = auth0.withApiAuthRequired(async function postLog(request: Ne
 
 // This endpoint is also now protected.
 export const GET = auth0.withApiAuthRequired(async function getLogs(request: NextRequest) {
-  // TODO: Add role-based check here to ensure only Admins can view logs.
+  // Get user session to check roles
+  const session = await auth0.getSession();
+  const namespace = 'https://agentic.navaia.sa';
+  // @ts-ignore
+  const userRoles = session?.user?.[`${namespace}/roles`] as string[] || [];
+  const isAdmin = userRoles.includes('admin');
+
+  // Only allow admins to view logs
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Access forbidden. Admin role required.' }, { status: 403 });
+  }
+
   if (process.env.NODE_ENV === 'production') {
      return NextResponse.json({ error: 'Access forbidden.' }, { status: 403 });
   }

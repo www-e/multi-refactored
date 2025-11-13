@@ -8,6 +8,10 @@ interface DashboardStatsGridProps {
     answerRate: number;
     conversionToBooking: number;
     revenue: number;
+    totalCallsChange?: number;
+    answerRateChange?: number;
+    conversionChange?: number;
+    revenueChange?: number;
   };
   isLoading?: boolean;
 }
@@ -17,7 +21,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     {
       label: 'الاتصالات المنفذة',
       value: kpis.totalCalls.toLocaleString(),
-      change: 12, // Example static change
+      change: kpis.totalCallsChange || 0,
       period: 'من الفترة السابقة',
       icon: Phone,
       iconBgColor: 'bg-gradient-to-r from-blue-500 to-indigo-600',
@@ -25,7 +29,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     {
       label: 'معدل الإجابة',
       value: `${kpis.answerRate}%`,
-      change: 5, // Example static change
+      change: kpis.answerRateChange || 0,
       period: 'من الفترة السابقة',
       icon: CheckCircle,
       iconBgColor: 'bg-gradient-to-r from-emerald-500 to-teal-600',
@@ -33,7 +37,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     {
       label: 'التحويل إلى حجز',
       value: `${kpis.conversionToBooking}%`,
-      change: 8, // Example static change
+      change: kpis.conversionChange || 0,
       period: 'من الفترة السابقة',
       icon: Target,
       iconBgColor: 'bg-gradient-to-r from-purple-500 to-pink-600',
@@ -41,7 +45,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     {
       label: 'الإيرادات',
       value: `${kpis.revenue.toLocaleString()} ر.س`,
-      change: 15, // Example static change
+      change: kpis.revenueChange || 0,
       period: 'من الفترة السابقة',
       icon: DollarSign,
       iconBgColor: 'bg-gradient-to-r from-orange-500 to-red-600',

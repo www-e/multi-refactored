@@ -69,6 +69,7 @@ const initialState = {
   dashboardKPIs: {
     totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
     avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
+    totalCallsChange: 0, answerRateChange: 0, conversionChange: 0, revenueChange: 0,
   },
   liveOps: {
     currentCalls: [],

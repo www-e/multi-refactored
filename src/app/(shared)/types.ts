@@ -227,6 +227,10 @@ export interface DashboardKPIs {
   missedCalls: number;
   aiTransferred: number;
   systemStatus: 'AI_يعمل' | 'التحويل_للبشر';
+  totalCallsChange?: number;
+  answerRateChange?: number;
+  conversionChange?: number;
+  revenueChange?: number;
 }
 
 export interface LiveOps {
