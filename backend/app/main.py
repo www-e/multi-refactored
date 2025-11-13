@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from app.db import get_session, engine
 from app import models
+from app.auth_utils import require_auth
 
 # Minimal logging setup
 logging.basicConfig(level=logging.WARNING)
@@ -79,15 +80,15 @@ class VoiceSessionResponse(BaseModel):
 # --- API Endpoints ---
 
 @app.get("/")
-def read_root():
+def read_root(_=Depends(require_auth)):
     return {"status": "Voice Agent Portal API", "version": "1.9-optimized"}
 
 @app.get("/healthz")
-def health_check():
+def health_check(_=Depends(require_auth)):
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.post("/voice/sessions", response_model=VoiceSessionResponse)
-def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(get_session)):
+def create_voice_session(_=Depends(require_auth), body: VoiceSessionRequest = None, session: Session = Depends(get_session)):
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
         tenant_id="demo-tenant", 
@@ -111,8 +112,7 @@ def create_voice_session(body: VoiceSessionRequest, session: Session = Depends(g
 # --- Booking Endpoints ---
 
 @app.get("/bookings")
-# ... (existing get_bookings code remains the same)
-def get_bookings(limit: int = 50, db_session: Session = Depends(get_session)):
+def get_bookings(_=Depends(require_auth), limit: int = 50, db_session: Session = Depends(get_session)):
     bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(limit).all()
     
     result = []
@@ -133,8 +133,7 @@ def get_bookings(limit: int = 50, db_session: Session = Depends(get_session)):
     return result
 
 @app.get("/bookings/recent")
-# ... (existing get_recent_bookings code remains the same)
-def get_recent_bookings(db_session: Session = Depends(get_session)):
+def get_recent_bookings(_=Depends(require_auth), db_session: Session = Depends(get_session)):
     bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(10).all()
     
     result = []
@@ -156,7 +155,7 @@ def get_recent_bookings(db_session: Session = Depends(get_session)):
 
 # --- NEW: BOOKING STATUS UPDATE ENDPOINT ---
 @app.patch("/bookings/{booking_id}")
-def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, db_session: Session = Depends(get_session)):
+def update_booking_status(_=Depends(require_auth), booking_id: str = None, body: BookingStatusUpdateRequest = None, db_session: Session = Depends(get_session)):
     booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
     
     if not booking:
@@ -171,22 +170,20 @@ def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, db_
 # --- Ticket Endpoints ---
 
 @app.get("/tickets")
-# ... (existing get_tickets code remains the same)
-def get_tickets(limit: int = 50, db_session: Session = Depends(get_session)):
+def get_tickets(_=Depends(require_auth), limit: int = 50, db_session: Session = Depends(get_session)):
     tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(limit).all()
     
     return [{"id": t.id, "category": t.category, "customer_name": t.customer_name, "phone": t.phone, "issue": t.issue, "project": t.project, "priority": t.priority.value if t.priority else "medium", "status": t.status.value if t.status else "open", "created_at": t.created_at.isoformat()} for t in tickets]
 
 @app.get("/tickets/recent")
-# ... (existing get_recent_tickets code remains the same)
-def get_recent_tickets(db_session: Session = Depends(get_session)):
+def get_recent_tickets(_=Depends(require_auth), db_session: Session = Depends(get_session)):
     tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(10).all()
     
     return [{"id": t.id, "category": t.category, "customer_name": t.customer_name, "phone": t.phone, "issue": t.issue, "project": t.project, "priority": t.priority.value if t.priority else "medium", "status": t.status.value if t.status else "open", "created_at": t.created_at.isoformat()} for t in tickets]
 
 # --- NEW: TICKET STATUS UPDATE ENDPOINT ---
 @app.patch("/tickets/{ticket_id}")
-def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, db_session: Session = Depends(get_session)):
+def update_ticket_status(_=Depends(require_auth), ticket_id: str = None, body: TicketStatusUpdateRequest = None, db_session: Session = Depends(get_session)):
     ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     
     if not ticket:
@@ -198,12 +195,10 @@ def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, db_ses
     
     return {"message": "Ticket status updated successfully", "id": ticket.id, "new_status": ticket.status.value}
 
-
 # --- ElevenLabs Endpoints ---
 
 @app.get("/elevenlabs/conversations")
-# ... (existing fetch_elevenlabs_conversations code remains the same)
-async def fetch_elevenlabs_conversations():
+async def fetch_elevenlabs_conversations(_=Depends(require_auth)):
     try:
         headers = get_elevenlabs_headers()
         url = "https://api.elevenlabs.io/v1/convai/conversations"
@@ -216,10 +211,8 @@ async def fetch_elevenlabs_conversations():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/elevenlabs/conversation/{conversation_id}/process")
-# ... (existing process_conversation_fast code remains the same)
-async def process_conversation_fast(conversation_id: str, db_session: Session = Depends(get_session)):
+async def process_conversation_fast(_=Depends(require_auth), conversation_id: str = None, db_session: Session = Depends(get_session)):
     try:
         headers = get_elevenlabs_headers()
         url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"

@@ -1,5 +1,8 @@
+// src/app/layout.tsx
 import type { Metadata } from 'next'
 import { Tajawal } from 'next/font/google'
+// UserProvider is no longer needed in Auth0 SDK v4
+// Client-side useUser hook works without it
 import '@/styles/globals.css'
 import ThemeToggle from '@/components/ThemeToggle'
 import ClientLayout from '@/components/ClientLayout'
@@ -26,4 +29,4 @@ export default function RootLayout({
       </body>
     </html>
   )
-} 
+}

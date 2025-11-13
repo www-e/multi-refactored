@@ -1,8 +1,10 @@
+import { auth0 } from '@/lib/auth0';
 import { NextResponse } from 'next/server';
 
-// TODO: Implement authentication and authorization for this route.
+export const GET = auth0.withApiAuthRequired(async function getBookings() {
+  const session = await auth0.getSession();
+  const accessToken = session?.accessToken;
 
-export async function GET() {
   const backendUrl = process.env.BACKEND_URL;
   if (!backendUrl) {
     console.error('CRITICAL: BACKEND_URL environment variable is not set.');
@@ -10,8 +12,12 @@ export async function GET() {
   }
 
   try {
-    const response = await fetch(`${backendUrl}/bookings/recent`);
-    
+    const response = await fetch(`${backendUrl}/bookings/recent`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`Error from backend service: ${response.status} ${errorBody}`);
@@ -20,10 +26,8 @@ export async function GET() {
         { status: response.status }
       );
     }
-    
     const bookings = await response.json();
     return NextResponse.json(bookings);
-
   } catch (error) {
     console.error('Error fetching bookings:', error);
     return NextResponse.json(
@@ -31,11 +35,11 @@ export async function GET() {
       { status: 502 } // 502 Bad Gateway
     );
   }
-}
+});
 
-export async function POST(request: Request) {
-  // TODO: Add authentication here.
-  
+// The POST endpoint is a mock and does not call the backend.
+// We will still protect it to ensure only logged-in users can call it.
+export const POST = auth0.withApiAuthRequired(async function postBooking(request: Request) {
   try {
     const body = await request.json();
     const newBooking = {
@@ -48,4 +52,4 @@ export async function POST(request: Request) {
     console.error('Error processing POST request for bookings:', error);
     return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 400 });
   }
-}
+});

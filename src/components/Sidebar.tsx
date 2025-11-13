@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useUser } from '@auth0/nextjs-auth0/client'
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -18,7 +19,9 @@ import {
   Mail,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut,
+  UserCog
 } from 'lucide-react'
 
 const navigation = [
@@ -91,6 +94,54 @@ interface SidebarProps {
   setIsCollapsed: (isCollapsed: boolean) => void
 }
 
+function UserProfile() {
+  const { user, error, isLoading } = useUser();
+  const namespace = 'https://agentic.navaia.sa';
+  // @ts-ignore
+  const userRoles = user?.[`${namespace}/roles`] as string[] || [];
+  const isAdmin = userRoles.includes('admin');
+
+  if (isLoading) return <div className="text-sm text-slate-500">[translate:جاري تحميل المستخدم...]</div>;
+  if (error) return <div className="text-sm text-red-500">[translate:خطأ في تحميل المستخدم]</div>;
+  if (!user) return null;
+
+  return (
+    <div>
+      <div className="flex items-center space-x-3 space-x-reverse">
+        <img 
+          src={user.picture || '/images/avatar-placeholder.png'} 
+          alt={user.name || 'User'} 
+          className="w-10 h-10 rounded-full" 
+        />
+        <div>
+          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">{user.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        {isAdmin && (
+          <a
+            href={`https://manage.auth0.com/dashboard/eu/${process.env.NEXT_PUBLIC_AUTH0_DOMAIN_ONLY}/users`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200"
+          >
+            <UserCog className="w-4 h-4" />
+            <span>[translate:إدارة المستخدمين]</span>
+          </a>
+        )}
+        <a 
+          href="/api/auth/logout" 
+          className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200"
+        >
+          <LogOut className="w-4 h-4" />
+          <span>[translate:تسجيل الخروج]</span>
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname()
   const [isMobile, setIsMobile] = useState(false)
@@ -142,7 +193,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                   Agentic Navaia
                 </h1>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  المساعد الصوتي الذكي
+                  [translate:المساعد الصوتي الذكي]
                 </p>
               </div>
             </div>
@@ -232,40 +283,26 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         {(!isCollapsed || isMobile) && (
           <div className="p-4 border-t border-slate-200/50 dark:border-slate-700/50">
             <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-              إجراءات سريعة
+              [translate:إجراءات سريعة]
             </h3>
             <div className="space-y-2">
               <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
                 <Phone className="w-4 h-4" />
-                <span>مكالمة جديدة</span>
+                <span>[translate:مكالمة جديدة]</span>
               </button>
               <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
                 <Mail className="w-4 h-4" />
-                <span>رسالة جديدة</span>
+                <span>[translate:رسالة جديدة]</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* System Status */}
-        <div className={`p-4 border-t border-slate-200/50 dark:border-slate-700/50 ${
-          isCollapsed && !isMobile ? 'flex justify-center' : ''
-        }`}>
-          {isCollapsed && !isMobile ? (
-            <div className="w-3 h-3 bg-success rounded-full animate-pulse" title="النظام يعمل" />
-          ) : (
-            <div>
-              <div className="flex items-center space-x-2 space-x-reverse text-sm">
-                <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                <span className="text-slate-600 dark:text-slate-400">النظام يعمل</span>
-              </div>
-              <div className="text-xs text-slate-500 dark:text-slate-500 mt-1">
-                AI متصل ومتاح
-              </div>
-            </div>
-          )}
+        {/* User Profile & Logout */}
+        <div className={`p-4 border-t border-slate-200/50 dark:border-slate-700/50`}>
+          <UserProfile />
         </div>
       </div>
     </>
   )
-} 
+}

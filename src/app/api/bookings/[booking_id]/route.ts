@@ -1,11 +1,13 @@
+import { auth0 } from '@/lib/auth0';
 import { NextResponse } from 'next/server';
 
-// TODO: Implement authentication. This should check if the user is an admin.
-
-export async function PATCH(
+export const PATCH = auth0.withApiAuthRequired(async function updateBooking(
   request: Request,
   { params }: { params: { booking_id: string } }
 ) {
+  const session = await auth0.getSession();
+  const accessToken = session?.accessToken;
+
   const backendUrl = process.env.BACKEND_URL;
   if (!backendUrl) {
     console.error('Error: BACKEND_URL environment variable is not set.');
@@ -15,12 +17,12 @@ export async function PATCH(
   try {
     const bookingId = params.booking_id;
     const body = await request.json();
-
-    // Proxy the PATCH request to the Python backend
+    
     const response = await fetch(`${backendUrl}/bookings/${bookingId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
     });
@@ -33,10 +35,8 @@ export async function PATCH(
         { status: response.status }
       );
     }
-
     const updatedBooking = await response.json();
     return NextResponse.json(updatedBooking);
-
   } catch (error) {
     console.error(`Error in PATCH /api/bookings/[id]:`, error);
     return NextResponse.json(
@@ -44,4 +44,4 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+});
