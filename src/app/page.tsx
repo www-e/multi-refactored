@@ -17,7 +17,7 @@ export default function HomePage() {
           يرجى تسجيل الدخول للوصول إلى لوحة التحكم وإدارة العمليات.
         </p>
         <Button asChild size="lg" className="w-full">
-          <Link href="/api/auth/login">
+          <Link href="/auth/login">
             تسجيل الدخول
           </Link>
         </Button>

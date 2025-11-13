@@ -130,8 +130,8 @@ function UserProfile() {
             <span>[translate:إدارة المستخدمين]</span>
           </a>
         )}
-        <a 
-          href="/api/auth/logout" 
+        <a
+          href="/auth/logout"
           className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200"
         >
           <LogOut className="w-4 h-4" />
