@@ -48,7 +48,6 @@ Environment variables:
 - `ELEVENLABS_WEBHOOK_SECRET` - Required for webhook HMAC verification
 - `TENANT_ID` - Default: "demo-tenant"
 - `DB_URL` - Database connection
-- `REDIS_URL` - Redis connection
 - `JWT_SECRET`
 
 - `ELEVENLABS_HMAC_SECRET`

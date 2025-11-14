@@ -27,10 +27,15 @@ app = FastAPI(title="Voice Agent Portal API")
 async def startup_event():
     models.Base.metadata.create_all(bind=engine)
 
-# CORS - minimal config
+# CORS - allow specific origins for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://agentic.navaia.sa",
+        "https://agentic.navaia.sa/"
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
