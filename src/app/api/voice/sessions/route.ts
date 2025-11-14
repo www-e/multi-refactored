@@ -1,5 +1,4 @@
 // src/app/api/voice/sessions/route.ts
-import { auth0 } from '@/lib/auth0';
 import { NextRequest, NextResponse } from 'next/server';
 import { logEvent } from '@/lib/serverLogger';
 
@@ -27,13 +26,14 @@ async function fetchWithRetry(url: string, init: RequestInit, retries = 2, timeo
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session to validate authentication
-    const session = await auth0.getSession();
-    if (!session) {
+    // Get the authorization header from the incoming request
+    // This will be set by the calling client component with NextAuth session token
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const accessToken = session.accessToken;
+    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     const { agent_type, customer_id } = await request.json();
     await logEvent('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id });

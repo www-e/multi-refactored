@@ -1,34 +1,23 @@
 # backend/app/auth_utils.py
 import os
-import requests
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
+from sqlalchemy.orm import Session
+
+from app.db import get_session
+from app.models import User
+from app.password_utils import verify_password
+
+# Secret key for JWT signing - should be set in environment
+SECRET_KEY = os.getenv("JWT_SECRET", "your-super-secret-key-change-in-production")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # This is used to extract the token from the "Authorization: Bearer <token>" header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-# Auth0 configuration from environment variables
-AUTH0_DOMAIN = os.getenv("AUTH0_ISSUER_BASE_URL", "").replace("https://", "").rstrip("/")
-API_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
-ALGORITHMS = ["RS256"]
-
-# Global variable to cache the JWKS
-_cached_jwks = None
-
-def get_jwks():
-    """Fetch and cache the JWKS to avoid repeated requests"""
-    global _cached_jwks
-    if _cached_jwks is None:
-        jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-        response = requests.get(jwks_url)
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Unable to fetch JWKS from Auth0"
-            )
-        _cached_jwks = response.json()
-    return _cached_jwks
 
 class UnauthenticatedException(HTTPException):
     def __init__(self):
@@ -45,51 +34,75 @@ class UnauthorizedException(HTTPException):
             detail="User does not have the required permissions",
         )
 
-def get_token_payload(token: str = Depends(oauth2_scheme)) -> dict:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """
-    Validates the Auth0 Access Token and returns its payload.
-    This will be used as a dependency for all protected endpoints.
+    Create a new access token with the given data
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+
+    to_encode.update({"exp": expire, "type": "access"})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str) -> Dict[str, Any]:
+    """
+    Verify the JWT token and return its payload
     """
     try:
-        unverified_header = jwt.get_unverified_header(token)
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
     except JWTError:
         raise UnauthenticatedException()
 
-    jwks = get_jwks()
-    rsa_key = {}
-    for key in jwks["keys"]:
-        if key["kid"] == unverified_header["kid"]:
-            rsa_key = {
-                "kty": key["kty"],
-                "kid": key["kid"],
-                "use": key["use"],
-                "n": key["n"],
-                "e": key["e"],
-            }
-            break
-
-    if not rsa_key:
-        raise UnauthenticatedException()
-
+def get_current_user_payload(token: str = Depends(oauth2_scheme), db_session: Session = Depends(get_session)) -> Dict[str, Any]:
+    """
+    Validates the JWT token and returns its payload.
+    This will be used as a dependency for all protected endpoints.
+    """
     try:
-        payload = jwt.decode(
-            token,
-            rsa_key,
-            algorithms=ALGORITHMS,
-            audience=API_AUDIENCE,
-            issuer=f"https://{AUTH0_DOMAIN}/",
-        )
+        payload = verify_token(token)
         return payload
-    except jwt.ExpiredSignatureError:
-        raise UnauthenticatedException()
-    except jwt.JWTClaimsError:
-        raise UnauthenticatedException()
     except Exception:
         raise UnauthenticatedException()
 
-def require_auth(payload: dict = Depends(get_token_payload)):
+def get_current_user(token_payload: Dict[str, Any] = Depends(get_current_user_payload), db_session: Session = Depends(get_session)) -> User:
     """
-    A simple dependency that just requires a valid token to be present.
+    Validates the token and returns the actual user object.
+    """
+    user_id: str = token_payload.get("sub")
+    if user_id is None:
+        raise UnauthenticatedException()
+
+    user = db_session.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active:
+        raise UnauthenticatedException()
+
+    return user
+
+def require_auth(user: User = Depends(get_current_user)):
+    """
+    A simple dependency that just requires an active logged-in user to be present.
     For endpoints accessible by any logged-in user.
     """
-    return payload
+    return user
+
+def require_admin(user: User = Depends(get_current_user)):
+    """
+    Dependency that requires the user to have admin role.
+    """
+    if user.role != "admin":
+        raise UnauthorizedException()
+    return user
+
+def authenticate_user(db_session: Session, email: str, password: str) -> Optional[User]:
+    """
+    Authenticate a user by email and password
+    """
+    user = db_session.query(User).filter(User.email == email).first()
+    if not user or not verify_password(password, user.password_hash):
+        return None
+    return user

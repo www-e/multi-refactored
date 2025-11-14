@@ -117,12 +117,16 @@ class Ticket(Base):
     priority: Mapped[TicketPriorityEnum] = mapped_column(Enum(TicketPriorityEnum))
     category: Mapped[str] = mapped_column(String)
     status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum), default=TicketStatusEnum.open)
-    assignee: Mapped[str | None] = mapped_column(String, nullable=True)
+    assignee: Mapped[str | None] = mapped_column(String, nullable=True)  # Legacy field
+    assignee_user_id: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     sla_due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
+
+    # Relationship to user who is assigned to the ticket
+    assignee_user: Mapped[User | None] = relationship("User", back_populates="assigned_tickets")
+
     # Webhook-specific fields
     session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
     customer_name: Mapped[str] = mapped_column(String, nullable=True)
@@ -212,7 +216,7 @@ class VoiceSession(Base):
     simulation: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     ended_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
-    
+
     # Webhook-specific fields
     conversation_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=True)
     agent_id: Mapped[str] = mapped_column(String, nullable=True)
@@ -220,4 +224,34 @@ class VoiceSession(Base):
     customer_phone: Mapped[str] = mapped_column(String, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     summary: Mapped[str] = mapped_column(Text, nullable=True)
-    extracted_intent: Mapped[str] = mapped_column(String, nullable=True) 
+    extracted_intent: Mapped[str] = mapped_column(String, nullable=True)
+
+
+class UserRoleEnum(str, enum.Enum):
+    user = "user"
+    admin = "admin"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String)  # Hashed password
+    name: Mapped[str] = mapped_column(String)
+    role: Mapped[UserRoleEnum] = mapped_column(Enum(UserRoleEnum), default=UserRoleEnum.user)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Relationship to track assigned tickets
+    assigned_tickets: Mapped[list["Ticket"]] = relationship(
+        "Ticket",
+        back_populates="assignee_user",
+        foreign_keys="Ticket.assignee_user_id"
+    )
+
+
+# Update the Ticket model to include user relationship
+Ticket.__annotations__['assignee_user_id'] = Mapped[str | None]
+Ticket.__annotations__['assignee_user'] = Mapped[User | None]

@@ -3,15 +3,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { useUser } from '@auth0/nextjs-auth0/client'
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Ticket, 
-  Calendar, 
-  Users, 
-  BarChart3, 
-  Play, 
+import { useSession } from 'next-auth/react'
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Ticket,
+  Calendar,
+  Users,
+  BarChart3,
+  Play,
   Settings,
   Bot,
   TrendingUp,
@@ -95,24 +95,18 @@ interface SidebarProps {
 }
 
 function UserProfile() {
-  const { user, error, isLoading } = useUser();
-  const namespace = 'https://agentic.navaia.sa';
-  // @ts-ignore
-  const userRoles = user?.[`${namespace}/roles`] as string[] || [];
-  const isAdmin = userRoles.includes('admin');
+  const { data: session, status } = useSession();
+  const user = session?.user;
 
-  if (isLoading) return <div className="text-sm text-slate-500">[translate:جاري تحميل المستخدم...]</div>;
-  if (error) return <div className="text-sm text-red-500">[translate:خطأ في تحميل المستخدم]</div>;
+  if (status === 'loading') return <div className="text-sm text-slate-500">جاري تحميل المستخدم...</div>;
   if (!user) return null;
+
+  const isAdmin = user.role === 'admin';
 
   return (
     <div>
       <div className="flex items-center space-x-3 space-x-reverse">
-        <img 
-          src={user.picture || '/images/avatar-placeholder.png'} 
-          alt={user.name || 'User'} 
-          className="w-10 h-10 rounded-full" 
-        />
+        <div className="bg-gray-200 border-2 border-dashed rounded-xl w-10 h-10" />
         <div>
           <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">{user.name}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
@@ -120,22 +114,17 @@ function UserProfile() {
       </div>
       <div className="mt-4 space-y-2">
         {isAdmin && (
-          <a
-            href={`https://manage.auth0.com/dashboard/eu/${process.env.NEXT_PUBLIC_AUTH0_DOMAIN_ONLY}/users`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200"
-          >
+          <span className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200 cursor-not-allowed opacity-70">
             <UserCog className="w-4 h-4" />
-            <span>[translate:إدارة المستخدمين]</span>
-          </a>
+            <span>صلاحيات المشرف</span>
+          </span>
         )}
         <a
-          href="/auth/logout"
+          href="/api/auth/signout?callbackUrl=/"
           className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200"
         >
           <LogOut className="w-4 h-4" />
-          <span>[translate:تسجيل الخروج]</span>
+          <span>تسجيل الخروج</span>
         </a>
       </div>
     </div>
@@ -193,11 +182,11 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                   Agentic Navaia
                 </h1>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                  [translate:المساعد الصوتي الذكي]
+                  المساعد الصوتي الذكي
                 </p>
               </div>
             </div>
-            
+
             {/* Mobile Close Button */}
             {isMobile && (
               <button
@@ -283,16 +272,16 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         {(!isCollapsed || isMobile) && (
           <div className="p-4 border-t border-slate-200/50 dark:border-slate-700/50">
             <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">
-              [translate:إجراءات سريعة]
+              إجراءات سريعة
             </h3>
             <div className="space-y-2">
               <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
                 <Phone className="w-4 h-4" />
-                <span>[translate:مكالمة جديدة]</span>
+                <span>مكالمة جديدة</span>
               </button>
               <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
                 <Mail className="w-4 h-4" />
-                <span>[translate:رسالة جديدة]</span>
+                <span>رسالة جديدة</span>
               </button>
             </div>
           </div>

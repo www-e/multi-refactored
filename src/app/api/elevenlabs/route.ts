@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server';
-import { auth0 } from '@/lib/auth0';
 import { NextResponse } from 'next/server';
 import { logEvent } from '@/lib/serverLogger';
 
@@ -8,11 +7,14 @@ export const runtime = 'nodejs';
 // SECURE THE POST ENDPOINT
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session to validate authentication
-    const session = await auth0.getSession();
-    if (!session) {
+    // Get the authorization header from the incoming request
+    // This will be set by the calling client component with NextAuth session token
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     const { action, agentType, sessionId } = await request.json();
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -72,11 +74,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 // SECURE THE GET ENDPOINT
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session to validate authentication
-    const session = await auth0.getSession();
-    if (!session) {
+    // Get the authorization header from the incoming request
+    // This will be set by the calling client component with NextAuth session token
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get('conversation_id');

@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { 
-  Customer, 
-  Conversation, 
-  EnhancedTicket, 
-  EnhancedBooking, 
+import {
+  Customer,
+  Conversation,
+  EnhancedTicket,
+  EnhancedBooking,
   EnhancedCampaign,
   DashboardKPIs,
   LiveOps,

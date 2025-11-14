@@ -1,12 +1,16 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps } from "@/app/(shared)/types";
 
-async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T> {
+async function apiClient<T>(endpoint: string, options?: RequestInit, accessToken?: string): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
   const url = `${baseUrl}${endpoint}`;
 
   try {
     const response = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+      },
       ...options,
     });
 
@@ -35,38 +39,38 @@ async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T>
 }
 
 // Read operations
-export const getBookings = (): Promise<EnhancedBooking[]> => apiClient<EnhancedBooking[]>('/api/bookings/recent');
-export const getTickets = (): Promise<EnhancedTicket[]> => apiClient<EnhancedTicket[]>('/api/tickets/recent');
-export const getDashboardKpis = (): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => apiClient<{ kpis: DashboardKPIs, liveOps: LiveOps }>('/api/dashboard');
+export const getBookings = (accessToken?: string): Promise<EnhancedBooking[]> => apiClient<EnhancedBooking[]>('/api/bookings/recent', undefined, accessToken);
+export const getTickets = (accessToken?: string): Promise<EnhancedTicket[]> => apiClient<EnhancedTicket[]>('/api/tickets/recent', undefined, accessToken);
+export const getDashboardKpis = (accessToken?: string): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => apiClient<{ kpis: DashboardKPIs, liveOps: LiveOps }>('/api/dashboard', undefined, accessToken);
 
 // Voice session creation
-export const createVoiceSession = (agentType: 'support' | 'sales'): Promise<any> => {
+export const createVoiceSession = (agentType: 'support' | 'sales', accessToken?: string): Promise<any> => {
   return apiClient<any>('/api/voice/sessions', {
     method: 'POST',
     body: JSON.stringify({ agent_type: agentType }),
-  });
+  }, accessToken);
 };
 
 // Write operations
-export const updateBookingStatus = (bookingId: string, status: 'confirmed' | 'canceled'): Promise<any> => {
+export const updateBookingStatus = (bookingId: string, status: 'confirmed' | 'canceled', accessToken?: string): Promise<any> => {
   return apiClient<any>(`/api/bookings/${bookingId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
-  });
+  }, accessToken);
 };
 
 // FIX: Added 'pending_approval' to the list of allowed statuses.
-export const updateTicketStatus = (ticketId: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval'): Promise<any> => {
+export const updateTicketStatus = (ticketId: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval', accessToken?: string): Promise<any> => {
   return apiClient<any>(`/api/tickets/${ticketId}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
-  });
+  }, accessToken);
 };
 
 // Logging
-export const postLog = (level: 'info' | 'warn' | 'error', message: string, meta?: any): Promise<void> => {
+export const postLog = (level: 'info' | 'warn' | 'error', message: string, meta?: any, accessToken?: string): Promise<void> => {
   return apiClient<void>('/api/logs', {
     method: 'POST',
     body: JSON.stringify({ source: 'client-hook', level, message, meta }),
-  });
+  }, accessToken);
 };

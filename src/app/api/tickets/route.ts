@@ -1,15 +1,15 @@
-import { auth0 } from '@/lib/auth0';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session to validate authentication
-    const session = await auth0.getSession();
-    if (!session) {
+    // Get the authorization header from the incoming request
+    // This will be set by the calling client component with NextAuth session token
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const accessToken = session.accessToken;
+    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
@@ -44,11 +44,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get session to validate authentication
-    const session = await auth0.getSession();
-    if (!session) {
+    // Get the authorization header from the incoming request
+    // This will be set by the calling client component with NextAuth session token
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     const body = await request.json();
     const newTicket = {
