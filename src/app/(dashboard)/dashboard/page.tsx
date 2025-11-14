@@ -158,14 +158,34 @@ export default function DashboardPage() {
               <BarChart3 className="w-5 h-5 text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">تم الوصول</span><span className="font-semibold text-slate-900 dark:text-slate-100">350</span></div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '100%' }}></div></div>
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">تفاعل</span><span className="font-semibold text-slate-900 dark:text-slate-100">209</span></div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '60%' }}></div></div>
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">مؤهل</span><span className="font-semibold text-slate-900 dark:text-slate-100">112</span></div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '32%' }}></div></div>
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">حجز</span><span className="font-semibold text-slate-900 dark:text-slate-100">38</span></div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-primary h-2 rounded-full" style={{ width: '11%' }}></div></div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">تم الوصول</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.reachedCount || dashboardKPIs.totalCalls}</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full" style={{ width: '100%' }}></div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">تفاعل</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.interactedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.answerRate / 100)}</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.interactedPercentage || dashboardKPIs.answerRate)}%` }}></div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">مؤهل</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.qualifiedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking / 100 / 3)}</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.qualifiedPercentage || Math.round(dashboardKPIs.conversionToBooking / 3))}%` }}></div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">حجز</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.bookedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking / 100)}</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.bookedPercentage || dashboardKPIs.conversionToBooking)}%` }}></div>
+              </div>
             </div>
           </Card>
           <Card>
@@ -174,11 +194,19 @@ export default function DashboardPage() {
               <TrendingUp className="w-5 h-5 text-slate-400" />
             </CardHeader>
             <div className="space-y-4">
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span><span className="font-semibold text-slate-900 dark:text-slate-100">2,000,000 ر.س</span></div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-emerald-500 h-2 rounded-full" style={{ width: '71%' }}></div></div>
-              <div className="flex items-center justify-between"><span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span><span className="font-semibold text-slate-900 dark:text-slate-100">1,420,000 ر.س</span></div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">2,000,000 ر.س</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min(100, Math.round(dashboardKPIs.revenue / 20000))}%` }}></div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.revenue.toLocaleString()} ر.س</span>
+              </div>
               <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                <div className="text-2xl font-bold text-emerald-600">71%</div>
+                <div className="text-2xl font-bold text-emerald-600">{Math.round(dashboardKPIs.revenue / 20000)}%</div>
                 <div className="text-sm text-slate-600 dark:text-slate-400">من الهدف</div>
               </div>
             </div>

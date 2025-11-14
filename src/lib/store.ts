@@ -10,11 +10,12 @@ import {
   LiveOps,
   Property
 } from '@/app/(shared)/types';
-import { 
-  getTickets, 
-  getBookings, 
-  updateBookingStatus, 
-  updateTicketStatus 
+import {
+  getTickets,
+  getBookings,
+  getDashboardKpis,
+  updateBookingStatus,
+  updateTicketStatus
 } from './apiClient';
 
 interface AppState {
@@ -53,6 +54,7 @@ interface AppState {
   // Data fetching functions
   refreshTickets: () => Promise<void>;
   refreshBookings: () => Promise<void>;
+  refreshDashboardKpis: () => Promise<void>;
   refreshAllData: () => Promise<void>;
 }
 
@@ -70,6 +72,8 @@ const initialState = {
     totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
     avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
     totalCallsChange: 0, answerRateChange: 0, conversionChange: 0, revenueChange: 0,
+    reachedCount: 0, interactedCount: 0, qualifiedCount: 0, bookedCount: 0,
+    reachedPercentage: 100, interactedPercentage: 0, qualifiedPercentage: 0, bookedPercentage: 0,
   },
   liveOps: {
     currentCalls: [],
@@ -118,9 +122,27 @@ export const useAppStore = create<AppState>()(
       refreshAllData: async () => {
         set({ dashboardLoading: true });
         try {
-          await Promise.all([get().refreshTickets(), get().refreshBookings()]);
+          // Fetch all data in parallel for better performance
+          await Promise.all([
+            get().refreshTickets(),
+            get().refreshBookings(),
+            get().refreshDashboardKpis()
+          ]);
         } finally {
           set({ dashboardLoading: false });
+        }
+      },
+
+      refreshDashboardKpis: async () => {
+        try {
+          const { kpis, liveOps } = await getDashboardKpis();
+          set({
+            dashboardKPIs: kpis,
+            liveOps: liveOps
+          });
+        } catch (error) {
+          console.error("Error refreshing dashboard KPIs:", error);
+          // Keep existing data or set to default values
         }
       },
 

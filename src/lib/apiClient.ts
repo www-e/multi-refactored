@@ -37,6 +37,49 @@ async function apiClient<T>(endpoint: string, options?: RequestInit): Promise<T>
 // Read operations
 export const getBookings = (): Promise<EnhancedBooking[]> => apiClient<EnhancedBooking[]>('/api/bookings/recent');
 export const getTickets = (): Promise<EnhancedTicket[]> => apiClient<EnhancedTicket[]>('/api/tickets/recent');
+export const getDashboardKpis = (): Promise<DashboardApiResponse> => apiClient<DashboardApiResponse>('/api/dashboard');
+
+// Add proper typing for the return type
+export interface DashboardApiResponse {
+  kpis: {
+    totalCalls: number;
+    answerRate: number;
+    conversionToBooking: number;
+    revenue: number;
+    roas: number;
+    avgHandleTime: number;
+    csat: number;
+    missedCalls: number;
+    aiTransferred: number;
+    systemStatus: 'AI_يعمل' | 'التحويل_للبشر';
+    totalCallsChange?: number;
+    answerRateChange?: number;
+    conversionChange?: number;
+    revenueChange?: number;
+    reachedCount?: number;
+    interactedCount?: number;
+    qualifiedCount?: number;
+    bookedCount?: number;
+    reachedPercentage?: number;
+    interactedPercentage?: number;
+    qualifiedPercentage?: number;
+    bookedPercentage?: number;
+  };
+  liveOps: {
+    currentCalls: Array<{
+      id: string;
+      customerName: string;
+      duration: string;
+      status: 'وارد' | 'فائت';
+    }>;
+    aiTransferredChats: Array<{
+      id: string;
+      customerName: string;
+      reason: string;
+      waitingTime: string;
+    }>;
+  };
+}
 
 // Voice session creation
 export const createVoiceSession = (agentType: 'support' | 'sales'): Promise<any> => {

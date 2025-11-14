@@ -231,6 +231,14 @@ export interface DashboardKPIs {
   answerRateChange?: number;
   conversionChange?: number;
   revenueChange?: number;
+  reachedCount?: number;
+  interactedCount?: number;
+  qualifiedCount?: number;
+  bookedCount?: number;
+  reachedPercentage?: number;
+  interactedPercentage?: number;
+  qualifiedPercentage?: number;
+  bookedPercentage?: number;
 }
 
 export interface LiveOps {

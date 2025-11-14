@@ -89,6 +89,132 @@ def health_check():
     """Health check endpoint - does not require authentication for monitoring tools"""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
+@app.get("/dashboard/kpis")
+def get_dashboard_kpis(_=Depends(require_auth), db_session: Session = Depends(get_session)):
+    """Get dashboard KPIs calculated from the database"""
+    from sqlalchemy import func, extract
+
+    # Calculate total calls from voice sessions
+    total_calls = db_session.query(models.VoiceSession).count()
+
+    # Calculate completed calls
+    completed_calls = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.status == models.VoiceSessionStatus.COMPLETED
+    ).count()
+
+    # Calculate answer rate
+    answer_rate = (completed_calls / total_calls * 100) if total_calls > 0 else 0
+
+    # Calculate conversion to booking
+    total_bookings = db_session.query(models.Booking).count()
+    conversion_rate = (total_bookings / total_calls * 100) if total_calls > 0 else 0
+
+    # Calculate revenue from bookings
+    total_revenue = db_session.query(func.sum(models.Booking.price_sar)).scalar() or 0
+
+    # Calculate average handle time (using a placeholder since we don't have call handle times in the current schema)
+    # We'll use a different metric for now - average session duration
+    avg_duration_hours = 0  # Placeholder - we don't have duration data in current schema
+    avg_handle_time = int(avg_duration_hours * 3600)  # Convert to seconds
+
+    # Calculate CSAT (Customer Satisfaction) - placeholder for now
+    csat = 4.2  # Placeholder - would come from a rating system
+
+    # Count missed calls (failed voice sessions)
+    missed_calls = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.status == models.VoiceSessionStatus.FAILED
+    ).count()
+
+    # Count AI transferred calls (this would need more specific logic in a real app)
+    # For now, we'll count sessions that have extracted_intent (which might indicate need for transfer)
+    ai_transferred = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.extracted_intent.isnot(None)
+    ).count()
+
+    # Calculate ROAS (Return on Ad Spend) - placeholder
+    roas = total_revenue / 200000  # Assuming marketing spend of 200k for now
+
+    # Get live operations data
+    current_calls = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.status == models.VoiceSessionStatus.ACTIVE
+    ).limit(5).all()
+
+    # Format current calls for display
+    current_calls_formatted = []
+    for call in current_calls:
+        current_calls_formatted.append({
+            "id": call.id,
+            "customerName": call.customer_id,  # Use customer_id as name for now
+            "duration": "00:00",  # Placeholder - actual duration not available in schema
+            "status": "وارد"  # Placeholder - could be "وارد" (inbound) or "فائت" (missed)
+        })
+
+    # For AI transferred chats, we'll use tickets for now
+    ai_transferred_chats = []
+    recent_tickets = db_session.query(models.Ticket).order_by(
+        models.Ticket.created_at.desc()
+    ).limit(5).all()
+
+    for ticket in recent_tickets[:2]:  # Only 2 as in the mock
+        ai_transferred_chats.append({
+            "id": ticket.id,
+            "customerName": ticket.customer_name or "Unknown",
+            "reason": "طلب معلومات مفصلة",  # Placeholder
+            "waitingTime": "00:00"  # Placeholder
+        })
+
+    # Calculate more specific funnel metrics
+    # For this example, we'll calculate based on voice sessions and bookings
+    # In a real system, you might have specific stages like: reached -> interacted -> qualified -> booked
+
+    reached_count = total_calls  # All calls reached
+    interacted_count = completed_calls  # Those who interacted (completed calls)
+    qualified_count = db_session.query(models.Ticket).filter(
+        models.Ticket.status != models.TicketStatusEnum.open
+    ).count()  # Those who became qualified (based on closed tickets)
+    booked_count = total_bookings  # Those who booked
+
+    # Calculate percentages for the funnel
+    reached_percentage = 100  # By definition
+    interacted_percentage = (interacted_count / reached_count * 100) if reached_count > 0 else 0
+    qualified_percentage = (qualified_count / reached_count * 100) if reached_count > 0 else 0
+    booked_percentage = (booked_count / reached_count * 100) if reached_count > 0 else 0
+
+    # Create the response data
+    kpis = {
+        "totalCalls": total_calls,
+        "answerRate": round(answer_rate, 1),
+        "conversionToBooking": round(conversion_rate, 1),
+        "revenue": int(total_revenue),
+        "roas": round(roas, 1),
+        "avgHandleTime": avg_handle_time,
+        "csat": csat,
+        "missedCalls": missed_calls,
+        "aiTransferred": ai_transferred,
+        "systemStatus": "AI_يعمل",  # Placeholder
+        "totalCallsChange": 0,  # Placeholder for comparison with previous period
+        "answerRateChange": 0,
+        "conversionChange": 0,
+        "revenueChange": 0,
+        # Additional funnel metrics
+        "reachedCount": reached_count,
+        "interactedCount": interacted_count,
+        "qualifiedCount": qualified_count,
+        "bookedCount": booked_count,
+        "reachedPercentage": reached_percentage,
+        "interactedPercentage": round(interacted_percentage, 1),
+        "qualifiedPercentage": round(qualified_percentage, 1),
+        "bookedPercentage": round(booked_percentage, 1)
+    }
+
+    live_ops = {
+        "currentCalls": current_calls_formatted,
+        "aiTransferredChats": ai_transferred_chats
+    }
+
+    return {"kpis": kpis, "liveOps": live_ops}
+
+
 @app.get("/ready")
 def ready_check():
     """Readiness check endpoint - does not require authentication for load balancers"""
