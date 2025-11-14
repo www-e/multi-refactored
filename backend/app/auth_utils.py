@@ -13,9 +13,22 @@ AUTH0_DOMAIN = os.getenv("AUTH0_ISSUER_BASE_URL", "").replace("https://", "").rs
 API_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 ALGORITHMS = ["RS256"]
 
-# Fetch the Auth0 public keys (JWKS) to verify the token signature
-jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-jwks = requests.get(jwks_url).json()
+# Global variable to cache the JWKS
+_cached_jwks = None
+
+def get_jwks():
+    """Fetch and cache the JWKS to avoid repeated requests"""
+    global _cached_jwks
+    if _cached_jwks is None:
+        jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+        response = requests.get(jwks_url)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to fetch JWKS from Auth0"
+            )
+        _cached_jwks = response.json()
+    return _cached_jwks
 
 class UnauthenticatedException(HTTPException):
     def __init__(self):
@@ -42,6 +55,7 @@ def get_token_payload(token: str = Depends(oauth2_scheme)) -> dict:
     except JWTError:
         raise UnauthenticatedException()
 
+    jwks = get_jwks()
     rsa_key = {}
     for key in jwks["keys"]:
         if key["kid"] == unverified_header["kid"]:
