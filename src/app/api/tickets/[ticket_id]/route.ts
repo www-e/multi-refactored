@@ -1,20 +1,25 @@
 import { auth0 } from '@/lib/auth0';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export const PATCH = auth0.withApiAuthRequired(async function updateTicket(
-  request: Request,
+export async function PATCH(
+  request: NextRequest,
   { params }: { params: { ticket_id: string } }
-) {
-  const session = await auth0.getSession();
-  const accessToken = session?.accessToken;
-
-  const backendUrl = process.env.BACKEND_URL;
-  if (!backendUrl) {
-    console.error('Error: BACKEND_URL environment variable is not set.');
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
+): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const accessToken = session.accessToken;
+
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) {
+      console.error('Error: BACKEND_URL environment variable is not set.');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     const ticketId = params.ticket_id;
     const body = await request.json();
 
@@ -44,4 +49,4 @@ export const PATCH = auth0.withApiAuthRequired(async function updateTicket(
       { status: 500 }
     );
   }
-});
+}

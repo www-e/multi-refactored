@@ -25,11 +25,16 @@ async function fetchWithRetry(url: string, init: RequestInit, retries = 2, timeo
   throw lastErr;
 }
 
-export const POST = auth0.withApiAuthRequired(async function createSession(request: NextRequest) {
-  const session = await auth0.getSession();
-  const accessToken = session?.accessToken;
-  
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const accessToken = session.accessToken;
+
     const { agent_type, customer_id } = await request.json();
     await logEvent('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id });
 
@@ -42,7 +47,7 @@ export const POST = auth0.withApiAuthRequired(async function createSession(reque
 
     const backendResponse = await fetchWithRetry(`${backendUrl}/voice/sessions`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
@@ -62,7 +67,8 @@ export const POST = auth0.withApiAuthRequired(async function createSession(reque
     await logEvent('voice:sessions:POST', 'info', 'Backend session created successfully', { session_id: backendSession.session_id });
     return NextResponse.json(backendSession);
   } catch (error: any) {
+    console.error('Voice session creation error:', error);
     await logEvent('voice:sessions:POST', 'error', 'Voice session creation failed', { error: error.message, stack: error.stack });
     return NextResponse.json({ error: `Voice session creation failed: ${error.message}` }, { status: 500 });
   }
-});
+}

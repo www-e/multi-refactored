@@ -1,17 +1,22 @@
 import { auth0 } from '@/lib/auth0';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export const GET = auth0.withApiAuthRequired(async function getTickets() {
-  const session = await auth0.getSession();
-  const accessToken = session?.accessToken;
-
-  const backendUrl = process.env.BACKEND_URL;
-  if (!backendUrl) {
-    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-  }
-
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const accessToken = session.accessToken;
+
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) {
+      console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
     const response = await fetch(`${backendUrl}/tickets/recent`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -35,10 +40,16 @@ export const GET = auth0.withApiAuthRequired(async function getTickets() {
       { status: 502 }
     );
   }
-});
+}
 
-export const POST = auth0.withApiAuthRequired(async function postTicket(request: Request) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const newTicket = {
       id: Date.now().toString(),
@@ -50,4 +61,4 @@ export const POST = auth0.withApiAuthRequired(async function postTicket(request:
     console.error('Error processing POST request for tickets:', error);
     return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 400 });
   }
-});
+}

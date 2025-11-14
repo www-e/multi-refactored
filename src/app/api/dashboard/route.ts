@@ -1,7 +1,7 @@
 import { auth0 } from '@/lib/auth0';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export const GET = auth0.withApiAuthRequired(async function getDashboardKpis() {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
     if (!backendUrl) {
@@ -9,9 +9,13 @@ export const GET = auth0.withApiAuthRequired(async function getDashboardKpis() {
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
-    // Get access token from session
+    // Get session to validate authentication
     const session = await auth0.getSession();
-    const accessToken = session?.accessToken;
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const accessToken = session.accessToken;
 
     // Fetch dashboard KPIs from the backend API
     const response = await fetch(`${backendUrl}/dashboard/kpis`, {
@@ -33,4 +37,4 @@ export const GET = auth0.withApiAuthRequired(async function getDashboardKpis() {
     console.error('Error fetching dashboard KPIs:', error);
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
   }
-});
+}

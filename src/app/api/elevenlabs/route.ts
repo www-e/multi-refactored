@@ -6,8 +6,14 @@ import { logEvent } from '@/lib/serverLogger';
 export const runtime = 'nodejs';
 
 // SECURE THE POST ENDPOINT
-export const POST = auth0.withApiAuthRequired(async function elevenlabsPost(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { action, agentType, sessionId } = await request.json();
     const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
     const SUPPORT_AGENT_ID = process.env.ELEVENLABS_SUPPORT_AGENT_ID;
@@ -61,36 +67,47 @@ export const POST = auth0.withApiAuthRequired(async function elevenlabsPost(requ
     await logEvent('elevenlabs:POST', 'error', 'Unhandled error', { error: String(error) });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-});
+}
 
 // SECURE THE GET ENDPOINT
-export const GET = auth0.withApiAuthRequired(async function elevenlabsGet(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const conversationId = searchParams.get('conversation_id');
-  if (!conversationId) {
-    return NextResponse.json({ error: 'Conversation ID required' }, { status: 400 });
-  }
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-    if (!ELEVENLABS_API_KEY) {
-      return NextResponse.json({ error: 'ElevenLabs API key not configured' }, { status: 500 });
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`, {
-      headers: { 'xi-api-key': ELEVENLABS_API_KEY },
-    });
-    if (!response.ok) {
-      const error = await response.text();
-      await logEvent('elevenlabs:http', 'error', 'Get conversation failed', { conversationId, error });
-      throw new Error(`ElevenLabs API error: ${error}`);
+
+    const { searchParams } = new URL(request.url);
+    const conversationId = searchParams.get('conversation_id');
+    if (!conversationId) {
+      return NextResponse.json({ error: 'Conversation ID required' }, { status: 400 });
     }
-    const data = await response.json();
-    return NextResponse.json(data);
+    try {
+      const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+      if (!ELEVENLABS_API_KEY) {
+        return NextResponse.json({ error: 'ElevenLabs API key not configured' }, { status: 500 });
+      }
+      const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`, {
+        headers: { 'xi-api-key': ELEVENLABS_API_KEY },
+      });
+      if (!response.ok) {
+        const error = await response.text();
+        await logEvent('elevenlabs:http', 'error', 'Get conversation failed', { conversationId, error });
+        throw new Error(`ElevenLabs API error: ${error}`);
+      }
+      const data = await response.json();
+      return NextResponse.json(data);
+    } catch (error) {
+      console.error('ElevenLabs API error:', error);
+      await logEvent('elevenlabs:GET', 'error', 'Unhandled error', { error: String(error) });
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
   } catch (error) {
-    console.error('ElevenLabs API error:', error);
-    await logEvent('elevenlabs:GET', 'error', 'Unhandled error', { error: String(error) });
+    console.error('ElevenLabs GET API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-});
+}
 
 
 // Helper functions (no changes needed, but included for completeness)

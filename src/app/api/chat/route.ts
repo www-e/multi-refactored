@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth0 } from '@/lib/auth0';
 
-export const POST = auth0.withApiAuthRequired(async function chat(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // Get session to validate authentication
+    const session = await auth0.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { message, agentType, conversationHistory } = await request.json()
     if (!message || !agentType) {
-      return Response.json({ error: 'Message and agentType are required' }, { status: 400 })
+      return NextResponse.json({ error: 'Message and agentType are required' }, { status: 400 })
     }
     // System prompts for different agent types
     const systemPrompts = {
@@ -13,7 +19,7 @@ export const POST = auth0.withApiAuthRequired(async function chat(request: NextR
 الشخصية: مهذب، مفيد، نجدي الأسلوب من الرياض. استخدم عبارات مثل "الله يحييك" و "طال عمرك" بطبيعية.
 معلومات الشركة:
 - سقيفة للتطوير العقاري تقدم منتجات عقارية سكنية في المنطقة الوسطى
-- رؤيتنا: تسخير أحدث التقنيات ومعايير الجودة العالمية بأفكار سعودية تعكس أصالة الماضي وحداثة المستقبل
+- رؤيتنا: تسخير أحدث التقنيات ومعايier الجودة العالمية بأفكار سعودية تعكس أصالة الماضي وحداثة المستقبل
 - إنجازاتنا: +25 مشروع سكني، +1200 وحدة سكنية، +20 حي في الرياض، +4 مشروع تجاري
 معلومات التواصل:
 - الرقم الموحد: 920033974
@@ -22,7 +28,7 @@ export const POST = auth0.withApiAuthRequired(async function chat(request: NextR
 - العنوان: شارع محمد بن سلوم، 6515، 3457، الرياض 13531، حي القيروان
 المهام:
 - مساعدة المستأجرين في مشاكل الصيانة والشكاوى
-- حجز مواعيد الصيانة 
+- حجز مواعيد الصيانة
 - تقديم الدعم للعملاء الحاليين
 - استقبال وتصنيف المشاكل
 القواعد:
@@ -58,7 +64,7 @@ export const POST = auth0.withApiAuthRequired(async function chat(request: NextR
     // Call OpenRouter API with real AI
     const openRouterApiKey = process.env.OPENROUTER_API_KEY;
     if (!openRouterApiKey) {
-      return Response.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
     }
 
     const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -100,11 +106,11 @@ export const POST = auth0.withApiAuthRequired(async function chat(request: NextR
     if (!aiResponse) {
       throw new Error('No response from AI model')
     }
-    return Response.json({ response: aiResponse })
+    return NextResponse.json({ response: aiResponse })
   } catch (error) {
     console.error('Chat API error:', error)
-    return Response.json({
+    return NextResponse.json({
       error: 'يوجد مشكلة في الاتصال، يرجى إعادة المحاولة'
     }, { status: 500 })
   }
-});
+}
