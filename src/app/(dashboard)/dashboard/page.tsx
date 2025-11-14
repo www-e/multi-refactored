@@ -18,6 +18,9 @@ import { DashboardStatsGrid } from '@/components/features/dashboard/DashboardSta
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 
+// Enable dynamic rendering for this page to prevent SSR issues with session-dependent data
+export const dynamic = 'force-dynamic';
+
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
   const {
@@ -112,7 +115,7 @@ export default function DashboardPage() {
               </span>
             </div>
           </CardHeader>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">المكالمات الحالية</h3>
