@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Enum, Bool
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 import enum
+from typing import Union
 from .db import Base
 
 class ChannelEnum(str, enum.Enum):
@@ -125,7 +126,7 @@ class Ticket(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Relationship to user who is assigned to the ticket
-    assignee_user: Mapped[User | None] = relationship("User", back_populates="assigned_tickets")
+    assignee_user: Mapped[Union['User', None]] = relationship("User", back_populates="assigned_tickets")
 
     # Webhook-specific fields
     session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
@@ -254,4 +255,4 @@ class User(Base):
 
 # Update the Ticket model to include user relationship
 Ticket.__annotations__['assignee_user_id'] = Mapped[str | None]
-Ticket.__annotations__['assignee_user'] = Mapped[User | None]
+Ticket.__annotations__['assignee_user'] = Mapped[Union['User', None]]

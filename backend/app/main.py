@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from app.db import get_session, engine
 from app import models
-from app.auth_utils import require_auth, authenticate_user, create_access_token, require_admin, get_current_user
+from app.auth_utils import require_auth, authenticate_user, create_access_token, require_admin, get_current_user, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Minimal logging setup
 logging.basicConfig(level=logging.WARNING)
