@@ -163,24 +163,7 @@ def get_dashboard_kpis(_=Depends(require_auth), db_session: Session = Depends(ge
             "waitingTime": "00:00"  # Placeholder
         })
 
-    # Calculate more specific funnel metrics
-    # For this example, we'll calculate based on voice sessions and bookings
-    # In a real system, you might have specific stages like: reached -> interacted -> qualified -> booked
-
-    reached_count = total_calls  # All calls reached
-    interacted_count = completed_calls  # Those who interacted (completed calls)
-    qualified_count = db_session.query(models.Ticket).filter(
-        models.Ticket.status != models.TicketStatusEnum.open
-    ).count()  # Those who became qualified (based on closed tickets)
-    booked_count = total_bookings  # Those who booked
-
-    # Calculate percentages for the funnel
-    reached_percentage = 100  # By definition
-    interacted_percentage = (interacted_count / reached_count * 100) if reached_count > 0 else 0
-    qualified_percentage = (qualified_count / reached_count * 100) if reached_count > 0 else 0
-    booked_percentage = (booked_count / reached_count * 100) if reached_count > 0 else 0
-
-    # Create the response data
+    # Calculate the response data
     kpis = {
         "totalCalls": total_calls,
         "answerRate": round(answer_rate, 1),
@@ -196,15 +179,14 @@ def get_dashboard_kpis(_=Depends(require_auth), db_session: Session = Depends(ge
         "answerRateChange": 0,
         "conversionChange": 0,
         "revenueChange": 0,
-        # Additional funnel metrics
-        "reachedCount": reached_count,
-        "interactedCount": interacted_count,
-        "qualifiedCount": qualified_count,
-        "bookedCount": booked_count,
-        "reachedPercentage": reached_percentage,
-        "interactedPercentage": round(interacted_percentage, 1),
-        "qualifiedPercentage": round(qualified_percentage, 1),
-        "bookedPercentage": round(booked_percentage, 1)
+        "roasChange": 0.1,  # Placeholder for ROAS change
+        "avgHandleTimeChange": -15,  # Placeholder for AHT change (negative is improvement)
+        "csatChange": 0.2,  # Placeholder for CSAT change
+        "monthlyTarget": 2000000,  # Monthly revenue target
+        # Essential funnel metrics that require database queries
+        "qualifiedCount": db_session.query(models.Ticket).filter(
+            models.Ticket.status != models.TicketStatusEnum.open
+        ).count()  # Those who became qualified (based on closed tickets)
     }
 
     live_ops = {

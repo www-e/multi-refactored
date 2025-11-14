@@ -70,7 +70,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">ROAS</div>
             <div className="flex items-center justify-center mt-2">
               <TrendingUp className="w-4 h-4 text-success" />
-              <span className="text-sm text-success mr-1">+0.3</span>
+              <span className="text-sm text-success mr-1">{(dashboardKPIs.roasChange || dashboardKPIs.revenueChange || 0.3) > 0 ? '+' : ''}{(dashboardKPIs.roasChange || dashboardKPIs.revenueChange || 0.3)}%</span>
             </div>
           </Card>
           <Card className="text-center">
@@ -81,7 +81,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">زمن المعالجة (AHT)</div>
             <div className="flex items-center justify-center mt-2">
               <TrendingUp className="w-4 h-4 text-success" />
-              <span className="text-sm text-success mr-1">-12s</span>
+              <span className="text-sm text-success mr-1">{(dashboardKPIs.avgHandleTimeChange || -12) > 0 ? '+' : ''}{dashboardKPIs.avgHandleTimeChange || -12}s</span>
             </div>
           </Card>
           <Card className="text-center">
@@ -89,7 +89,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">رضا العملاء (CSAT)</div>
             <div className="flex items-center justify-center mt-2">
               <Star className="w-4 h-4 text-warning" />
-              <span className="text-sm text-warning mr-1">+0.2</span>
+              <span className="text-sm text-warning mr-1">{(dashboardKPIs.csatChange || 0.2) > 0 ? '+' : ''}{dashboardKPIs.csatChange || 0.2}</span>
             </div>
           </Card>
         </div>
@@ -160,31 +160,31 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">تم الوصول</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.reachedCount || dashboardKPIs.totalCalls}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.totalCalls}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                 <div className="bg-primary h-2 rounded-full" style={{ width: '100%' }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">تفاعل</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.interactedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.answerRate / 100)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{Math.round((dashboardKPIs.totalCalls * dashboardKPIs.answerRate) / 100)}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.interactedPercentage || dashboardKPIs.answerRate)}%` }}></div>
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.answerRate)}%` }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">مؤهل</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.qualifiedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking / 100 / 3)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.qualifiedCount || Math.round((dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking) / 100 / 3)}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.qualifiedPercentage || Math.round(dashboardKPIs.conversionToBooking / 3))}%` }}></div>
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, Math.round(dashboardKPIs.conversionToBooking / 3))}%` }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">حجز</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.bookedCount || Math.round(dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking / 100)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{Math.round((dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking) / 100)}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.bookedPercentage || dashboardKPIs.conversionToBooking)}%` }}></div>
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, dashboardKPIs.conversionToBooking)}%` }}></div>
               </div>
             </div>
           </Card>
@@ -196,17 +196,17 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">2,000,000 ر.س</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{(dashboardKPIs.monthlyTarget || 2000000).toLocaleString()} ر.س</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min(100, Math.round(dashboardKPIs.revenue / 20000))}%` }}></div>
+                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${Math.min(100, Math.round((dashboardKPIs.revenue / (dashboardKPIs.monthlyTarget || 2000000)) * 100))}%` }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span>
                 <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.revenue.toLocaleString()} ر.س</span>
               </div>
               <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                <div className="text-2xl font-bold text-emerald-600">{Math.round(dashboardKPIs.revenue / 20000)}%</div>
+                <div className="text-2xl font-bold text-emerald-600">{Math.round((dashboardKPIs.revenue / (dashboardKPIs.monthlyTarget || 2000000)) * 100)}%</div>
                 <div className="text-sm text-slate-600 dark:text-slate-400">من الهدف</div>
               </div>
             </div>

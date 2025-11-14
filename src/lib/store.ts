@@ -72,8 +72,8 @@ const initialState = {
     totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
     avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
     totalCallsChange: 0, answerRateChange: 0, conversionChange: 0, revenueChange: 0,
-    reachedCount: 0, interactedCount: 0, qualifiedCount: 0, bookedCount: 0,
-    reachedPercentage: 100, interactedPercentage: 0, qualifiedPercentage: 0, bookedPercentage: 0,
+    roasChange: 0, avgHandleTimeChange: 0, csatChange: 0, monthlyTarget: 2000000,
+    qualifiedCount: 0,
   },
   liveOps: {
     currentCalls: [],
