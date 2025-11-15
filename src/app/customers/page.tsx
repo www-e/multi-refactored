@@ -1,8 +1,7 @@
-'use client';
-
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { Customer } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
@@ -10,6 +9,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
+import { Button } from '@/components/ui/button';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
   const interactions = { conversations: 3, tickets: 1, bookings: 2 };
@@ -20,7 +20,8 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
         <div className="w-12 h-12 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center">
           <User className="w-6 h-6 text-white" />
         </div>
-        <StatusBadge status={customer.stage} />
+        {/* The 'stage' property might not exist on your Customer model, so we conditionally render */}
+        {customer.stage && <StatusBadge status={customer.stage} />}
       </div>
 
       <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">{customer.name}</h3>
@@ -28,7 +29,7 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
       <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400 mb-4">
         <div className="flex items-center gap-2"><Phone className="w-4 h-4" /><span>{customer.phone}</span></div>
         {customer.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4" /><span>{customer.email}</span></div>}
-        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{customer.neighborhoods[0]}</span></div>
+        {customer.neighborhoods && customer.neighborhoods.length > 0 && <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{customer.neighborhoods[0]}</span></div>}
       </div>
       
       <div className="grid grid-cols-3 gap-2 mb-4">
@@ -57,22 +58,61 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [apiError, setApiError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const { customers, setCustomers } = useAppStore();
+  const { isAuthenticated, getCustomers, createCustomer } = useAuthApi();
+
+  const handleRefresh = useCallback(async () => {
+    if (isAuthenticated) {
+      setIsLoading(true);
+      try {
+        const data = await getCustomers();
+        setCustomers(data as any[]); // Cast to any to match legacy type
+      } catch (error) {
+        console.error("Failed to fetch customers:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [isAuthenticated, getCustomers, setCustomers]);
+
+  useEffect(() => {
+    handleRefresh();
+  }, [handleRefresh]);
   
-  // CORRECTED: Remove call to non-existent refreshAllData
-  const { customers } = useAppStore();
-  
-  // NOTE: This page currently relies on other pages (like Dashboard) to have loaded customer data.
-  
-  const filteredCustomers = customers.filter(c => 
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApiError('');
+    try {
+      await createCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail || undefined });
+      setIsAddModalOpen(false);
+      handleRefresh();
+      setNewCustomerName('');
+      setNewCustomerPhone('');
+      setNewCustomerEmail('');
+    } catch (error: any) {
+      console.error("Failed to create customer:", error);
+      setApiError(error.message || "An unknown error occurred.");
+    }
+  };
+
+  const filteredCustomers = useMemo(() => customers.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.phone.includes(searchQuery)
-  );
+  ), [customers, searchQuery]);
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="العملاء" subtitle="إدارة قاعدة بيانات العملاء ومراحل المبيعات">
-          <ActionButton icon={Plus} label="عميل جديد" onClick={() => alert('New Customer')} />
+          <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
+          <ActionButton icon={Plus} label="عميل جديد" onClick={() => setIsAddModalOpen(true)} />
         </PageHeader>
 
         <SearchFilterBar
@@ -82,7 +122,9 @@ export default function CustomersPage() {
           onFilterClick={() => alert('Filter clicked')}
         />
         
-        {customers.length === 0 ? (
+        {isLoading ? (
+          <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل العملاء...</p></Card>
+        ) : customers.length === 0 ? (
            <Card className="text-center py-12"><p className="text-slate-500">لا يوجد عملاء لعرضهم.</p></Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -97,10 +139,31 @@ export default function CustomersPage() {
             <div className="space-y-2">
               <h4 className="text-xl font-semibold">{selectedCustomer.name}</h4>
               <p>الهاتف: {selectedCustomer.phone}</p>
-              <p>المرحلة: <StatusBadge status={selectedCustomer.stage} /></p>
-              <p>الميزانية: {selectedCustomer.budget?.toLocaleString()} ر.س</p>
+              {selectedCustomer.stage && <p>المرحلة: <StatusBadge status={selectedCustomer.stage} /></p>}
+              {selectedCustomer.budget && <p>الميزانية: {selectedCustomer.budget?.toLocaleString()} ر.س</p>}
             </div>
           )}
+        </Modal>
+
+        <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة عميل جديد">
+          <form onSubmit={handleCreateCustomer} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">الاسم الكامل</label>
+              <input type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">رقم الهاتف</label>
+              <input type="tel" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">البريد الإلكتروني (اختياري)</label>
+              <input type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
+            </div>
+            {apiError && <p className="text-red-500 text-sm">{apiError}</p>}
+            <div className="flex justify-end pt-4">
+              <Button type="submit">إنشاء العميل</Button>
+            </div>
+          </form>
         </Modal>
       </div>
     </div>

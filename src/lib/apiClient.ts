@@ -1,18 +1,14 @@
-import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps } from "@/app/(shared)/types";
+import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps, Customer } from "@/app/(shared)/types";
 
-/**
- * A client-side fetch wrapper that includes the authentication token.
- * It makes requests to the Next.js API proxy layer.
- */
+// This is a generic fetch wrapper that handles errors and authentication.
 async function clientFetch<T>(endpoint: string, accessToken: string, options?: RequestInit): Promise<T> {
   const url = `/api${endpoint}`;
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        // CRITICAL FIX: The Authorization header is now sent from the client to the Next.js API route.
         'Authorization': `Bearer ${accessToken}`,
         ...options?.headers,
       },
@@ -35,15 +31,19 @@ async function clientFetch<T>(endpoint: string, accessToken: string, options?: R
   }
 }
 
-// All functions now REQUIRE an access token and pass it to clientFetch.
-export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => 
-  clientFetch('/dashboard', token);
+// Read operations
+export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => clientFetch('/dashboard', token);
+export const getBookings = (token: string): Promise<EnhancedBooking[]> => clientFetch('/bookings/recent', token);
+export const getTickets = (token: string): Promise<EnhancedTicket[]> => clientFetch('/tickets/recent', token);
+export const getCustomers = (token: string): Promise<Customer[]> => clientFetch('/customers', token); // <-- ADDED
 
-export const getBookings = (token: string): Promise<EnhancedBooking[]> => 
-  clientFetch('/bookings/recent', token);
-
-export const getTickets = (token: string): Promise<EnhancedTicket[]> => 
-  clientFetch('/tickets/recent', token);
+// Write operations
+export const createCustomer = (data: { name: string; phone: string; email?: string; }, token: string): Promise<Customer> => { // <-- ADDED
+  return clientFetch('/customers', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
 
 export const updateBookingStatus = (id: string, status: 'confirmed' | 'canceled', token: string): Promise<any> => {
   return clientFetch(`/bookings/${id}`, token, {
@@ -59,6 +59,7 @@ export const updateTicketStatus = (id: string, status: 'in_progress' | 'resolved
   });
 };
 
+// Other operations
 export const createVoiceSession = (agentType: 'support' | 'sales', token: string): Promise<any> => {
   return clientFetch('/voice/sessions', token, {
     method: 'POST',
