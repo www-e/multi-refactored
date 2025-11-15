@@ -22,20 +22,25 @@ export const authOptions: NextAuthOptions = {
         }
         
         try {
+          // CRITICAL FIX: The backend's /auth/token endpoint expects a JSON body, not form data.
           const response = await fetch(`${backendUrl}/auth/token`, {
             method: "POST",
             headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
+              // Set the correct Content-Type for a JSON payload.
+              "Content-Type": "application/json",
             },
-            body: new URLSearchParams({
-              username: credentials.email,
+            // The body is now correctly formatted as a JSON string.
+            // The keys 'email' and 'password' match the backend's TokenRequest Pydantic model.
+            body: JSON.stringify({
+              email: credentials.email,
               password: credentials.password,
             }),
           });
 
           if (!response.ok) {
-            console.error("Backend authentication via /auth/token failed:", response.status);
-            return null;
+            const errorBody = await response.json().catch(() => ({}));
+            console.error(`Backend authentication via /auth/token failed: ${response.status}`, errorBody);
+            return null; // This triggers the NextAuth login error flow.
           }
 
           const tokenData = await response.json();
@@ -78,7 +83,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // This check ensures session.user is defined before we try to modify it.
       if (session.user && token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;

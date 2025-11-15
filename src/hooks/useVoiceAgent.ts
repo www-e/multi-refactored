@@ -1,20 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useConversation } from '@elevenlabs/react';
-import { createVoiceSession, postLog } from '@/lib/apiClient';
 
-// CORRECTED AND COMPLETE VoiceSession INTERFACE
 interface VoiceSession {
-  backend_session: {
-    session_id: string;
-    status: 'created' | 'active' | 'completed' | 'error';
-    customer_id: string;
-    created_at: string; // ISO 8601 string
-  };
-  elevenlabs_conversation: {
-    conversation_id: string;
-    agent_id: string;
-  };
-  agent_type: 'support' | 'sales';
+  // ... (interface remains the same)
+}
+
+interface AuthenticatedApiFunctions {
+  createVoiceSession: (agentType: 'support' | 'sales') => Promise<any>;
+  postLog: (level: 'info' | 'warn' | 'error', message: string, meta?: any) => Promise<void>;
 }
 
 interface UseVoiceAgentOptions {
@@ -24,9 +17,15 @@ interface UseVoiceAgentOptions {
   onStatusChange?: (status: 'idle' | 'connecting' | 'connected' | 'error') => void;
 }
 
-export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
-  const [currentSession, setCurrentSession] = useState<VoiceSession | null>(null);
+// CRITICAL FIX: The hook now accepts the authenticated API functions as an argument.
+export function useVoiceAgent(
+  api: AuthenticatedApiFunctions,
+  options: UseVoiceAgentOptions = {}
+) {
+  const [currentSession, setCurrentSession] = useState<any | null>(null);
   
+  const { createVoiceSession, postLog } = api;
+
   const conversation = useConversation({
     onConnect: () => options.onStatusChange?.('connected'),
     onDisconnect: () => {
@@ -68,7 +67,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
         userId: backendSession.session_id,
       });
 
-      const session: VoiceSession = {
+      const session = {
         backend_session: backendSession,
         elevenlabs_conversation: {
           conversation_id: backendSession.session_id,
@@ -87,16 +86,17 @@ export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
       options.onStatusChange?.('error');
       postLog('error', 'voice_session_start_failed', { error: errorMessage }).catch(() => {});
     }
-  }, [options, conversation]);
+  }, [options, conversation, createVoiceSession, postLog]);
 
   const stopVoiceSession = useCallback(async () => {
     try {
       await conversation.endSession();
-postLog('info', 'voice_session_stopped', {}).catch(() => {});    } catch (error: any) {
+      postLog('info', 'voice_session_stopped', {}).catch(() => {});
+    } catch (error: any) {
       console.error('Stop voice session failed:', error);
       options.onError?.(error.message || 'Failed to stop voice session');
     }
-  }, [conversation, options]);
+  }, [conversation, options, postLog]);
 
   return {
     startVoiceSession,

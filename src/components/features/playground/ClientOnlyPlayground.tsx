@@ -7,6 +7,7 @@ import {
    Smartphone,  Monitor
 } from 'lucide-react';
 import { useVoiceAgent } from '@/hooks/useVoiceAgent';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardTitle } from '@/components/shared/ui/Card';
 
@@ -33,8 +34,12 @@ export default function ClientOnlyPlayground() {
   const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // 1. Get the authenticated API functions from our central hook.
+  const { createVoiceSession, postLog } = useAuthApi();
 
-  const { startVoiceSession, stopVoiceSession, isConnected: voiceConnected, isListening, isSpeaking, status } = useVoiceAgent({
+  // 2. Pass the required functions into the useVoiceAgent hook.
+  const { startVoiceSession, stopVoiceSession, isConnected: voiceConnected, isListening, isSpeaking, status } = useVoiceAgent({ createVoiceSession, postLog }, {
     onTranscript: (text, isFinal) => { setTranscript(text); if (isFinal) { addMessage('user', text); setTranscript(''); } },
     onResponse: (text) => addMessage('agent', text),
     onError: (errorMsg) => { setError(errorMsg); setTimeout(() => setError(null), 5000); },
@@ -67,7 +72,6 @@ export default function ClientOnlyPlayground() {
           title="ساحة التجربة"
           subtitle="اختبر قدرات المساعد الصوتي الذكي بالذكاء الاصطناعي"
         />
-
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
           <div className="hidden lg:block lg:col-span-1 space-y-6">
             <Card>
@@ -81,7 +85,6 @@ export default function ClientOnlyPlayground() {
                 </button>
               </div>
             </Card>
-
             <Card>
               <CardTitle className="mb-4">نوع المساعد</CardTitle>
               <div className="space-y-3">
@@ -93,7 +96,6 @@ export default function ClientOnlyPlayground() {
                 ))}
               </div>
             </Card>
-
             <Card>
               <CardTitle className="mb-4">حالة الاتصال</CardTitle>
               <div className="space-y-4">
@@ -103,7 +105,6 @@ export default function ClientOnlyPlayground() {
               </div>
             </Card>
           </div>
-
           <div className="lg:col-span-3">
             <Card className="min-h-[600px] flex flex-col">
               {mode === 'voice' ? (
@@ -111,7 +112,6 @@ export default function ClientOnlyPlayground() {
                   <div className={`w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-r ${selectedAgent.color} flex items-center justify-center shadow-lg`}><selectedAgent.icon className="w-12 h-12 text-white" /></div>
                   <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{selectedAgent.name}</h2>
                   <p className="text-slate-600 dark:text-slate-400 mb-8">{selectedAgent.description}</p>
-
                   <button
                     onClick={() => voiceConnected ? stopVoiceSession() : startVoiceSession(selectedAgent.id as 'support' | 'sales')}
                     disabled={status === 'connecting'}
@@ -128,7 +128,6 @@ export default function ClientOnlyPlayground() {
                     {messages.map(msg => (
                         <div key={msg.id} className={`flex items-end gap-2 ${msg.type === 'user' ? 'justify-end' : ''}`}>
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.type === 'agent' ? 'bg-slate-200' : 'bg-blue-500 text-white'}`}>
-                                {/* FIX: Replaced invalid <msg.type> syntax with a standard ternary operator */}
                                 {msg.type === 'agent' ? <Bot size={18} /> : <User size={18} />}
                             </div>
                             <div className={`max-w-md p-3 rounded-lg ${msg.type === 'agent' ? 'bg-slate-100 dark:bg-slate-800' : 'bg-blue-500 text-white'}`}>{msg.content}</div>

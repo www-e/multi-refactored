@@ -4,37 +4,56 @@ import * as apiClient from '@/lib/apiClient';
 
 /**
  * Custom hook that provides memoized, authenticated API functions.
- * This is the primary way components should interact with the API.
+ * It retrieves the access token from the session and passes it to the API client.
  */
 export const useAuthApi = () => {
   const { data: session, status } = useSession();
   
-  // The token is no longer needed here, as the apiClient doesn't use it.
-  // The API routes on the server handle the token.
+  // CRITICAL FIX: Extract the backend's access token from the session.
+  const accessToken = (session as any)?.accessToken as string;
 
-  // By wrapping each function in useCallback, we ensure they have a stable
-  // reference, which prevents infinite loops in useEffect hooks.
-  const getDashboardKpis = useCallback(() => apiClient.getDashboardKpis(), []);
-  const getTickets = useCallback(() => apiClient.getTickets(), []);
-  const getBookings = useCallback(() => apiClient.getBookings(), []);
-  
-  const updateBookingStatus = useCallback((id: string, status: 'confirmed' | 'canceled') => 
-    apiClient.updateBookingStatus(id, status), []);
-  
-  const updateTicketStatus = useCallback((id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => 
-    apiClient.updateTicketStatus(id, status), []);
+  // All functions are wrapped in useCallback for stability in useEffect hooks.
+  // They now pass the accessToken to the apiClient.
+  const getDashboardKpis = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getDashboardKpis(accessToken);
+  }, [accessToken]);
 
-  const createVoiceSession = useCallback((agentType: 'support' | 'sales') => 
-    apiClient.createVoiceSession(agentType), []);
+  const getTickets = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getTickets(accessToken);
+  }, [accessToken]);
+
+  const getBookings = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getBookings(accessToken);
+  }, [accessToken]);
+  
+  const updateBookingStatus = useCallback((id: string, status: 'confirmed' | 'canceled') => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateBookingStatus(id, status, accessToken);
+  }, [accessToken]);
+  
+  const updateTicketStatus = useCallback((id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateTicketStatus(id, status, accessToken);
+  }, [accessToken]);
+
+  const createVoiceSession = useCallback((agentType: 'support' | 'sales') => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.createVoiceSession(agentType, accessToken);
+  }, [accessToken]);
     
-  const postLog = useCallback((level: 'info' | 'warn' | 'error', message: string, meta?: any) => 
-    apiClient.postLog(level, message, meta), []);
+  const postLog = useCallback((level: 'info' | 'warn' | 'error', message: string, meta?: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.postLog(level, message, meta, accessToken);
+  }, [accessToken]);
 
   return {
-    isAuthenticated: status === 'authenticated',
+    isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
     
-    // Return the stable, memoized functions
+    // Return the stable, memoized, and now correctly authenticated functions
     getDashboardKpis,
     getTickets,
     getBookings,

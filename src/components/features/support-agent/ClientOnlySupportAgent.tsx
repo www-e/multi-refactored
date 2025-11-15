@@ -1,44 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useVoiceAgent } from '@/hooks/useVoiceAgent';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { Phone, PhoneOff, Ticket, Calendar, User, Clock, Check, X, RefreshCw, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 
-// Interfaces for backend data (kept from original file)
 interface BackendBooking { id: string; customer_name: string; phone: string; project: string; day_name: string; appointment_date: string; appointment_time: string; status: string; }
 interface BackendTicket { id: string; customer_name: string; phone: string; issue: string; priority: 'high' | 'med' | 'low'; project: string; status: 'open' | 'in_progress' | 'closed'; created_at: string; }
 
 export default function ClientOnlySupportAgent() {
   const [backendBookings, setBackendBookings] = useState<BackendBooking[]>([]);
   const [backendTickets, setBackendTickets] = useState<BackendTicket[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const { isConnected, startVoiceSession, stopVoiceSession } = useVoiceAgent({});
+  // 1. Get all authenticated API functions.
+  const { getBookings, getTickets, createVoiceSession, postLog, isAuthenticated } = useAuthApi();
+  
+  // 2. Pass the required functions to the voice agent hook.
+  const { isConnected, startVoiceSession, stopVoiceSession } = useVoiceAgent({ createVoiceSession, postLog });
 
-  const fetchBackendData = async () => {
-    setIsLoadingData(true);
-    // Simulating API calls from original file
-    try {
-      const bookingsRes = await fetch('/api/bookings');
-      const ticketsRes = await fetch('/api/tickets');
-      if (bookingsRes.ok) setBackendBookings(await bookingsRes.json());
-      if (ticketsRes.ok) setBackendTickets(await ticketsRes.json());
-    } catch (error) {
-      console.error("Failed to fetch data:", error);
-    } finally {
-      setIsLoadingData(false);
+  const fetchBackendData = useCallback(async () => {
+    if (isAuthenticated) {
+      setIsLoadingData(true);
+      try {
+        const [bookingsData, ticketsData] = await Promise.all([
+          getBookings(),
+          getTickets(),
+        ]);
+        setBackendBookings(bookingsData as any[]);
+        setBackendTickets(ticketsData as any[]);
+      } catch (error) {
+        console.error("Failed to fetch support agent data:", error);
+      } finally {
+        setIsLoadingData(false);
+      }
     }
-  };
+  }, [isAuthenticated, getBookings, getTickets]);
 
   useEffect(() => {
     fetchBackendData();
-    const interval = setInterval(fetchBackendData, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [fetchBackendData]);
 
   const handleBookingAction = (id: string, action: 'approve' | 'deny') => alert(`Booking ${id}: ${action}`);
   const handleTicketAction = (id: string, action: 'approve' | 'deny') => alert(`Ticket ${id}: ${action}`);
@@ -50,7 +55,6 @@ export default function ClientOnlySupportAgent() {
           title="مساعد خدمة العملاء الذكي"
           subtitle="تحدث مع المساعد وراجع الإجراءات التي تم إنشاؤها تلقائياً"
         />
-
         <Card className="p-8 mb-8 text-center">
           <div className="mb-6">{ isConnected ? 'متصل' : 'غير متصل' }</div>
           <div className="mb-6">
@@ -64,7 +68,6 @@ export default function ClientOnlySupportAgent() {
             اضغط على "بدء مكالمة" وتحدث عن طلبك. سيقوم المساعد بإنشاء التذكرة أو الموعد المناسب أدناه.
           </p>
         </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>طلبات العملاء الجديدة</CardTitle>
@@ -72,7 +75,6 @@ export default function ClientOnlySupportAgent() {
               {isLoadingData ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <RefreshCw className="w-4 h-4 ml-2" />} تحديث
             </Button>
           </CardHeader>
-
           <div className="p-6 space-y-8">
             {isLoadingData && !backendBookings.length && !backendTickets.length ? (
                 <div className="text-center py-8 text-slate-500">جاري تحميل الطلبات...</div>
