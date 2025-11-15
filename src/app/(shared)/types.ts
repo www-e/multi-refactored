@@ -169,16 +169,20 @@ export interface Conversation {
 export interface EnhancedTicket {
   id: string;
   customerId: string;
+  customerName?: string; // CORRECTED: Use camelCase to match backend and UI
+  phone?: string;
   propertyId?: string;
-  priority: 'منخفض' | 'متوسط' | 'عالٍ' | 'عاجل';
-  category: 'سباكة' | 'كهرباء' | 'مفاتيح' | 'تنظيف' | 'أخرى';
+  project?: string;
+  priority: 'low' | 'med' | 'high' | 'urgent'; // Sticking to DB enum values
+  category: string;
+  issue: string;
   assignee?: string;
-  status: 'مفتوحة' | 'قيد_المعالجة' | 'بانتظار_الموافقة' | 'محلولة';
-  slaDueAt: string;
+  status: 'open' | 'in_progress' | 'pending_approval' | 'resolved'; // Sticking to DB enum values
+  slaDueAt?: string;
   resolutionNote?: string;
   approvedBy?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface EnhancedBooking {

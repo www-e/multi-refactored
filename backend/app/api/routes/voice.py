@@ -157,16 +157,18 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     raise HTTPException(status_code=response.status, detail="Failed to fetch conversation from ElevenLabs")
                 
                 data = await response.json()
+                # PRODUCTION LOGGING: Log the entire raw payload for debugging
+                logger.info(f"Received ElevenLabs webhook payload for {conversation_id}: {data}")
+
                 analysis = data.get("analysis", {})
                 data_collection = analysis.get("data_collection_results", {})
-                intent = data_collection.get("extracted_intent", {}).get("value", "")
+                intent = data_collection.get("extracted_intent", {}).get("value", "unknown_intent")
                 customer_phone = data_collection.get("phone", {}).get("value", "")
                 if not customer_phone:
                     phone_metadata = data.get("metadata", {}).get("phone_call", {})
                     customer_phone = phone_metadata.get("external_number", "")
                 call_summary = analysis.get("call_summary_title", "")
                 
-                # Find or create VoiceSession
                 voice_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.conversation_id == conversation_id).first()
                 if voice_session:
                     voice_session.summary = call_summary
@@ -189,10 +191,13 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                 if intent == "book_appointment":
                     action_taken = _create_booking_from_conversation(db_session, voice_session, data_collection)
                     action_type = "booking"
-                elif intent == "raise_ticket": # Assuming this is the intent for raising a ticket
+                elif intent == "raise_ticket":
                     action_taken = _create_ticket_from_conversation(db_session, voice_session, data_collection)
                     action_type = "ticket"
-                
+                else:
+                    # PRODUCTION FIX: Log unhandled intents to diagnose mismatches
+                    logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
+
                 db_session.commit()
                 
                 return {

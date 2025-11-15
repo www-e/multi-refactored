@@ -7,7 +7,7 @@ interface VoiceSession {
 
 interface AuthenticatedApiFunctions {
   createVoiceSession: (agentType: 'support' | 'sales') => Promise<any>;
-  postLog: (level: 'info' | 'warn' | 'error', message: string, meta?: any) => Promise<void>;
+  postLog: (level: 'info' | 'warn' | 'error', message: string, meta?: any) => Promise<null>;
 }
 
 interface UseVoiceAgentOptions {

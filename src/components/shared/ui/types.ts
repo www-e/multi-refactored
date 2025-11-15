@@ -1,35 +1,55 @@
 import { LucideIcon } from "lucide-react";
 
+// UNIFIED STATUS TYPE: This is the single source of truth for all possible status strings
+// that can be passed to the StatusBadge component.
 export type TStatus =
-  // Universal
+  // Universal & Campaign
   | "نشطة"
   | "موقوفة"
-  | "مكتملة" // This was the original value
+  | "مكتملة"
+  // Customer Stage
   | "جديد"
   | "مؤهل"
   | "حجز"
   | "ربح"
   | "خسارة"
-  // Tickets
-  | "مفتوحة"
-  | "قيد_المعالجة"
-  | "بانتظار_الموافقة"
+  // Ticket Status (from models.py & Arabic display)
+  | "open"
+  | "in_progress"
+  | "pending_approval"
+  | "resolved"
+  | "مفتوحة" 
+  | "قيد_المعالجة" 
+  | "بانتظار_الموافقة" 
   | "محلولة"
-  // Bookings
+  // Booking Status (from models.py & Arabic display)
+  | "pending"
+  | "confirmed"
+  | "canceled"
+  | "completed"
   | "معلق"
   | "مؤكد"
   | "ملغي"
-  | "مكتمل" // FIX: Changed from 'مكتملة' to match the EnhancedBooking type
-  // Priority
+  | "مكتمل"
+  // Priority (from models.py & Arabic display)
+  | "urgent"
+  | "high"
+  | "med"
+  | "low"
   | "عاجل"
   | "عالٍ"
   | "متوسط"
   | "منخفض"
-  // Source / Attribution
+  // Source / Attribution / Type
   | "AI"
   | "بشري"
+  | "Human"
+  | "voice"
+  | "chat"
   | "صوت"
-  | "رسالة";
+  | "رسالة"
+  | "web"   // CORRECTED: Added this missing type
+  | "visit"; // CORRECTED: Added this missing type
 
 export interface IStatsCard {
   icon: LucideIcon;

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw } from 'lucide-react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { Customer } from '@/app/(shared)/types';
@@ -13,6 +13,8 @@ import { Modal } from '@/components/shared/ui/Modal';
 import { Button } from '@/components/ui/button';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
+  // Note: 'interactions' are hardcoded for now as per the original file.
+  // In a real implementation, this data would come from an API lookup.
   const interactions = { conversations: 3, tickets: 1, bookings: 2 };
   return (
     <Card onClick={onSelect} className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all">
@@ -58,8 +60,8 @@ export default function CustomersPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [apiError, setApiError] = useState('');
-  
-  // State management is now driven by the central store
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { customers, customersLoading, setCustomers, setCustomersLoading, addCustomer } = useAppStore();
   const { isAuthenticated, getCustomers, createCustomer } = useAuthApi();
 
@@ -71,31 +73,34 @@ export default function CustomersPage() {
         setCustomers(data as any[]);
       } catch (error) {
         console.error("Failed to fetch customers:", error);
-        setCustomersLoading(false); // Ensure loading is stopped on error
+      } finally {
+        setCustomersLoading(false);
       }
     }
   }, [isAuthenticated, getCustomers, setCustomers, setCustomersLoading]);
 
   useEffect(() => {
-    // Fetch data only if it hasn't been fetched yet
-    if (customers.length === 0) {
+    if (customers.length === 0 && isAuthenticated) {
       handleRefresh();
     }
-  }, [handleRefresh, customers.length]);
+  }, [customers.length, isAuthenticated, handleRefresh]);
 
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError('');
+    setIsSubmitting(true);
     try {
       const newCustomer = await createCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail || undefined });
-      addCustomer(newCustomer); // Optimistic UI update
+      addCustomer(newCustomer);
       setIsAddModalOpen(false);
       setNewCustomerName('');
       setNewCustomerPhone('');
       setNewCustomerEmail('');
     } catch (error: any) {
       console.error("Failed to create customer:", error);
-      setApiError(error.message || "An unknown error occurred.");
+      setApiError(error.detail || error.message || "An unknown error occurred.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -152,9 +157,13 @@ export default function CustomersPage() {
               <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">البريد الإلكتروني (اختياري)</label>
               <input type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
             </div>
-            {apiError && <p className="text-red-500 text-sm">{apiError}</p>}
-            <div className="flex justify-end pt-4">
-              <Button type="submit">إنشاء العميل</Button>
+            {apiError && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-md">{apiError}</p>}
+            <div className="flex justify-end pt-4 space-x-2 space-x-reverse">
+              <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>إلغاء</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
+                {isSubmitting ? 'جاري الإنشاء...' : 'إنشاء العميل'}
+              </Button>
             </div>
           </form>
         </Modal>

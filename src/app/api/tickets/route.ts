@@ -1,67 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions';
 
+// GET /api/tickets (proxies to backend GET /tickets/recent)
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const session = await getServerSession(authOptions);
+  // @ts-ignore
+  const accessToken = session?.accessToken;
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    const backendUrl = process.env.BACKEND_URL;
-    if (!backendUrl) {
-      console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
     const response = await fetch(`${backendUrl}/tickets/recent`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
     });
 
+    const data = await response.json();
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error from backend service: ${response.status} ${errorBody}`);
-      return NextResponse.json(
-        { error: `Failed to fetch tickets from backend: ${response.statusText}` },
-        { status: response.status }
-      );
+      return NextResponse.json({ detail: data.detail || 'Failed to fetch tickets' }, { status: response.status });
     }
-    const tickets = await response.json();
-    return NextResponse.json(tickets);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching tickets:', error);
-    return NextResponse.json(
-      { error: 'An internal server error occurred while fetching tickets.' },
-      { status: 502 }
-    );
+    console.error('Error in GET /api/tickets:', error);
+    return NextResponse.json({ error: 'Failed to connect to backend service' }, { status: 502 });
   }
 }
 
+// POST /api/tickets (proxies to backend POST /tickets)
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const session = await getServerSession(authOptions);
+  // @ts-ignore
+  const accessToken = session?.accessToken;
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
     const body = await request.json();
-    const newTicket = {
-      id: Date.now().toString(),
-      ...body,
-      createdAt: new Date().toISOString()
-    };
-    return NextResponse.json(newTicket, { status: 201 });
+    const response = await fetch(`${backendUrl}/tickets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+      return NextResponse.json({ detail: responseData.detail || 'Backend failed to create ticket' }, { status: response.status });
+    }
+    return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
-    console.error('Error processing POST request for tickets:', error);
-    return NextResponse.json({ error: 'خطأ في معالجة الطلب' }, { status: 400 });
+    console.error('Error in POST /api/tickets:', error);
+    return NextResponse.json({ error: 'An internal server error occurred' }, { status: 500 });
   }
 }

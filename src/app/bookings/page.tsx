@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, RefreshCw, Edit, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -17,7 +16,6 @@ import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
-
   const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading } = useAppStore();
   const { getBookings, isAuthenticated } = useAuthApi();
 
@@ -29,6 +27,7 @@ export default function BookingsPage() {
         setBookings(data);
       } catch (error) {
         console.error("Failed to refresh bookings:", error);
+      } finally {
         setBookingsLoading(false);
       }
     }
@@ -36,6 +35,11 @@ export default function BookingsPage() {
 
   useEffect(() => {
     handleRefresh();
+    // PRODUCTION UX: Automatically refresh data when user switches back to this tab
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, [handleRefresh]);
 
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
@@ -62,14 +66,12 @@ export default function BookingsPage() {
           <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
           <ActionButton icon={Plus} label="حجز جديد" onClick={() => alert('New Booking Modal')} />
         </PageHeader>
-
         <SearchFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="البحث في الحجوزات..."
           onFilterClick={() => alert('Filter clicked')}
         />
-
         <ErrorBoundary>
           {bookingsLoading ? (
             <Card className="p-0 overflow-hidden">

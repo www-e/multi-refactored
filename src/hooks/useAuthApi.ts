@@ -55,6 +55,24 @@ export const useAuthApi = () => {
     return apiClient.postLog(level, message, meta, accessToken);
   }, [accessToken]);
 
+  const createTicket = useCallback((data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.createTicket(data, accessToken);
+  }, [accessToken]);
+const createBooking = useCallback((data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.createBooking(data, accessToken);
+  }, [accessToken]);
+
+  const getCampaigns = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getCampaigns(accessToken);
+  }, [accessToken]);
+
+  const createCampaign = useCallback((data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.createCampaign(data, accessToken);
+  }, [accessToken]);
   return {
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
@@ -67,6 +85,10 @@ export const useAuthApi = () => {
     updateBookingStatus,
     updateTicketStatus,
     createVoiceSession,
-    postLog
+    postLog,
+    createTicket,
+    createBooking,
+    getCampaigns,
+    createCampaign,
   };
 };

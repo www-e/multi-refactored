@@ -1,66 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions';
 
+// GET /api/bookings (proxies to backend GET /bookings/recent)
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const session = await getServerSession(authOptions);
+  // @ts-ignore
+  const accessToken = session?.accessToken;
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    const backendUrl = process.env.BACKEND_URL;
-    if (!backendUrl) {
-      console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
     const response = await fetch(`${backendUrl}/bookings/recent`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
     });
 
+    const data = await response.json();
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error from backend service: ${response.status} ${errorBody}`);
-      return NextResponse.json(
-        { error: `Failed to fetch bookings from backend: ${response.statusText}` },
-        { status: response.status }
-      );
+      return NextResponse.json({ detail: data.detail || 'Failed to fetch bookings from backend' }, { status: response.status });
     }
-    const bookings = await response.json();
-    return NextResponse.json(bookings);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    return NextResponse.json(
-      { error: 'An internal server error occurred while fetching bookings.' },
-      { status: 502 } // 502 Bad Gateway
-    );
+    console.error('Error in GET /api/bookings:', error);
+    return NextResponse.json({ error: 'Failed to connect to backend service' }, { status: 502 });
   }
 }
 
+// POST /api/bookings (proxies to backend POST /bookings)
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const session = await getServerSession(authOptions);
+  // @ts-ignore
+  const accessToken = session?.accessToken;
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    const backendUrl = process.env.BACKEND_URL;
-    if (!backendUrl) {
-      console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
     const body = await request.json();
-
     const response = await fetch(`${backendUrl}/bookings`, {
       method: 'POST',
       headers: {
@@ -70,21 +61,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       body: JSON.stringify(body),
     });
 
+    const responseData = await response.json();
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error from backend service on POST /bookings: ${response.status} ${errorBody}`);
-      return NextResponse.json(
-        { error: `Backend failed to create booking: ${response.statusText}` },
-        { status: response.status }
-      );
+      console.error(`Error from backend service on POST /bookings: ${response.status}`, responseData);
+      return NextResponse.json({ detail: responseData.detail || 'Backend failed to create booking' }, { status: response.status });
     }
-    const newBooking = await response.json();
-    return NextResponse.json(newBooking, { status: 201 });
+    return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
-    console.error('Error creating booking:', error);
-    return NextResponse.json(
-      { error: 'An internal server error occurred while creating booking.' },
-      { status: 500 }
-    );
+    console.error('Error in POST /api/bookings:', error);
+    return NextResponse.json({ error: 'An internal server error occurred while creating a booking.' }, { status: 500 });
   }
 }
