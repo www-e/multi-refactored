@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.routes import auth, dashboard, bookings, tickets, voice
+from app.api.routes import auth, dashboard, bookings, tickets, voice, customers
 
 api_router = APIRouter()
 

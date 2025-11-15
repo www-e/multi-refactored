@@ -1,13 +1,16 @@
 # backend/app/api/routes/voice.py
 import os
+import logging
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
-
 from app import models
 from app.api import deps
+
+# Use structured logging instead of print statements
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -42,7 +45,6 @@ def create_voice_session(body: VoiceSessionRequest, _=Depends(deps.get_current_u
     db_session.add(voice_session)
     db_session.commit()
     db_session.refresh(voice_session)
-    
     return VoiceSessionResponse(
         session_id=voice_session.id,
         status=voice_session.status,
@@ -69,11 +71,85 @@ async def fetch_elevenlabs_conversations(_=Depends(deps.get_current_user)):
             data = await response.json()
             return {"status": "success", "conversations": data.get("conversations", [])}
 
+def _get_or_create_customer(db_session: Session, customer_phone: str, customer_name: str) -> models.Customer:
+    """Finds a customer by phone or creates a new one."""
+    customer = db_session.query(models.Customer).filter(models.Customer.phone == customer_phone).first()
+    if not customer:
+        customer = models.Customer(
+            id=generate_id("cust"), tenant_id="demo-tenant",
+            name=customer_name or f"Customer {customer_phone}",
+            phone=customer_phone, created_at=datetime.utcnow()
+        )
+        db_session.add(customer)
+        db_session.flush() # Ensure customer has an ID
+    return customer
+
+def _create_booking_from_conversation(db_session: Session, voice_session: models.VoiceSession, data_collection: dict) -> bool:
+    """Helper to create a booking from conversation data."""
+    customer_phone = voice_session.customer_phone
+    preferred_datetime_str = data_collection.get("preferred_datetime", {}).get("value", "")
+    if not (preferred_datetime_str and customer_phone):
+        return False
+        
+    existing_booking = db_session.query(models.Booking).filter(models.Booking.session_id == voice_session.id).first()
+    if existing_booking:
+        return False # Already created
+
+    try:
+        appointment_dt = datetime.fromisoformat(preferred_datetime_str.replace('Z', '+00:00'))
+        customer_name = data_collection.get("customer_name", {}).get("value", "")
+        project = data_collection.get("project", {}).get("value", "")
+
+        customer = _get_or_create_customer(db_session, customer_phone, customer_name)
+        
+        booking = models.Booking(
+            id=generate_id("bk"), tenant_id="demo-tenant", customer_id=customer.id,
+            session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
+            property_code=project or "PROP-DEFAULT", start_date=appointment_dt,
+            source=models.ChannelEnum.voice, created_by=models.AIOrHumanEnum.AI,
+            project=project or "Voice Booking", preferred_datetime=appointment_dt,
+            status=models.BookingStatusEnum.pending, created_at=datetime.utcnow()
+        )
+        db_session.add(booking)
+        return True
+    except Exception as e:
+        logger.error(f"Could not create booking from ElevenLabs data for session {voice_session.id}: {e}")
+        return False
+
+def _create_ticket_from_conversation(db_session: Session, voice_session: models.VoiceSession, data_collection: dict) -> bool:
+    """Helper to create a ticket from conversation data."""
+    customer_phone = voice_session.customer_phone
+    if not customer_phone:
+        return False
+
+    existing_ticket = db_session.query(models.Ticket).filter(models.Ticket.session_id == voice_session.id).first()
+    if existing_ticket:
+        return False # Already created
+
+    try:
+        customer_name = data_collection.get("customer_name", {}).get("value", "")
+        project = data_collection.get("project", {}).get("value", "")
+        
+        customer = _get_or_create_customer(db_session, customer_phone, customer_name)
+
+        ticket = models.Ticket(
+            id=generate_id("tkt"), tenant_id="demo-tenant", customer_id=customer.id,
+            session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
+            issue=voice_session.summary or "No summary provided", project=project or "N/A",
+            category=data_collection.get("category", {}).get("value", "General"),
+            priority=models.TicketPriorityEnum.med, status=models.TicketStatusEnum.open,
+            created_at=datetime.utcnow()
+        )
+        db_session.add(ticket)
+        return True
+    except Exception as e:
+        logger.error(f"Could not create ticket from ElevenLabs data for session {voice_session.id}: {e}")
+        return False
+
 @router.post("/elevenlabs/conversation/{conversation_id}/process")
 async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     headers = get_elevenlabs_headers()
     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"
-    
     try:
         async with aiohttp.ClientSession() as http_session:
             async with http_session.get(url, headers=headers) as response:
@@ -83,17 +159,11 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                 data = await response.json()
                 analysis = data.get("analysis", {})
                 data_collection = analysis.get("data_collection_results", {})
-                
                 intent = data_collection.get("extracted_intent", {}).get("value", "")
-                customer_name = data_collection.get("customer_name", {}).get("value", "")
                 customer_phone = data_collection.get("phone", {}).get("value", "")
-                preferred_datetime_str = data_collection.get("preferred_datetime", {}).get("value", "")
-                project = data_collection.get("project", {}).get("value", "")
-                
                 if not customer_phone:
                     phone_metadata = data.get("metadata", {}).get("phone_call", {})
                     customer_phone = phone_metadata.get("external_number", "")
-                
                 call_summary = analysis.get("call_summary_title", "")
                 
                 # Find or create VoiceSession
@@ -111,51 +181,25 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                         status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.utcnow()
                     )
                     db_session.add(voice_session)
-                db_session.flush() # Ensure voice_session has an ID before creating booking
+                db_session.flush()
 
-                booking_created = False
-                if intent == "book_appointment" and preferred_datetime_str and customer_phone:
-                    # Check if a booking already exists for this session
-                    existing_booking = db_session.query(models.Booking).filter(models.Booking.session_id == voice_session.id).first()
-                    if not existing_booking:
-                        try:
-                            appointment_dt = datetime.fromisoformat(preferred_datetime_str.replace('Z', '+00:00'))
-                            
-                            # Find or create Customer
-                            customer = db_session.query(models.Customer).filter(models.Customer.phone == customer_phone).first()
-                            if not customer:
-                                customer = models.Customer(
-                                    id=generate_id("cust"), tenant_id="demo-tenant",
-                                    name=customer_name or f"Customer {customer_phone}",
-                                    phone=customer_phone, created_at=datetime.utcnow()
-                                )
-                                db_session.add(customer)
-                                db_session.flush() # Ensure customer has an ID
-                            
-                            booking = models.Booking(
-                                id=generate_id("bk"), tenant_id="demo-tenant", customer_id=customer.id,
-                                session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
-                                property_code=project or "PROP-DEFAULT", start_date=appointment_dt,
-                                source=models.ChannelEnum.voice, created_by=models.AIOrHumanEnum.AI,
-                                project=project or "Voice Booking", preferred_datetime=appointment_dt,
-                                status=models.BookingStatusEnum.pending, created_at=datetime.utcnow()
-                            )
-                            db_session.add(booking)
-                            booking_created = True
-                        except Exception as e:
-                            # Log booking creation error but don't crash the whole process
-                            print(f"Could not create booking from ElevenLabs data: {e}")
+                action_taken = False
+                action_type = "none"
+
+                if intent == "book_appointment":
+                    action_taken = _create_booking_from_conversation(db_session, voice_session, data_collection)
+                    action_type = "booking"
+                elif intent == "raise_ticket": # Assuming this is the intent for raising a ticket
+                    action_taken = _create_ticket_from_conversation(db_session, voice_session, data_collection)
+                    action_type = "ticket"
                 
                 db_session.commit()
                 
                 return {
                     "status": "success", "conversation_id": conversation_id,
-                    "processed": {
-                        "intent": intent, "project": project,
-                        "datetime": preferred_datetime_str, "booking_created": booking_created
-                    }
+                    "processed": { "intent": intent, "action_type": action_type, "action_taken": action_taken }
                 }
-    
     except Exception as e:
         db_session.rollback()
+        logger.error(f"Error processing conversation {conversation_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

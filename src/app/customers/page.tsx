@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -13,25 +14,20 @@ import { Button } from '@/components/ui/button';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
   const interactions = { conversations: 3, tickets: 1, bookings: 2 };
-
   return (
     <Card onClick={onSelect} className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all">
       <div className="flex items-center justify-between mb-4">
         <div className="w-12 h-12 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center">
           <User className="w-6 h-6 text-white" />
         </div>
-        {/* The 'stage' property might not exist on your Customer model, so we conditionally render */}
         {customer.stage && <StatusBadge status={customer.stage} />}
       </div>
-
       <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">{customer.name}</h3>
-
       <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400 mb-4">
         <div className="flex items-center gap-2"><Phone className="w-4 h-4" /><span>{customer.phone}</span></div>
         {customer.email && <div className="flex items-center gap-2"><Mail className="w-4 h-4" /><span>{customer.email}</span></div>}
         {customer.neighborhoods && customer.neighborhoods.length > 0 && <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{customer.neighborhoods[0]}</span></div>}
       </div>
-      
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
           <div className="text-sm font-semibold">{interactions.conversations}</div>
@@ -46,7 +42,6 @@ function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: ()
           <div className="text-xs text-slate-500">حجوزات</div>
         </div>
       </div>
-
       <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
         <ActionButton icon={PhoneCall} label="اتصال" className="flex-1 text-sm" />
         <ActionButton icon={MessageSquare} label="رسالة" variant="secondary" className="flex-1 bg-info hover:bg-info/90 text-sm" />
@@ -63,36 +58,38 @@ export default function CustomersPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [apiError, setApiError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  const { customers, setCustomers } = useAppStore();
+  
+  // State management is now driven by the central store
+  const { customers, customersLoading, setCustomers, setCustomersLoading, addCustomer } = useAppStore();
   const { isAuthenticated, getCustomers, createCustomer } = useAuthApi();
 
   const handleRefresh = useCallback(async () => {
     if (isAuthenticated) {
-      setIsLoading(true);
+      setCustomersLoading(true);
       try {
         const data = await getCustomers();
-        setCustomers(data as any[]); // Cast to any to match legacy type
+        setCustomers(data as any[]);
       } catch (error) {
         console.error("Failed to fetch customers:", error);
-      } finally {
-        setIsLoading(false);
+        setCustomersLoading(false); // Ensure loading is stopped on error
       }
     }
-  }, [isAuthenticated, getCustomers, setCustomers]);
+  }, [isAuthenticated, getCustomers, setCustomers, setCustomersLoading]);
 
   useEffect(() => {
-    handleRefresh();
-  }, [handleRefresh]);
-  
+    // Fetch data only if it hasn't been fetched yet
+    if (customers.length === 0) {
+      handleRefresh();
+    }
+  }, [handleRefresh, customers.length]);
+
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     setApiError('');
     try {
-      await createCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail || undefined });
+      const newCustomer = await createCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail || undefined });
+      addCustomer(newCustomer); // Optimistic UI update
       setIsAddModalOpen(false);
-      handleRefresh();
       setNewCustomerName('');
       setNewCustomerPhone('');
       setNewCustomerEmail('');
@@ -114,15 +111,13 @@ export default function CustomersPage() {
           <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
           <ActionButton icon={Plus} label="عميل جديد" onClick={() => setIsAddModalOpen(true)} />
         </PageHeader>
-
         <SearchFilterBar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchPlaceholder="البحث بالاسم أو رقم الهاتف..."
           onFilterClick={() => alert('Filter clicked')}
         />
-        
-        {isLoading ? (
+        {customersLoading ? (
           <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل العملاء...</p></Card>
         ) : customers.length === 0 ? (
            <Card className="text-center py-12"><p className="text-slate-500">لا يوجد عملاء لعرضهم.</p></Card>
@@ -133,7 +128,6 @@ export default function CustomersPage() {
             ))}
           </div>
         )}
-
         <Modal isOpen={!!selectedCustomer} onClose={() => setSelectedCustomer(null)} title="تفاصيل العميل">
           {selectedCustomer && (
             <div className="space-y-2">
@@ -144,7 +138,6 @@ export default function CustomersPage() {
             </div>
           )}
         </Modal>
-
         <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة عميل جديد">
           <form onSubmit={handleCreateCustomer} className="space-y-4">
             <div>
