@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect} from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { Customer } from '@/app/(shared)/types';
@@ -12,7 +12,6 @@ import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
-  // In a real app, this interaction data would be calculated or fetched.
   const interactions = { conversations: 3, tickets: 1, bookings: 2 };
 
   return (
@@ -59,16 +58,10 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   
-  // FIX: Connect to the live data store
-  const { customers, refreshAllData } = useAppStore();
-
-  // Fetch initial data
-  useEffect(() => {
-    // In a real app, this would be refreshCustomers()
-    if (customers.length === 0) {
-        refreshAllData(); 
-    }
-  }, [customers, refreshAllData]);
+  // CORRECTED: Remove call to non-existent refreshAllData
+  const { customers } = useAppStore();
+  
+  // NOTE: This page currently relies on other pages (like Dashboard) to have loaded customer data.
   
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -90,7 +83,7 @@ export default function CustomersPage() {
         />
         
         {customers.length === 0 ? (
-           <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل العملاء...</p></Card>
+           <Card className="text-center py-12"><p className="text-slate-500">لا يوجد عملاء لعرضهم.</p></Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCustomers.map((customer) => (

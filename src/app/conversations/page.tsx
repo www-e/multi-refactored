@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
@@ -11,18 +12,13 @@ export default function ConversationsPage() {
   const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // FIX: Connect to live data store
-  const { conversations, customers, refreshAllData } = useAppStore();
+  // CORRECTED: Remove call to non-existent refreshAllData
+  const { conversations, customers } = useAppStore();
+  
+  // NOTE: This page does not have its own loading state or data-fetching logic yet.
+  // We will assume for now that the Dashboard has loaded the necessary customer data.
+  // A full implementation would involve fetching conversations here.
 
-  // Fetch initial data
-  useEffect(() => {
-    // In a real app, this would be refreshConversations() and refreshCustomers()
-    if (conversations.length === 0) {
-        refreshAllData();
-    }
-  }, [conversations, refreshAllData]);
-
-  // PERFORMANCE FIX: Create a Customer lookup map to avoid searching inside a loop.
   const customerMap = useMemo(() => 
     new Map(customers.map(c => [c.id, c.name])),
     [customers]
@@ -52,7 +48,7 @@ export default function ConversationsPage() {
               onFilterClick={() => alert('Filter')}
             />
             {conversations.length === 0 ? (
-                <Card className="text-center py-12"><p className="text-slate-500">جاري تحميل المحادثات...</p></Card>
+                <Card className="text-center py-12"><p className="text-slate-500">لا توجد محادثات لعرضها.</p></Card>
             ) : (
                 <div className="space-y-3">
                 {filteredConversations.map(conv => (

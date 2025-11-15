@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, RefreshCw, MapPin, User} from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, RefreshCw, MapPin, User } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
@@ -22,24 +23,39 @@ const TICKET_COLUMNS = [
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<EnhancedTicket | null>(null);
-  
-  const { tickets, customers, properties, refreshTickets, assignTicket, resolveTicket, approveTicket, ticketsLoading } = useAppStore();
 
-  useEffect(() => { refreshTickets(); }, [refreshTickets]);
+  const { tickets, customers, properties, ticketsLoading, setTickets, setTicketsLoading } = useAppStore();
+  const { getTickets, isAuthenticated } = useAuthApi();
 
-  // --- PERFORMANCE OPTIMIZATION ---
+  const handleRefresh = useCallback(async () => {
+    if (isAuthenticated) {
+      setTicketsLoading(true);
+      try {
+        const data = await getTickets();
+        setTickets(data);
+      } catch (error) {
+        console.error("Failed to refresh tickets:", error);
+        setTicketsLoading(false);
+      }
+    }
+  }, [isAuthenticated, getTickets, setTickets, setTicketsLoading]);
+
+  useEffect(() => {
+    handleRefresh();
+  }, [handleRefresh]);
+
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
   const propertyMap = useMemo(() => new Map(properties.map(p => [p.id, p])), [properties]);
 
-  const filteredTickets = tickets.filter(ticket => {
+  const filteredTickets = useMemo(() => tickets.filter(ticket => {
     if (!searchQuery) return true;
     const customer = customerMap.get(ticket.customerId);
     const lowerCaseQuery = searchQuery.toLowerCase();
     return (
-      customer?.name.toLowerCase().includes(lowerCaseQuery) ||
+      (customer && customer.name.toLowerCase().includes(lowerCaseQuery)) ||
       ticket.category.toLowerCase().includes(lowerCaseQuery)
     );
-  });
+  }), [tickets, searchQuery, customerMap]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -55,7 +71,7 @@ export default function TicketsPage() {
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="التذاكر" subtitle="إدارة طلبات الدعم والصيانة">
-          <ActionButton icon={RefreshCw} label="تحديث" onClick={refreshTickets} variant="secondary" />
+          <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
           <ActionButton icon={Plus} label="تذكرة جديدة" onClick={() => alert('New Ticket')} />
         </PageHeader>
 
@@ -68,29 +84,12 @@ export default function TicketsPage() {
 
         <ErrorBoundary>
           {ticketsLoading ? (
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {TICKET_COLUMNS.map(column => (
                 <div key={column.id}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{column.title}</h3>
-                    <div className="h-6 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                  </div>
+                  <div className="h-6 w-24 mb-4 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
                   <div className="space-y-3">
-                    {[...Array(3)].map((_, index) => (
-                      <div key={index} className="p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200/50 dark:border-slate-700/50 animate-pulse">
-                        <div className="flex justify-between items-start">
-                          <div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                          <div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                        </div>
-                        <div className="mt-1 h-3 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                        <div className="mt-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-                          <div className="h-3 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded"></div>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="h-24 p-4 bg-white/80 dark:bg-slate-800/80 rounded-2xl animate-pulse"></div>
                   </div>
                 </div>
               ))}
@@ -112,7 +111,6 @@ export default function TicketsPage() {
                         const customer = customerMap.get(ticket.customerId);
                         const property = ticket.propertyId ? propertyMap.get(ticket.propertyId) : null;
                         if (!customer) return null;
-
                         return (
                             <Card key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="p-4 cursor-pointer hover:shadow-xl">
                                 <div className="flex justify-between items-start">
@@ -134,7 +132,6 @@ export default function TicketsPage() {
             </div>
           )}
         </ErrorBoundary>
-
         <Modal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} title="تفاصيل التذكرة">
             {selectedTicket && <div><p>العميل: {customerMap.get(selectedTicket.customerId)?.name}</p></div>}
         </Modal>

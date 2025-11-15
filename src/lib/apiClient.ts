@@ -1,76 +1,70 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps } from "@/app/(shared)/types";
 
-async function apiClient<T>(endpoint: string, options?: RequestInit, accessToken?: string): Promise<T> {
-  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-  const url = `${baseUrl}${endpoint}`;
+/**
+ * A simplified, client-side API fetcher.
+ * Its ONLY job is to make requests to the Next.js API proxy layer (e.g., /api/dashboard).
+ * It does NOT handle authentication; that is the responsibility of the server-side API route.
+ */
+async function clientFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  // Always use a relative path to call the Next.js API proxy.
+  const url = `/api${endpoint}`;
 
   try {
     const response = await fetch(url, {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
-        ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
       },
-      ...options,
     });
 
     if (!response.ok) {
-      let errorMessage = `API Error: ${response.status} ${response.statusText}`;
-      try {
-        const errorBody = await response.json();
-        errorMessage = errorBody.error || errorMessage;
-      } catch (e) { /* Ignore */ }
-
-      // Log for debugging
-      console.error('API Error:', errorMessage, { url, status: response.status });
-      throw new Error(errorMessage);
+      const errorBody = await response.json().catch(() => ({ error: 'An unknown API error occurred' }));
+      console.error(`Client API Error on ${endpoint}:`, response.status, errorBody);
+      throw new Error(errorBody.error || `Request failed with status ${response.status}`);
     }
 
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return response.json() as Promise<T>;
+    // Handle empty responses
+    if (response.status === 204 || !response.headers.get('content-type')?.includes('application/json')) {
+      return {} as T;
     }
-    return Promise.resolve(undefined as T);
+
+    return response.json();
   } catch (error) {
-    // Log network or other errors
-    console.error('Network Error:', error);
+    console.error(`Client Network Error on ${endpoint}:`, error);
     throw new Error('فشل الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.');
   }
 }
 
-// Read operations
-export const getBookings = (accessToken?: string): Promise<EnhancedBooking[]> => apiClient<EnhancedBooking[]>('/api/bookings/recent', undefined, accessToken);
-export const getTickets = (accessToken?: string): Promise<EnhancedTicket[]> => apiClient<EnhancedTicket[]>('/api/tickets/recent', undefined, accessToken);
-export const getDashboardKpis = (accessToken?: string): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => apiClient<{ kpis: DashboardKPIs, liveOps: LiveOps }>('/api/dashboard', undefined, accessToken);
+// All functions now use the simplified clientFetch and do NOT handle tokens.
+export const getDashboardKpis = (): Promise<{ kpis: DashboardKPIs, liveOps: LiveOps }> => clientFetch('/dashboard');
+export const getBookings = (): Promise<EnhancedBooking[]> => clientFetch('/bookings/recent');
+export const getTickets = (): Promise<EnhancedTicket[]> => clientFetch('/tickets/recent');
 
-// Voice session creation
-export const createVoiceSession = (agentType: 'support' | 'sales', accessToken?: string): Promise<any> => {
-  return apiClient<any>('/api/voice/sessions', {
+export const updateBookingStatus = (id: string, status: 'confirmed' | 'canceled'): Promise<any> => {
+  return clientFetch(`/bookings/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+};
+
+export const updateTicketStatus = (id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval'): Promise<any> => {
+  return clientFetch(`/tickets/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+};
+
+export const createVoiceSession = (agentType: 'support' | 'sales'): Promise<any> => {
+  return clientFetch('/voice/sessions', {
     method: 'POST',
     body: JSON.stringify({ agent_type: agentType }),
-  }, accessToken);
+  });
 };
 
-// Write operations
-export const updateBookingStatus = (bookingId: string, status: 'confirmed' | 'canceled', accessToken?: string): Promise<any> => {
-  return apiClient<any>(`/api/bookings/${bookingId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  }, accessToken);
-};
-
-// FIX: Added 'pending_approval' to the list of allowed statuses.
-export const updateTicketStatus = (ticketId: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval', accessToken?: string): Promise<any> => {
-  return apiClient<any>(`/api/tickets/${ticketId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  }, accessToken);
-};
-
-// Logging
-export const postLog = (level: 'info' | 'warn' | 'error', message: string, meta?: any, accessToken?: string): Promise<void> => {
-  return apiClient<void>('/api/logs', {
+export const postLog = (level: 'info' | 'warn' | 'error', message: string, meta: any): Promise<void> => {
+  return clientFetch('/logs', {
     method: 'POST',
     body: JSON.stringify({ source: 'client-hook', level, message, meta }),
-  }, accessToken);
+  });
 };

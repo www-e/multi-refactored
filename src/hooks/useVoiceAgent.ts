@@ -92,8 +92,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions = {}) {
   const stopVoiceSession = useCallback(async () => {
     try {
       await conversation.endSession();
-      postLog('info', 'voice_session_stopped').catch(() => {});
-    } catch (error: any) {
+postLog('info', 'voice_session_stopped', {}).catch(() => {});    } catch (error: any) {
       console.error('Stop voice session failed:', error);
       options.onError?.(error.message || 'Failed to stop voice session');
     }

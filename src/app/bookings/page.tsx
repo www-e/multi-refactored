@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, RefreshCw, Edit, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
@@ -17,30 +18,40 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
 
-  const { bookings, customers, properties, refreshBookings, approveBooking, rejectBooking, bookingsLoading } = useAppStore();
+  const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading } = useAppStore();
+  const { getBookings, isAuthenticated } = useAuthApi();
+
+  const handleRefresh = useCallback(async () => {
+    if (isAuthenticated) {
+      setBookingsLoading(true);
+      try {
+        const data = await getBookings();
+        setBookings(data);
+      } catch (error) {
+        console.error("Failed to refresh bookings:", error);
+        setBookingsLoading(false);
+      }
+    }
+  }, [isAuthenticated, getBookings, setBookings, setBookingsLoading]);
 
   useEffect(() => {
-    // We can expand this to fetch customers and properties if they are not present
-    refreshBookings();
-  }, [refreshBookings]);
+    handleRefresh();
+  }, [handleRefresh]);
 
-  // --- PERFORMANCE OPTIMIZATION ---
-  // Create efficient lookup maps for customers and properties.
-  // useMemo ensures these maps are only recreated when the underlying data changes.
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
   const propertyMap = useMemo(() => new Map(properties.map(p => [p.id, p])), [properties]);
 
-  const filteredBookings = bookings.filter(booking => {
+  const filteredBookings = useMemo(() => bookings.filter(booking => {
     if (!searchQuery) return true;
     const customer = customerMap.get(booking.customerId);
     const property = propertyMap.get(booking.propertyId);
     const lowerCaseQuery = searchQuery.toLowerCase();
     return (
       customer?.name.toLowerCase().includes(lowerCaseQuery) ||
-      customer?.phone.includes(searchQuery) || // Phone search should be exact
-      property?.code.toLowerCase().includes(lowerCaseQuery)
+      customer?.phone.includes(searchQuery) ||
+      (property && property.code.toLowerCase().includes(lowerCaseQuery))
     );
-  });
+  }), [bookings, searchQuery, customerMap, propertyMap]);
 
   const TABLE_HEADERS = ['العميل', 'العقار', 'التاريخ', 'السعر', 'المصدر', 'الحالة', 'الإجراءات'];
 
@@ -48,7 +59,7 @@ export default function BookingsPage() {
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="الحجوزات والمواعيد" subtitle="إدارة حجوزات العملاء والمواعيد">
-          <ActionButton icon={RefreshCw} label="تحديث" onClick={refreshBookings} variant="secondary" />
+          <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
           <ActionButton icon={Plus} label="حجز جديد" onClick={() => alert('New Booking Modal')} />
         </PageHeader>
 
@@ -67,10 +78,7 @@ export default function BookingsPage() {
                   <thead className="bg-slate-50 dark:bg-slate-800/50">
                     <tr>
                       {TABLE_HEADERS.map((header) => (
-                        <th
-                          key={header}
-                          className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100"
-                        >
+                        <th key={header} className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">
                           {header}
                         </th>
                       ))}
@@ -78,36 +86,14 @@ export default function BookingsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                     {[...Array(5)].map((_, index) => (
-                      <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                        <td className="p-4">
-                          <div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                          <div className="mt-2 h-3 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                        </td>
-                        <td className="p-4">
-                          <div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                          <div className="mt-2 h-3 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                        </td>
-                        <td className="p-4">
-                          <div className="h-4 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                        </td>
-                        <td className="p-4">
-                          <div className="h-4 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-5 w-5 bg-slate-200/60 dark:bg-slate-700/60 rounded-full animate-pulse"></div>
-                            <div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="h-6 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                            <div className="h-8 w-8 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div>
-                          </div>
-                        </td>
+                      <tr key={index}>
+                        <td className="p-4"><div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-4 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-4 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-6 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
+                        <td className="p-4"><div className="h-8 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -117,13 +103,9 @@ export default function BookingsPage() {
           ) : (
             <DataTable headers={TABLE_HEADERS}>
               {filteredBookings.map((booking) => {
-                // O(1) instant lookup instead of O(n) .find()
                 const customer = customerMap.get(booking.customerId);
                 const property = propertyMap.get(booking.propertyId);
-
-                // Render nothing if related data is missing to prevent crashes
                 if (!customer || !property) return null;
-
                 return (
                   <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="p-4">
@@ -144,9 +126,7 @@ export default function BookingsPage() {
                         <StatusBadge status={booking.createdBy} />
                       </div>
                     </td>
-                    <td className="p-4">
-                      <StatusBadge status={booking.status} />
-                    </td>
+                    <td className="p-4"><StatusBadge status={booking.status} /></td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
@@ -159,7 +139,6 @@ export default function BookingsPage() {
             </DataTable>
           )}
         </ErrorBoundary>
-
         <Modal isOpen={!!selectedBooking} onClose={() => setSelectedBooking(null)} title="تفاصيل الحجز">
           {selectedBooking && (
             <div>

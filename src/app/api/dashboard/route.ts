@@ -1,23 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/authOptions';
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  // 1. Get the session on the SERVER side.
+  const session = await getServerSession(authOptions);
+
+  // 2. Extract the backend access token from the session.
+  // @ts-ignore
+  const accessToken = session?.accessToken;
+
+  // 3. SECUTIRY: If no token, reject the request.
+  if (!accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const backendUrl = process.env.BACKEND_URL;
+  if (!backendUrl) {
+    console.error('CRITICAL: BACKEND_URL environment variable is not set.');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+
   try {
-    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
-    if (!backendUrl) {
-      console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // Fetch dashboard KPIs from the backend API
+    // 4. Make the AUTHENTICATED request from the Next.js server to the FastAPI backend.
     const response = await fetch(`${backendUrl}/dashboard/kpis`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
@@ -35,6 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching dashboard KPIs:', error);
-    return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
+    // This will catch the ECONNREFUSED error if the backend is not running.
+    return NextResponse.json({ error: 'Failed to connect to backend service' }, { status: 502 }); // 502 Bad Gateway
   }
 }

@@ -1,16 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import {
-  Activity,
-  Star,
-  TrendingUp,
-  BarChart3,
-  MessageSquare,
-  Users,
-  Phone,
-  AlertCircle,
+  Activity, Star, TrendingUp, BarChart3, MessageSquare, Users, Phone, AlertCircle,
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
@@ -18,21 +12,35 @@ import { DashboardStatsGrid } from '@/components/features/dashboard/DashboardSta
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 
-// Enable dynamic rendering for this page to prevent SSR issues with session-dependent data
-export const dynamic = 'force-dynamic';
-
 export default function DashboardPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
-  const {
-    dashboardKPIs,
-    liveOps,
-    refreshAllData,
-    dashboardLoading,
+  
+  const { 
+    dashboardKPIs, 
+    liveOps, 
+    dashboardLoading, 
+    setDashboardData, 
+    setDashboardLoading 
   } = useAppStore();
+  
+  const { getDashboardKpis, isAuthenticated } = useAuthApi();
+
+  const fetchAllData = useCallback(async () => {
+    if (isAuthenticated) {
+      setDashboardLoading(true);
+      try {
+        const dashboardData = await getDashboardKpis();
+        setDashboardData(dashboardData);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        setDashboardLoading(false);
+      }
+    }
+  }, [isAuthenticated, getDashboardKpis, setDashboardData, setDashboardLoading]);
 
   useEffect(() => {
-    refreshAllData();
-  }, [refreshAllData]);
+    fetchAllData();
+  }, [fetchAllData]);
 
   const periods = [
     { value: '1d', label: 'اليوم' },
@@ -115,7 +123,6 @@ export default function DashboardPage() {
               </span>
             </div>
           </CardHeader>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">المكالمات الحالية</h3>

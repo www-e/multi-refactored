@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/shared/ui/Card';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Check, X } from 'lucide-react';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -17,15 +17,48 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    minLength: false,
+    hasUpper: false,
+    hasLower: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+  const [passwordMatch, setPasswordMatch] = useState(true);
+
   const router = useRouter();
+
+  // Password validation function
+  const validatePassword = (password: string) => {
+    const requirements = {
+      minLength: password.length >= 8,
+      hasUpper: /[A-Z]/.test(password),
+      hasLower: /[a-z]/.test(password),
+      hasNumber: /[0-9]/.test(password),
+      hasSpecial: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password),
+    };
+    setPasswordRequirements(requirements);
+  };
+
+  useEffect(() => {
+    validatePassword(password);
+    setPasswordMatch(password === confirmPassword && confirmPassword !== '');
+  }, [password, confirmPassword]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    // Basic validation
+    // Check if password meets all requirements
+    const allRequirementsMet = Object.values(passwordRequirements).every(req => req);
+
+    if (!allRequirementsMet) {
+      setError('الرجاء التأكد من تحقق جميع متطلبات كلمة المرور');
+      setIsLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('كلمة المرور وتأكيد كلمة المرور غير متطابقين');
       setIsLoading(false);
@@ -141,6 +174,53 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+
+              {/* Password requirements checklist */}
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-slate-600 dark:text-slate-400">يجب أن تحتوي كلمة المرور على:</p>
+                <ul className="text-sm space-y-1">
+                  <li className={`flex items-center ${passwordRequirements.minLength ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {passwordRequirements.minLength ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    8 أحرف على الأقل
+                  </li>
+                  <li className={`flex items-center ${passwordRequirements.hasUpper ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {passwordRequirements.hasUpper ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    حرف كبير
+                  </li>
+                  <li className={`flex items-center ${passwordRequirements.hasLower ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {passwordRequirements.hasLower ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    حرف صغير
+                  </li>
+                  <li className={`flex items-center ${passwordRequirements.hasNumber ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {passwordRequirements.hasNumber ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    رقم
+                  </li>
+                  <li className={`flex items-center ${passwordRequirements.hasSpecial ? 'text-green-600' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {passwordRequirements.hasSpecial ? (
+                      <Check className="w-4 h-4 mr-2" />
+                    ) : (
+                      <X className="w-4 h-4 mr-2" />
+                    )}
+                    {'رمز خاص (!@#$%^&*()_+-=[]{}|;:,.<>? )'}
+                  </li>
+                </ul>
+              </div>
             </div>
 
             <div>
@@ -154,7 +234,11 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors pr-12"
+                  className={`w-full px-4 py-3 bg-white dark:bg-slate-800 border ${
+                    confirmPassword === password && confirmPassword !== ''
+                      ? 'border-green-500'
+                      : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors pr-12`}
                   placeholder="••••••••"
                 />
                 <button
@@ -165,12 +249,18 @@ export default function RegisterPage() {
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {confirmPassword && !passwordMatch && (
+                <p className="mt-1 text-sm text-red-600">كلمة المرور وتأكيد كلمة المرور لا تتطابقان</p>
+              )}
+              {confirmPassword && passwordMatch && (
+                <p className="mt-1 text-sm text-green-600">متطابقة</p>
+              )}
             </div>
 
             <Button
               type="submit"
               className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-xl transition-colors"
-              disabled={isLoading}
+              disabled={isLoading || !Object.values(passwordRequirements).every(req => req) || !passwordMatch}
             >
               {isLoading ? 'جاري الإنشاء...' : 'إنشاء الحساب'}
             </Button>
