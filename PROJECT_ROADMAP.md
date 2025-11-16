@@ -23,49 +23,51 @@ This table provides a clear "at-a-glance" view of what is and is not working in 
 | **User Authentication**          | ✅ **Complete**          | Users can register, log in, and maintain a secure session. Protected pages are correctly enforced.                                          |
 | **Data Viewing (Read)**          | ✅ **Complete**          | Dashboard, Tickets, Bookings, and Customers pages successfully fetch and display data from the backend.                                     |
 | **Customer Creation (CRUD)**     | ✅ **Complete**          | Users can create a new customer via the UI, and it is saved to the database.                                                                  |
-| **Ticket / Booking Creation (CRUD)** | ❌ **Not Implemented** | The UI buttons exist, but the backend APIs and frontend forms to manually create new tickets or bookings are missing.                           |
-| **Data Updates (CRUD)**          | ❌ **Not Implemented** | The UI for updating the status of tickets or bookings is not connected to the backend `PATCH` endpoints.                                        |
-| **AI Call Automation**           | ⚠️ **Partially Implemented** | The backend has a webhook to *receive* data from ElevenLabs post-call, but the logic to automatically create a Ticket or Booking is missing. |
+| **Ticket / Booking Creation (CRUD)** | ⚠️ **Partially Implemented** | The backend POST endpoints for creating tickets and bookings exist and are connected via API clients, but the UI forms modal needs to be implemented on the bookings page. The tickets page already has a complete creation form.                           |
+| **Data Updates (CRUD)**          | ⚠️ **Partially Implemented** | The backend `PATCH` endpoints for updating ticket and booking statuses are implemented and connected via API clients, but UI elements need to be added to the frontend pages for status updates.                                        |
+| **AI Call Automation**           | ✅ **Implemented, Awaiting Verification** | The backend has a webhook to *receive* data from ElevenLabs post-call with logic to automatically create Tickets or Bookings based on intent. Awaiting end-to-end verification. |
 | **Automated Outbound Calling**   | ❌ **Not Implemented** | **CRITICAL GAP:** The system has no capability to automatically "Call all customers" in a campaign or trigger a single outbound call.           |
 
 ## 3. Strategic Roadmap to Production
 
 This roadmap prioritizes the implementation of the core value proposition of the application: AI-driven automation.
 
-### Phase 2: Implement AI Call Automation (Immediate Priority)
+### Phase 2: Verify AI Call Automation (Immediate Priority)
 
-The goal of this phase is to make the AI agent functional. When a user finishes a browser-based call, the system must automatically perform the requested action.
+The goal of this phase is to verify that the AI agent is fully functional. When a user finishes a browser-based call, the system must automatically perform the requested action.
 
--   **Task 2.1: Implement Automatic Ticket & Booking Creation from AI Calls**
+-   **Task 2.1: Verify Automatic Ticket & Booking Creation from AI Calls**
     -   **Location**: `backend/app/api/routes/voice.py`
-    -   **Action**: Add robust logic to the `process_conversation_fast` endpoint. This logic will parse the `intent` from the ElevenLabs webhook payload.
-        -   If `intent == "book_appointment"`, create a new record in the `bookings` table.
-        -   If `intent == "raise_ticket"`, create a new record in the `tickets` table.
-    -   **Outcome**: The "Support Agent" and "Playground" pages will become fully functional demonstrations of the AI's capabilities.
+    -   **Action**: Test the `process_conversation_fast` endpoint to ensure it properly parses `intent` from ElevenLabs webhook payload and creates records accordingly.
+        -   Verify that when `intent == "book_appointment"`, a new record is created in the `bookings` table.
+        -   Verify that when `intent == "raise_ticket"`, a new record is created in the `tickets` table.
+    -   **Outcome**: The "Support Agent" and "Playground" pages will be fully functional demonstrations of the AI's capabilities.
+
+-   **Task 2.2: Complete AI Call Termination Configuration**
+    -   **Status**: ✅ **COMPLETED** - The ElevenLabs agent's system prompt has been configured to automatically end calls after completing tasks.
 
 ### Phase 3: Complete Core CRUD Functionality
 
 This phase makes the application fully interactive for human users.
 
 -   **Task 3.1: Implement Full CRUD for `Tickets` & `Bookings`**
-    -   **Backend**: Create `POST /tickets` and `POST /bookings` endpoints.
-    -   **Frontend**: Build the "New Ticket" and "New Booking" modals and connect them. Connect the status update UI to the existing `PATCH` endpoints. Implement optimistic UI updates in the Zustand store.
+    -   **Backend**: POST endpoints already exist for tickets and bookings.
+    -   **Frontend**: Build the "New Booking" modal and connect it (tickets modal already exists). Connect the status update UI to the existing `PATCH` endpoints. Implement optimistic UI updates in the Zustand store.
 
 -   **Task 3.2: Implement Full CRUD for `Campaigns`**
-    -   **Backend**: Create all necessary `POST`, `GET`, `PATCH`, and `DELETE` endpoints for campaigns.
+    -   **Backend**: POST and GET endpoints already exist for campaigns; need to implement PATCH and DELETE endpoints for full CRUD.
     -   **Frontend**: Build the UI forms for creating and editing campaigns.
 
 ### Phase 4: Develop Proactive Outbound Calling System
 
-This phase implements the project's most advanced feature.
+This phase implements the project's most advanced feature using ElevenLabs.
 
--   **Task 4.1: Integrate Telephony Provider & Background Jobs (Backend)**
-    -   Integrate Twilio (or a similar service) for placing calls.
-    -   Integrate Celery and Redis to manage a queue of outbound calls without blocking the API.
+-   **Task 4.1: Integrate ElevenLabs Outbound Calling (Backend)**
+    -   Extend ElevenLabs integration to support outbound calling capabilities.
 
 -   **Task 4.2: Create Outbound Calling Logic (Backend)**
-    -   Develop a Celery task that initiates an outbound call via Twilio to a customer.
-    -   Create API endpoints to trigger these tasks (e.g., `POST /campaigns/{id}/start`).
+    -   Develop backend logic that initiates an outbound call via ElevenLabs to a customer.
+    -   Create API endpoints to trigger these calls (e.g., `POST /campaigns/{id}/start`).
 
 -   **Task 4.3: Connect UI to Trigger Calls (Frontend)**
     -   Wire the "Run Campaign" button to the new API endpoint.
