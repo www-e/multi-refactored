@@ -1,7 +1,7 @@
 # backend/app/api/routes/campaigns.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app import models
 from app.api import deps
 from pydantic import BaseModel
@@ -18,6 +18,12 @@ class CampaignCreateRequest(BaseModel):
     type: models.CampaignTypeEnum
     objective: str
     audienceQuery: dict
+
+class CampaignUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    objective: Optional[str] = None
+    audienceQuery: Optional[dict] = None
+    status: Optional[str] = None
 
 def format_campaign(c: models.Campaign):
     # In a real app, metrics would be calculated, here we use defaults
@@ -57,3 +63,79 @@ def create_campaign(campaign_in: CampaignCreateRequest, db_session: Session = De
 def get_campaigns(_=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     campaigns = db_session.query(models.Campaign).order_by(models.Campaign.created_at.desc()).all()
     return [format_campaign(c) for c in campaigns]
+
+@router.get("/campaigns/{campaign_id}", response_model=dict)
+def get_campaign(
+    campaign_id: str,
+    db_session: Session = Depends(deps.get_session),
+    _=Depends(deps.get_current_user)
+):
+    """
+    Retrieve a specific campaign by ID.
+    """
+    campaign = db_session.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(
+            status_code=404,
+            detail="Campaign not found",
+        )
+    return format_campaign(campaign)
+
+@router.patch("/campaigns/{campaign_id}", response_model=dict)
+def update_campaign(
+    *,
+    db_session: Session = Depends(deps.get_session),
+    campaign_id: str,
+    campaign_in: CampaignUpdateRequest,
+    _=Depends(deps.get_current_user)
+):
+    """
+    Update a campaign.
+    """
+    campaign = db_session.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(
+            status_code=404,
+            detail="Campaign not found",
+        )
+    
+    # Update only provided fields
+    update_data = campaign_in.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        if field == "audienceQuery":
+            campaign.audience_query = value
+        elif hasattr(campaign, field):
+            setattr(campaign, field, value)
+    
+    db_session.commit()
+    db_session.refresh(campaign)
+    return format_campaign(campaign)
+
+@router.delete("/campaigns/{campaign_id}")
+def delete_campaign(
+    campaign_id: str,
+    db_session: Session = Depends(deps.get_session),
+    _=Depends(deps.get_current_user)
+):
+    """
+    Delete a campaign.
+    """
+    campaign = db_session.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(
+            status_code=404,
+            detail="Campaign not found",
+        )
+    
+    # Check if campaign has related metrics
+    has_metrics = db_session.query(models.CampaignMetrics).filter(models.CampaignMetrics.campaign_id == campaign_id).first()
+    
+    if has_metrics:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete campaign with existing metrics. Consider deactivating instead.",
+        )
+    
+    db_session.delete(campaign)
+    db_session.commit()
+    return {"message": "Campaign deleted successfully"}

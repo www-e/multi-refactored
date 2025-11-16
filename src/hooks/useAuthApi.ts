@@ -35,6 +35,16 @@ export const useAuthApi = () => {
     return apiClient.createCustomer(data, accessToken);
   }, [accessToken]);
   
+  const updateCustomer = useCallback((id: string, data: { name: string; phone: string; email?: string; }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateCustomer(id, data, accessToken);
+  }, [accessToken]);
+
+  const deleteCustomer = useCallback((id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.deleteCustomer(id, accessToken);
+  }, [accessToken]);
+  
   const updateBookingStatus = useCallback((id: string, status: 'confirmed' | 'canceled') => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     return apiClient.updateBookingStatus(id, status, accessToken);
@@ -59,6 +69,7 @@ export const useAuthApi = () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     return apiClient.createTicket(data, accessToken);
   }, [accessToken]);
+
 const createBooking = useCallback((data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     return apiClient.createBooking(data, accessToken);
@@ -73,6 +84,27 @@ const createBooking = useCallback((data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     return apiClient.createCampaign(data, accessToken);
   }, [accessToken]);
+
+  const updateCampaign = useCallback((id: string, data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateCampaign(id, data, accessToken);
+  }, [accessToken]);
+
+  const deleteCampaign = useCallback((id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.deleteCampaign(id, accessToken);
+  }, [accessToken]);
+
+  const updateBooking = useCallback((id: string, data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateBooking(id, data, accessToken);
+  }, [accessToken]);
+
+  const updateTicket = useCallback((id: string, data: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.updateTicket(id, data, accessToken);
+  }, [accessToken]);
+
   return {
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
@@ -80,8 +112,10 @@ const createBooking = useCallback((data: any) => {
     getDashboardKpis,
     getTickets,
     getBookings,
-    getCustomers, // <-- ADDED
-    createCustomer, // <-- ADDED
+    getCustomers,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer,
     updateBookingStatus,
     updateTicketStatus,
     createVoiceSession,
@@ -90,5 +124,9 @@ const createBooking = useCallback((data: any) => {
     createBooking,
     getCampaigns,
     createCampaign,
+    updateCampaign,
+    deleteCampaign,
+    updateBooking,
+    updateTicket,
   };
 };

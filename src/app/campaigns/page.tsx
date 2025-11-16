@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Play, Pause, Eye, RefreshCw, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { EnhancedCampaign } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -10,7 +11,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card, CardHeader } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
-import { Button } from '@/components/ui/button';
+import CampaignModal from '@/components/shared/modals/CampaignModal';
 
 function CampaignCard({
   campaign,
@@ -90,13 +91,6 @@ export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<EnhancedCampaign | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Form State
-  const [newCampaignName, setNewCampaignName] = useState('');
-  const [newCampaignType, setNewCampaignType] = useState('voice');
-  const [newCampaignObjective, setNewCampaignObjective] = useState('bookings');
 
   const {
     campaigns,
@@ -109,6 +103,7 @@ export default function CampaignsPage() {
   } = useAppStore();
 
   const { getCampaigns, createCampaign, isAuthenticated } = useAuthApi();
+  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
     if (isAuthenticated) {
@@ -128,28 +123,20 @@ export default function CampaignsPage() {
     handleRefresh();
   }, [handleRefresh]);
 
-  const handleCreateCampaign = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiError('');
-    setIsSubmitting(true);
-
-    try {
-      const payload = {
-        name: newCampaignName,
-        type: newCampaignType,
-        objective: newCampaignObjective,
-        audienceQuery: { status: "new" }
-      };
-
-      const newCampaign = await createCampaign(payload);
-      addCampaign(newCampaign);
-      setIsAddModalOpen(false);
-      setNewCampaignName('');
-    } catch (error: any) {
-      setApiError(error.detail || "Failed to create campaign.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateCampaign = async (campaignData: {
+    name: string;
+    type: string;
+    objective: string;
+    audienceQuery?: any;
+  }) => {
+    await handleModalSubmit(
+      async () => {
+        const newCampaign = await createCampaign(campaignData);
+        addCampaign(newCampaign);
+        setIsAddModalOpen(false);
+      },
+      () => setIsAddModalOpen(false)
+    );
   };
 
   const filteredCampaigns = useMemo(
@@ -196,61 +183,14 @@ export default function CampaignsPage() {
           </div>
         )}
 
-        <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إنشاء حملة جديدة">
-          <form onSubmit={handleCreateCampaign} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">اسم الحملة</label>
-              <input
-                type="text"
-                value={newCampaignName}
-                onChange={(e) => setNewCampaignName(e.target.value)}
-                required
-                placeholder="e.g., Spring Bookings Campaign"
-                className="w-full p-2 border rounded-md bg-white dark:bg-slate-800"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">النوع</label>
-                <select
-                  value={newCampaignType}
-                  onChange={(e) => setNewCampaignType(e.target.value)}
-                  className="w-full p-2 border rounded-md bg-white dark:bg-slate-800"
-                >
-                  <option value="voice">صوتية</option>
-                  <option value="chat">رسائل</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">الهدف</label>
-                <select
-                  value={newCampaignObjective}
-                  onChange={(e) => setNewCampaignObjective(e.target.value)}
-                  className="w-full p-2 border rounded-md bg-white dark:bg-slate-800"
-                >
-                  <option value="bookings">حجوزات</option>
-                  <option value="renewals">تجديدات</option>
-                  <option value="leadgen">تحصيل عملاء</option>
-                  <option value="upsell">بيع إضافي</option>
-                </select>
-              </div>
-            </div>
-
-            {apiError && <p className="text-red-500 text-sm">{apiError}</p>}
-
-            <div className="flex justify-end pt-4 space-x-2 space-x-reverse">
-              <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>
-                إلغاء
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
-                إنشاء الحملة
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        <CampaignModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleCreateCampaign}
+          title="إنشاء حملة جديدة"
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
 
         <Modal isOpen={!!selectedCampaign} onClose={() => setSelectedCampaign(null)} title="تفاصيل الحملة">
           {selectedCampaign && (

@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { Customer } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -10,7 +11,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
-import { Button } from '@/components/ui/button';
+import CustomerModal from '@/components/shared/modals/CustomerModal';
 
 function CustomerCard({ customer, onSelect }: { customer: Customer; onSelect: () => void; }) {
   // Note: 'interactions' are hardcoded for now as per the original file.
@@ -56,14 +57,10 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState('');
-  const [newCustomerPhone, setNewCustomerPhone] = useState('');
-  const [newCustomerEmail, setNewCustomerEmail] = useState('');
-  const [apiError, setApiError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { customers, customersLoading, setCustomers, setCustomersLoading, addCustomer } = useAppStore();
   const { isAuthenticated, getCustomers, createCustomer } = useAuthApi();
+  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
     if (isAuthenticated) {
@@ -85,23 +82,15 @@ export default function CustomersPage() {
     }
   }, [customers.length, isAuthenticated, handleRefresh]);
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setApiError('');
-    setIsSubmitting(true);
-    try {
-      const newCustomer = await createCustomer({ name: newCustomerName, phone: newCustomerPhone, email: newCustomerEmail || undefined });
-      addCustomer(newCustomer);
-      setIsAddModalOpen(false);
-      setNewCustomerName('');
-      setNewCustomerPhone('');
-      setNewCustomerEmail('');
-    } catch (error: any) {
-      console.error("Failed to create customer:", error);
-      setApiError(error.detail || error.message || "An unknown error occurred.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateCustomer = async (customerData: { name: string; phone: string; email?: string }) => {
+    await handleModalSubmit(
+      async () => {
+        const newCustomer = await createCustomer(customerData);
+        addCustomer(newCustomer);
+        setIsAddModalOpen(false);
+      },
+      () => setIsAddModalOpen(false)
+    );
   };
 
   const filteredCustomers = useMemo(() => customers.filter(c => 
@@ -143,30 +132,15 @@ export default function CustomersPage() {
             </div>
           )}
         </Modal>
-        <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة عميل جديد">
-          <form onSubmit={handleCreateCustomer} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">الاسم الكامل</label>
-              <input type="text" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">رقم الهاتف</label>
-              <input type="tel" value={newCustomerPhone} onChange={(e) => setNewCustomerPhone(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">البريد الإلكتروني (اختياري)</label>
-              <input type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md" />
-            </div>
-            {apiError && <p className="text-red-500 text-sm text-center bg-red-50 dark:bg-red-900/20 p-2 rounded-md">{apiError}</p>}
-            <div className="flex justify-end pt-4 space-x-2 space-x-reverse">
-              <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>إلغاء</Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
-                {isSubmitting ? 'جاري الإنشاء...' : 'إنشاء العميل'}
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        <CustomerModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleCreateCustomer}
+          title="إضافة عميل جديد"
+          customers={customers}
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
       </div>
     </div>
   );

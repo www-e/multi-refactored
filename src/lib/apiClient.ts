@@ -161,3 +161,85 @@ export const createCampaign = (data: any, token: string): Promise<EnhancedCampai
     body: JSON.stringify(data),
   });
 };
+
+export const updateCustomer = (
+  id: string,
+  data: {
+    name: string;
+    phone: string;
+    email?: string;
+  },
+  token: string
+): Promise<Customer> => {
+  return clientFetch(`/customers/${id}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteCustomer = (
+  id: string,
+  token: string
+): Promise<null> => {
+  return clientFetch<null>(`/customers/${id}`, token, {
+    method: 'DELETE',
+  });
+};
+
+export const updateCampaign = (
+  id: string,
+  data: {
+    name?: string;
+    objective?: string;
+    audienceQuery?: any;
+    status?: string;
+  },
+  token: string
+): Promise<EnhancedCampaign> => {
+  return clientFetch(`/campaigns/${id}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteCampaign = (
+  id: string,
+  token: string
+): Promise<null> => {
+  return clientFetch<null>(`/campaigns/${id}`, token, {
+    method: 'DELETE',
+  });
+};
+
+export const updateBooking = (
+  id: string,
+  data: {
+    propertyCode?: string;
+    startDate?: string;
+    price?: number;
+    assignee?: string;
+  },
+  token: string
+): Promise<EnhancedBooking> => {
+  return clientFetch(`/bookings/${id}/general`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateTicket = (
+  id: string,
+  data: {
+    category?: string;
+    issue?: string;
+    project?: string;
+    priority?: string;
+    assignee?: string;
+  },
+  token: string
+): Promise<EnhancedTicket> => {
+  return clientFetch(`/tickets/${id}/general`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+};

@@ -2,16 +2,17 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, RefreshCw, MapPin, User, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Modal } from '@/components/shared/ui/Modal';
+import TicketModal from '@/components/shared/modals/TicketModal';
 import { EnhancedTicket } from '@/app/(shared)/types';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
-import { Button } from '@/components/ui/button';
 
 const TICKET_COLUMNS = [
     { id: 'open', title: 'مفتوحة' },
@@ -24,18 +25,10 @@ export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<EnhancedTicket | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Form State
-  const [newTicketCustomerId, setNewTicketCustomerId] = useState('');
-  const [newTicketCategory, setNewTicketCategory] = useState('سباكة');
-  const [newTicketPriority, setNewTicketPriority] = useState('med');
-  const [newTicketProject, setNewTicketProject] = useState('');
-  const [newTicketIssue, setNewTicketIssue] = useState('');
 
   const { tickets, customers, properties, ticketsLoading, setTickets, setTicketsLoading, addTicket } = useAppStore();
   const { getTickets, createTicket, isAuthenticated } = useAuthApi();
+  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
     if (isAuthenticated) {
@@ -57,38 +50,21 @@ export default function TicketsPage() {
     return () => window.removeEventListener('focus', handleRefresh);
   }, [handleRefresh]);
   
-  const handleCreateTicket = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTicketCustomerId) {
-      setApiError("Please select a customer.");
-      return;
-    }
-    setApiError('');
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        customerId: newTicketCustomerId,
-        category: newTicketCategory,
-        priority: newTicketPriority,
-        project: newTicketProject,
-        issue: newTicketIssue,
-      };
-      const newTicket = await createTicket(payload);
-      addTicket(newTicket); // Optimistic UI update
-      setIsAddModalOpen(false); // Close modal on success
-      
-      // Reset form state
-      setNewTicketCustomerId('');
-      setNewTicketCategory('سباكة');
-      setNewTicketPriority('med');
-      setNewTicketProject('');
-      setNewTicketIssue('');
-
-    } catch (error: any) {
-      setApiError(error.detail || error.message || "Failed to create ticket.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleCreateTicket = async (ticketData: {
+    customerId: string;
+    category: string;
+    priority: string;
+    project: string;
+    issue: string;
+  }) => {
+    await handleModalSubmit(
+      async () => {
+        const newTicket = await createTicket(ticketData);
+        addTicket(newTicket);
+        setIsAddModalOpen(false);
+      },
+      () => setIsAddModalOpen(false)
+    );
   };
 
   const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
@@ -178,55 +154,15 @@ export default function TicketsPage() {
           )}
         </ErrorBoundary>
         
-        <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إنشاء تذكرة جديدة">
-          <form onSubmit={handleCreateTicket} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">العميل</label>
-              <select value={newTicketCustomerId} onChange={(e) => setNewTicketCustomerId(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary">
-                <option value="" disabled>اختر عميل...</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>)}
-              </select>
-            </div>
-             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">الفئة</label>
-                <select value={newTicketCategory} onChange={(e) => setNewTicketCategory(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary">
-                  <option>سباكة</option>
-                  <option>كهرباء</option>
-                  <option>مفاتيح</option>
-                  <option>تنظيف</option>
-                  <option>أخرى</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">الأولوية</label>
-                <select value={newTicketPriority} onChange={(e) => setNewTicketPriority(e.target.value)} required className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary">
-                  <option value="low">منخفض</option>
-                  <option value="med">متوسط</option>
-                  <option value="high">عالٍ</option>
-                  <option value="urgent">عاجل</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">المشروع/العقار</label>
-              <input type="text" value={newTicketProject} onChange={(e) => setNewTicketProject(e.target.value)} required placeholder="e.g., MG13" className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">وصف المشكلة</label>
-              <textarea value={newTicketIssue} onChange={(e) => setNewTicketIssue(e.target.value)} required rows={3} className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"></textarea>
-            </div>
-
-            {apiError && <p className="text-red-500 text-sm">{apiError}</p>}
-            <div className="flex justify-end pt-4 space-x-2 space-x-reverse">
-               <Button type="button" variant="secondary" onClick={() => setIsAddModalOpen(false)}>إلغاء</Button>
-               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
-                إنشاء التذكرة
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        <TicketModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleCreateTicket}
+          title="إنشاء تذكرة جديدة"
+          customers={customers}
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
 
         <Modal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} title="تفاصيل التذكرة">
             {selectedTicket && (

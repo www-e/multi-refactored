@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, RefreshCw, Edit, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
@@ -9,6 +10,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { DataTable } from '@/components/shared/data/DataTable';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
+import BookingModal from '@/components/shared/modals/BookingModal';
 import { Card } from '@/components/shared/ui/Card';
 import { EnhancedBooking } from '@/app/(shared)/types';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
@@ -16,8 +18,11 @@ import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading } = useAppStore();
-  const { getBookings, isAuthenticated } = useAuthApi();
+  const { getBookings, createBooking, isAuthenticated } = useAuthApi();
+  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
     if (isAuthenticated) {
@@ -32,6 +37,23 @@ export default function BookingsPage() {
       }
     }
   }, [isAuthenticated, getBookings, setBookings, setBookingsLoading]);
+
+  const handleCreateBooking = async (bookingData: {
+    customerId: string;
+    propertyCode: string;
+    startDate: string;
+    price: number;
+    source: string;
+  }) => {
+    await handleModalSubmit(
+      async () => {
+        const newBooking = await createBooking(bookingData);
+        setBookings([...bookings, newBooking]);
+        setIsAddModalOpen(false);
+      },
+      () => setIsAddModalOpen(false)
+    );
+  };
 
   useEffect(() => {
     handleRefresh();
@@ -64,7 +86,7 @@ export default function BookingsPage() {
       <div className="max-w-7xl mx-auto">
         <PageHeader title="الحجوزات والمواعيد" subtitle="إدارة حجوزات العملاء والمواعيد">
           <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
-          <ActionButton icon={Plus} label="حجز جديد" onClick={() => alert('New Booking Modal')} />
+          <ActionButton icon={Plus} label="حجز جديد" onClick={() => setIsAddModalOpen(true)} />
         </PageHeader>
         <SearchFilterBar
           searchQuery={searchQuery}
@@ -150,6 +172,15 @@ export default function BookingsPage() {
             </div>
           )}
         </Modal>
+        <BookingModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onSubmit={handleCreateBooking}
+          title="إنشاء حجز جديد"
+          customers={customers}
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
       </div>
     </div>
   );

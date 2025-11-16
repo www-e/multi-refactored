@@ -12,6 +12,11 @@ class CustomerBase(BaseModel):
 # --- Create Model (from API) ---
 class CustomerCreate(CustomerBase):
     pass
+# --- Update Model (from API) ---
+class CustomerUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
 
 # --- Read Model (to API) ---
 class Customer(CustomerBase):
