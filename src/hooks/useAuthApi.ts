@@ -105,6 +105,16 @@ const createBooking = useCallback((data: any) => {
     return apiClient.updateTicket(id, data, accessToken);
   }, [accessToken]);
 
+  const deleteBooking = useCallback((id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.deleteBooking(id, accessToken);
+  }, [accessToken]);
+
+  const deleteTicket = useCallback((id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.deleteTicket(id, accessToken);
+  }, [accessToken]);
+
   return {
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
@@ -128,5 +138,7 @@ const createBooking = useCallback((data: any) => {
     deleteCampaign,
     updateBooking,
     updateTicket,
+    deleteBooking,
+    deleteTicket,
   };
 };

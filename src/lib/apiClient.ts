@@ -243,3 +243,21 @@ export const updateTicket = (
     body: JSON.stringify(data),
   });
 };
+
+export const deleteBooking = (
+  id: string,
+  token: string
+): Promise<null> => {
+  return clientFetch<null>(`/bookings/${id}`, token, {
+    method: 'DELETE',
+  });
+};
+
+export const deleteTicket = (
+  id: string,
+  token: string
+): Promise<null> => {
+  return clientFetch<null>(`/tickets/${id}`, token, {
+    method: 'DELETE',
+  });
+};

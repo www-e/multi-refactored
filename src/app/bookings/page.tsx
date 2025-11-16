@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, RefreshCw, Edit, Eye } from 'lucide-react';
+import { Plus, RefreshCw, Edit, Eye, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
@@ -11,6 +11,7 @@ import { DataTable } from '@/components/shared/data/DataTable';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
 import BookingModal from '@/components/shared/modals/BookingModal';
+import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { Card } from '@/components/shared/ui/Card';
 import { EnhancedBooking } from '@/app/(shared)/types';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
@@ -18,10 +19,13 @@ import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
+  const [editingBooking, setEditingBooking] = useState<EnhancedBooking | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<EnhancedBooking | null>(null);
 
-  const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading } = useAppStore();
-  const { getBookings, createBooking, isAuthenticated } = useAuthApi();
+  const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading, removeBooking } = useAppStore();
+  const { getBookings, createBooking, updateBooking, deleteBooking, isAuthenticated } = useAuthApi();
   const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
@@ -52,6 +56,40 @@ export default function BookingsPage() {
         setIsAddModalOpen(false);
       },
       () => setIsAddModalOpen(false)
+    );
+  };
+
+  const handleEditBooking = async (bookingData: {
+    customerId: string;
+    propertyCode: string;
+    startDate: string;
+    price: number;
+    source: string;
+  }) => {
+    if (!editingBooking) return;
+    await handleModalSubmit(
+      async () => {
+        const updatedBooking = await updateBooking(editingBooking.id, bookingData);
+        setBookings(bookings.map(b => b.id === editingBooking.id ? updatedBooking : b));
+        setEditingBooking(null);
+      },
+      () => setEditingBooking(null)
+    );
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+    await handleModalSubmit(
+      async () => {
+        await deleteBooking(bookingToDelete.id);
+        removeBooking(bookingToDelete.id);
+        setBookingToDelete(null);
+        setIsDeleteModalOpen(false);
+      },
+      () => {
+        setBookingToDelete(null);
+        setIsDeleteModalOpen(false);
+      }
     );
   };
 
@@ -154,7 +192,24 @@ export default function BookingsPage() {
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
-                        <button className="p-2 text-slate-400 hover:text-primary rounded-lg"><Edit className="w-4 h-4" /></button>
+                        <button
+                          onClick={() => {
+                            setEditingBooking(booking);
+                            setSelectedBooking(booking);
+                          }}
+                          className="p-2 text-slate-400 hover:text-primary rounded-lg"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setBookingToDelete(booking);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-red-600 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -180,6 +235,30 @@ export default function BookingsPage() {
           customers={customers}
           isSubmitting={isSubmitting}
           error={modalError}
+        />
+
+        <BookingModal
+          isOpen={!!editingBooking}
+          onClose={() => setEditingBooking(null)}
+          onSubmit={handleEditBooking}
+          booking={editingBooking}
+          title="تعديل الحجز"
+          customers={customers}
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
+
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setBookingToDelete(null);
+          }}
+          onConfirm={handleDeleteBooking}
+          title="حذف الحجز"
+          message="هل أنت متأكد من رغبتك في حذف هذا الحجز؟ لا يمكن التراجع عن هذا الإجراء."
+          itemName={bookingToDelete ? `${bookingToDelete.propertyId} - ${customerMap.get(bookingToDelete.customerId)?.name || 'عميل غير معروف'}` : undefined}
+          isSubmitting={isSubmitting}
         />
       </div>
     </div>

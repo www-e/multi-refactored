@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, RefreshCw, MapPin, User, Loader2 } from 'lucide-react';
+import { Plus, RefreshCw, MapPin, User, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Modal } from '@/components/shared/ui/Modal';
 import TicketModal from '@/components/shared/modals/TicketModal';
+import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { EnhancedTicket } from '@/app/(shared)/types';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
@@ -24,10 +25,13 @@ const TICKET_COLUMNS = [
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<EnhancedTicket | null>(null);
+  const [editingTicket, setEditingTicket] = useState<EnhancedTicket | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<EnhancedTicket | null>(null);
 
-  const { tickets, customers, properties, ticketsLoading, setTickets, setTicketsLoading, addTicket } = useAppStore();
-  const { getTickets, createTicket, isAuthenticated } = useAuthApi();
+  const { tickets, customers, properties, ticketsLoading, setTickets, setTicketsLoading, addTicket, removeTicket } = useAppStore();
+  const { getTickets, createTicket, updateTicket, deleteTicket, isAuthenticated } = useAuthApi();
   const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
@@ -64,6 +68,40 @@ export default function TicketsPage() {
         setIsAddModalOpen(false);
       },
       () => setIsAddModalOpen(false)
+    );
+  };
+
+  const handleEditTicket = async (ticketData: {
+    customerId: string;
+    category: string;
+    priority: string;
+    project: string;
+    issue: string;
+  }) => {
+    if (!editingTicket) return;
+    await handleModalSubmit(
+      async () => {
+        const updatedTicket = await updateTicket(editingTicket.id, ticketData);
+        setTickets(tickets.map(t => t.id === editingTicket.id ? updatedTicket : t));
+        setEditingTicket(null);
+      },
+      () => setEditingTicket(null)
+    );
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    await handleModalSubmit(
+      async () => {
+        await deleteTicket(ticketToDelete.id);
+        removeTicket(ticketToDelete.id);
+        setTicketToDelete(null);
+        setIsDeleteModalOpen(false);
+      },
+      () => {
+        setTicketToDelete(null);
+        setIsDeleteModalOpen(false);
+      }
     );
   };
 
@@ -133,7 +171,7 @@ export default function TicketsPage() {
                         const customer = customerMap.get(ticket.customerId);
                         const property = ticket.propertyId ? propertyMap.get(ticket.propertyId) : null;
                         return (
-                            <Card key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="p-4 cursor-pointer hover:shadow-xl hover:border-primary/50 transition-all">
+                            <Card key={ticket.id} className="p-4 hover:shadow-xl hover:border-primary/50 transition-all">
                                 <div className="flex justify-between items-start">
                                     <p className="font-medium text-slate-800 dark:text-slate-200">{customer?.name || ticket.customerName}</p>
                                     <StatusBadge status={ticket.priority} />
@@ -144,6 +182,36 @@ export default function TicketsPage() {
                                 </div>
                                 {property && <p className="text-xs text-slate-500 mt-1 flex items-center gap-1"><MapPin size={12} />{property.code}</p>}
                                 {ticket.assignee && <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center gap-1"><User size={12} />{ticket.assignee}</p>}
+                                
+                                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                                    <ActionButton
+                                        icon={Edit}
+                                        label="تعديل"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingTicket(ticket);
+                                            setSelectedTicket(ticket);
+                                        }}
+                                        variant="secondary"
+                                        className="flex-1 text-xs"
+                                    />
+                                    <ActionButton
+                                        icon={Trash2}
+                                        label="حذف"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTicketToDelete(ticket);
+                                            setIsDeleteModalOpen(true);
+                                        }}
+                                        variant="secondary"
+                                        className="flex-1 text-xs bg-red-600 hover:bg-red-700 text-white"
+                                    />
+                                </div>
+                                
+                                <div
+                                    className="cursor-pointer mt-2"
+                                    onClick={() => setSelectedTicket(ticket)}
+                                />
                             </Card>
                         )
                     })}
@@ -162,6 +230,30 @@ export default function TicketsPage() {
           customers={customers}
           isSubmitting={isSubmitting}
           error={modalError}
+        />
+
+        <TicketModal
+          isOpen={!!editingTicket}
+          onClose={() => setEditingTicket(null)}
+          onSubmit={handleEditTicket}
+          ticket={editingTicket}
+          title="تعديل التذكرة"
+          customers={customers}
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
+
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setTicketToDelete(null);
+          }}
+          onConfirm={handleDeleteTicket}
+          title="حذف التذكرة"
+          message="هل أنت متأكد من رغبتك في حذف هذه التذكرة؟ لا يمكن التراجع عن هذا الإجراء."
+          itemName={ticketToDelete?.issue}
+          isSubmitting={isSubmitting}
         />
 
         <Modal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} title="تفاصيل التذكرة">

@@ -47,6 +47,11 @@ interface AppState {
   addCampaign: (campaign: EnhancedCampaign) => void;
   updateTicket: (id: string, updates: Partial<EnhancedTicket>) => void;
   updateBooking: (id: string, updates: Partial<EnhancedBooking>) => void;
+  updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  removeCustomer: (id: string) => void;
+  removeBooking: (id: string) => void;
+  removeTicket: (id: string) => void;
+  removeCampaign: (id: string) => void;
   runCampaign: (id: string) => void;
   stopCampaign: (id: string) => void;
 }
@@ -102,6 +107,21 @@ export const useAppStore = create<AppState>()(
       })),
       updateBooking: (id, updates) => set((state) => ({
         bookings: state.bookings.map(b => b.id === id ? { ...b, ...updates } : b)
+      })),
+      updateCustomer: (id, updates) => set((state) => ({
+        customers: state.customers.map(c => c.id === id ? { ...c, ...updates } : c)
+      })),
+      removeCustomer: (id) => set((state) => ({
+        customers: state.customers.filter(c => c.id !== id)
+      })),
+      removeBooking: (id) => set((state) => ({
+        bookings: state.bookings.filter(b => b.id !== id)
+      })),
+      removeTicket: (id) => set((state) => ({
+        tickets: state.tickets.filter(t => t.id !== id)
+      })),
+      removeCampaign: (id) => set((state) => ({
+        campaigns: state.campaigns.filter(c => c.id !== id)
       })),
       runCampaign: (id) => set((state) => ({
         campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'نشطة' } : c)

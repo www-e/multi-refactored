@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Play, Pause, Eye, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Play, Pause, Eye, RefreshCw, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
@@ -12,15 +12,20 @@ import { Card, CardHeader } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Modal } from '@/components/shared/ui/Modal';
 import CampaignModal from '@/components/shared/modals/CampaignModal';
+import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 
 function CampaignCard({
   campaign,
   onSelect,
+  onEdit,
+  onDelete,
   onRun,
   onStop
 }: {
   campaign: EnhancedCampaign;
   onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   onRun: (e: React.MouseEvent) => void;
   onStop: (e: React.MouseEvent) => void;
 }) {
@@ -83,6 +88,22 @@ function CampaignCard({
           className="flex-1"
         />
       </div>
+      <div className="flex gap-2 mt-2">
+        <ActionButton
+          icon={Edit}
+          label="تعديل"
+          onClick={onEdit}
+          variant="secondary"
+          className="flex-1 text-sm"
+        />
+        <ActionButton
+          icon={Trash2}
+          label="حذف"
+          onClick={onDelete}
+          variant="secondary"
+          className="flex-1 text-sm bg-red-600 hover:bg-red-700 text-white"
+        />
+      </div>
     </Card>
   );
 }
@@ -90,7 +111,10 @@ function CampaignCard({
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<EnhancedCampaign | null>(null);
+  const [editingCampaign, setEditingCampaign] = useState<EnhancedCampaign | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [campaignToDelete, setCampaignToDelete] = useState<EnhancedCampaign | null>(null);
 
   const {
     campaigns,
@@ -98,11 +122,12 @@ export default function CampaignsPage() {
     setCampaigns,
     setCampaignsLoading,
     addCampaign,
+    removeCampaign,
     runCampaign,
     stopCampaign
   } = useAppStore();
 
-  const { getCampaigns, createCampaign, isAuthenticated } = useAuthApi();
+  const { getCampaigns, createCampaign, updateCampaign, deleteCampaign, isAuthenticated } = useAuthApi();
   const { modalError, isSubmitting, handleModalSubmit } = useModalState();
 
   const handleRefresh = useCallback(async () => {
@@ -136,6 +161,39 @@ export default function CampaignsPage() {
         setIsAddModalOpen(false);
       },
       () => setIsAddModalOpen(false)
+    );
+  };
+
+  const handleEditCampaign = async (campaignData: {
+    name: string;
+    type: string;
+    objective: string;
+    audienceQuery?: any;
+  }) => {
+    if (!editingCampaign) return;
+    await handleModalSubmit(
+      async () => {
+        const updatedCampaign = await updateCampaign(editingCampaign.id, campaignData);
+        setCampaigns(campaigns.map(c => c.id === editingCampaign.id ? updatedCampaign : c));
+        setEditingCampaign(null);
+      },
+      () => setEditingCampaign(null)
+    );
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+    await handleModalSubmit(
+      async () => {
+        await deleteCampaign(campaignToDelete.id);
+        removeCampaign(campaignToDelete.id);
+        setCampaignToDelete(null);
+        setIsDeleteModalOpen(false);
+      },
+      () => {
+        setCampaignToDelete(null);
+        setIsDeleteModalOpen(false);
+      }
     );
   };
 
@@ -176,6 +234,14 @@ export default function CampaignsPage() {
                 key={campaign.id}
                 campaign={campaign}
                 onSelect={() => setSelectedCampaign(campaign)}
+                onEdit={() => {
+                  setEditingCampaign(campaign);
+                  setSelectedCampaign(campaign);
+                }}
+                onDelete={() => {
+                  setCampaignToDelete(campaign);
+                  setIsDeleteModalOpen(true);
+                }}
                 onRun={(e) => { e.stopPropagation(); runCampaign(campaign.id); }}
                 onStop={(e) => { e.stopPropagation(); stopCampaign(campaign.id); }}
               />
@@ -192,7 +258,30 @@ export default function CampaignsPage() {
           error={modalError}
         />
 
-        <Modal isOpen={!!selectedCampaign} onClose={() => setSelectedCampaign(null)} title="تفاصيل الحملة">
+        <CampaignModal
+          isOpen={!!editingCampaign}
+          onClose={() => setEditingCampaign(null)}
+          onSubmit={handleEditCampaign}
+          campaign={editingCampaign}
+          title="تعديل الحملة"
+          isSubmitting={isSubmitting}
+          error={modalError}
+        />
+
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setCampaignToDelete(null);
+          }}
+          onConfirm={handleDeleteCampaign}
+          title="حذف الحملة"
+          message="هل أنت متأكد من رغبتك في حذف هذه الحملة؟ لا يمكن التراجع عن هذا الإجراء."
+          itemName={campaignToDelete?.name}
+          isSubmitting={isSubmitting}
+        />
+
+        <Modal isOpen={!!selectedCampaign && !editingCampaign} onClose={() => setSelectedCampaign(null)} title="تفاصيل الحملة">
           {selectedCampaign && (
             <div className="space-y-4">
               {/* Details view for a selected campaign */}
