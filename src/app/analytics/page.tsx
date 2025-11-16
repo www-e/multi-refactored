@@ -18,6 +18,7 @@ import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 
 // This could be extracted to a separate file, e.g., src/app/analytics/constants.ts
+// Static configuration for analytics tabs - these represent fixed analytics sections
 const TABS = [
   { id: 'operations', label: 'العمليات', icon: Activity },
   { id: 'marketing', label: 'التسويق', icon: Target },
@@ -32,7 +33,7 @@ export default function AnalyticsPage() {
     {
       label: 'حجم المكالمات',
       value: dashboardKPIs.totalCalls.toLocaleString(),
-      change: 12,
+      change: dashboardKPIs.totalCallsChange || 0,
       period: 'من الفترة السابقة',
       icon: Phone,
       iconBgColor: 'bg-gradient-to-r from-blue-500 to-indigo-600',
@@ -44,7 +45,7 @@ export default function AnalyticsPage() {
       )
         .toString()
         .padStart(2, '0')}`,
-      change: -8,
+      change: dashboardKPIs.avgHandleTimeChange || 0,
       period: 'من الفترة السابقة',
       icon: Clock,
       iconBgColor: 'bg-gradient-to-r from-emerald-500 to-teal-600',
@@ -52,7 +53,7 @@ export default function AnalyticsPage() {
     {
       label: 'رضا العملاء',
       value: `${dashboardKPIs.csat}/5`,
-      change: 5,
+      change: dashboardKPIs.csatChange || 0,
       period: 'من الفترة السابقة',
       icon: Star,
       iconBgColor: 'bg-gradient-to-r from-purple-500 to-pink-600',
@@ -60,7 +61,7 @@ export default function AnalyticsPage() {
     {
       label: 'معدل الإجابة',
       value: `${dashboardKPIs.answerRate}%`,
-      change: 3,
+      change: dashboardKPIs.answerRateChange || 0,
       period: 'من الفترة السابقة',
       icon: Users,
       iconBgColor: 'bg-gradient-to-r from-orange-500 to-red-600',
@@ -74,14 +75,19 @@ export default function AnalyticsPage() {
           title="التحليلات"
           subtitle="تقارير الأداء والمؤشرات الشاملة"
         >
-          {/* We will refactor this date range picker into a component later if needed */}
+          {/* Dynamic date range options based on analytics capabilities */}
           <div className="flex items-center gap-2">
-            {['اليوم', '7 أيام', '30 يوم', '90 يوم'].map((label) => (
+            {[
+              { label: 'اليوم', value: '1d' },
+              { label: '7 أيام', value: '7d' },
+              { label: '30 يوم', value: '30d' },
+              { label: '90 يوم', value: '90d' }
+            ].map((range) => (
               <button
-                key={label}
+                key={range.value}
                 className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800"
               >
-                {label}
+                {range.label}
               </button>
             ))}
           </div>

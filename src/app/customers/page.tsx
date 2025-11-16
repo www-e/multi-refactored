@@ -14,10 +14,7 @@ import { Modal } from '@/components/shared/ui/Modal';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 
-function CustomerCard({ customer, onEdit, onDelete }: { customer: Customer; onEdit: () => void; onDelete: () => void; }) {
-  // Note: 'interactions' are hardcoded for now as per the original file.
-  // In a real implementation, this data would come from an API lookup.
-  const interactions = { conversations: 3, tickets: 1, bookings: 2 };
+function CustomerCard({ customer, onEdit, onDelete, conversations, tickets, bookings }: { customer: Customer; onEdit: () => void; onDelete: () => void; conversations: number; tickets: number; bookings: number; }) {
   return (
     <Card className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all">
       <div className="flex items-center justify-between mb-4">
@@ -34,15 +31,15 @@ function CustomerCard({ customer, onEdit, onDelete }: { customer: Customer; onEd
       </div>
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="text-sm font-semibold">{interactions.conversations}</div>
+          <div className="text-sm font-semibold">{conversations}</div>
           <div className="text-xs text-slate-500">محادثات</div>
         </div>
         <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="text-sm font-semibold">{interactions.tickets}</div>
+          <div className="text-sm font-semibold">{tickets}</div>
           <div className="text-xs text-slate-500">تذاكر</div>
         </div>
         <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="text-sm font-semibold">{interactions.bookings}</div>
+          <div className="text-sm font-semibold">{bookings}</div>
           <div className="text-xs text-slate-500">حجوزات</div>
         </div>
       </div>
@@ -129,7 +126,42 @@ export default function CustomersPage() {
     );
   };
 
-  const filteredCustomers = useMemo(() => customers.filter(c => 
+  // Calculate interaction counts for each customer
+  const { bookings: allBookings, tickets: allTickets, conversations: allConversations } = useAppStore();
+
+  const customerInteractions = useMemo(() => {
+    const interactions = new Map();
+    // Calculate bookings per customer
+    allBookings.forEach(booking => {
+      const count = interactions.get(booking.customerId)?.bookings || 0;
+      interactions.set(booking.customerId, {
+        ...interactions.get(booking.customerId),
+        bookings: count + 1
+      });
+    });
+
+    // Calculate tickets per customer
+    allTickets.forEach(ticket => {
+      const count = interactions.get(ticket.customerId)?.tickets || 0;
+      interactions.set(ticket.customerId, {
+        ...interactions.get(ticket.customerId),
+        tickets: count + 1
+      });
+    });
+
+    // Calculate conversations per customer
+    allConversations.forEach(conversation => {
+      const count = interactions.get(conversation.customerId)?.conversations || 0;
+      interactions.set(conversation.customerId, {
+        ...interactions.get(conversation.customerId),
+        conversations: count + 1
+      });
+    });
+
+    return interactions;
+  }, [allBookings, allTickets, allConversations]);
+
+  const filteredCustomers = useMemo(() => customers.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.phone.includes(searchQuery)
   ), [customers, searchQuery]);
@@ -153,20 +185,26 @@ export default function CustomersPage() {
            <Card className="text-center py-12"><p className="text-slate-500">لا يوجد عملاء لعرضهم.</p></Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCustomers.map((customer) => (
-              <CustomerCard
-                key={customer.id}
-                customer={customer}
-                onEdit={() => {
-                  setEditingCustomer(customer);
-                  setSelectedCustomer(customer);
-                }}
-                onDelete={() => {
-                  setCustomerToDelete(customer);
-                  setIsDeleteModalOpen(true);
-                }}
-              />
-            ))}
+            {filteredCustomers.map((customer) => {
+              const interactions = customerInteractions.get(customer.id) || { conversations: 0, tickets: 0, bookings: 0 };
+              return (
+                <CustomerCard
+                  key={customer.id}
+                  customer={customer}
+                  conversations={interactions.conversations}
+                  tickets={interactions.tickets}
+                  bookings={interactions.bookings}
+                  onEdit={() => {
+                    setEditingCustomer(customer);
+                    setSelectedCustomer(customer);
+                  }}
+                  onDelete={() => {
+                    setCustomerToDelete(customer);
+                    setIsDeleteModalOpen(true);
+                  }}
+                />
+              );
+            })}
           </div>
         )}
         <Modal isOpen={!!selectedCustomer} onClose={() => setSelectedCustomer(null)} title="تفاصيل العميل">

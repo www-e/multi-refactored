@@ -40,22 +40,26 @@ function SettingsSection({
 }
 
 export default function SettingsPage() {
+  // Default configuration values - these should ideally be fetched from backend API
   const [workingHours, setWorkingHours] = useState({
     start: '08:00',
     end: '18:00',
     days: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
   });
+  // Default configuration values - these should ideally be fetched from backend API
   const [transferPolicies, setTransferPolicies] = useState({
     autoTransfer: true,
     transferDelay: 30,
     transferMessage: 'سيتواصل معك ممثلنا حالاً، وإن لم يتم الرد سنعاود الاتصال بك.',
   });
+  // Default configuration values - these should ideally be fetched from backend API
   const [recordingSettings, setRecordingSettings] = useState({
     retentionDays: 30,
     autoDelete: true,
     backupEnabled: true,
     quality: 'high',
   });
+  // Default configuration values - these should ideally be fetched from backend API
   const [teamSettings, setTeamSettings] = useState({
     maxAgents: 10,
     autoAssignment: true,

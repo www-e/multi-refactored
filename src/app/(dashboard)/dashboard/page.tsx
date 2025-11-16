@@ -81,7 +81,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">ROAS</div>
             <div className="flex items-center justify-center mt-2">
               <TrendingUp className="w-4 h-4 text-success" />
-              <span className="text-sm text-success mr-1">{(dashboardKPIs.roasChange || dashboardKPIs.revenueChange || 0.3) > 0 ? '+' : ''}{(dashboardKPIs.roasChange || dashboardKPIs.revenueChange || 0.3)}%</span>
+              <span className="text-sm text-success mr-1">{(dashboardKPIs.roasChange || 0) > 0 ? '+' : ''}{(dashboardKPIs.roasChange || 0)}%</span>
             </div>
           </Card>
           <Card className="text-center">
@@ -92,7 +92,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">زمن المعالجة (AHT)</div>
             <div className="flex items-center justify-center mt-2">
               <TrendingUp className="w-4 h-4 text-success" />
-              <span className="text-sm text-success mr-1">{(dashboardKPIs.avgHandleTimeChange || -12) > 0 ? '+' : ''}{dashboardKPIs.avgHandleTimeChange || -12}s</span>
+              <span className="text-sm text-success mr-1">{(dashboardKPIs.avgHandleTimeChange || 0) > 0 ? '+' : ''}{dashboardKPIs.avgHandleTimeChange || 0}s</span>
             </div>
           </Card>
           <Card className="text-center">
@@ -100,7 +100,7 @@ export default function DashboardPage() {
             <div className="text-sm text-slate-600 dark:text-slate-400">رضا العملاء (CSAT)</div>
             <div className="flex items-center justify-center mt-2">
               <Star className="w-4 h-4 text-warning" />
-              <span className="text-sm text-warning mr-1">{(dashboardKPIs.csatChange || 0.2) > 0 ? '+' : ''}{dashboardKPIs.csatChange || 0.2}</span>
+              <span className="text-sm text-warning mr-1">{(dashboardKPIs.csatChange || 0) > 0 ? '+' : ''}{dashboardKPIs.csatChange || 0}</span>
             </div>
           </Card>
         </div>
@@ -184,10 +184,10 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">مؤهل</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.qualifiedCount || Math.round((dashboardKPIs.totalCalls * dashboardKPIs.conversionToBooking) / 100 / 3)}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.qualifiedCount || 0}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, Math.round(dashboardKPIs.conversionToBooking / 3))}%` }}></div>
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${Math.min(100, Math.round(dashboardKPIs.conversionToBooking))}%` }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">حجز</span>

@@ -25,8 +25,36 @@ class CampaignUpdateRequest(BaseModel):
     audienceQuery: Optional[dict] = None
     status: Optional[str] = None
 
-def format_campaign(c: models.Campaign):
-    # In a real app, metrics would be calculated, here we use defaults
+def format_campaign(c: models.Campaign, db_session):
+    # Get the latest metrics for this campaign
+    from sqlalchemy import func
+
+    # Get the most recent metrics record for this campaign
+    latest_metrics = db_session.query(models.CampaignMetrics).filter(
+        models.CampaignMetrics.campaign_id == c.id
+    ).order_by(models.CampaignMetrics.ts.desc()).first()
+
+    # If metrics exist, use them; otherwise default to 0
+    if latest_metrics:
+        metrics = {
+            "reached": latest_metrics.reached,
+            "engaged": latest_metrics.engaged,
+            "qualified": latest_metrics.qualified,
+            "booked": latest_metrics.booked,
+            "revenue": latest_metrics.revenue_sar,
+            "roas": latest_metrics.roas
+        }
+    else:
+        # Default values if no metrics exist yet
+        metrics = {
+            "reached": 0,
+            "engaged": 0,
+            "qualified": 0,
+            "booked": 0,
+            "revenue": 0,
+            "roas": 0.0
+        }
+
     return {
         "id": c.id,
         "name": c.name,
@@ -35,11 +63,8 @@ def format_campaign(c: models.Campaign):
         "status": c.status,
         "audienceQuery": c.audience_query,
         "createdAt": c.created_at.isoformat(),
-        "metrics": {
-            "reached": 0, "engaged": 0, "qualified": 0,
-            "booked": 0, "revenue": 0, "roas": 0.0
-        },
-        "attribution": "Human" # Manually created campaigns are by humans
+        "metrics": metrics,
+        "attribution": "Human"  # Manually created campaigns are by humans
     }
 
 @router.post("/campaigns", status_code=201)
@@ -57,12 +82,12 @@ def create_campaign(campaign_in: CampaignCreateRequest, db_session: Session = De
     db_session.add(db_campaign)
     db_session.commit()
     db_session.refresh(db_campaign)
-    return format_campaign(db_campaign)
+    return format_campaign(db_campaign, db_session)
 
 @router.get("/campaigns", response_model=List[dict])
 def get_campaigns(_=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     campaigns = db_session.query(models.Campaign).order_by(models.Campaign.created_at.desc()).all()
-    return [format_campaign(c) for c in campaigns]
+    return [format_campaign(c, db_session) for c in campaigns]
 
 @router.get("/campaigns/{campaign_id}", response_model=dict)
 def get_campaign(
@@ -79,7 +104,7 @@ def get_campaign(
             status_code=404,
             detail="Campaign not found",
         )
-    return format_campaign(campaign)
+    return format_campaign(campaign, db_session)
 
 @router.patch("/campaigns/{campaign_id}", response_model=dict)
 def update_campaign(
@@ -109,7 +134,7 @@ def update_campaign(
     
     db_session.commit()
     db_session.refresh(campaign)
-    return format_campaign(campaign)
+    return format_campaign(campaign, db_session)
 
 @router.delete("/campaigns/{campaign_id}")
 def delete_campaign(

@@ -26,9 +26,7 @@ const agentTypes = [
 export default function ClientOnlyPlayground() {
   const [mode, setMode] = useState<'voice' | 'chat'>('voice');
   const [selectedAgent, setSelectedAgent] = useState(agentTypes[0]);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', type: 'agent', content: 'يمكنني مساعدتك في الاستفسارات وحجز المواعيد ورفع الشكاوى.', timestamp: new Date() }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState('');
   const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');

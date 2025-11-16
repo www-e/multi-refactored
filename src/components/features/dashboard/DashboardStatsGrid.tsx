@@ -20,7 +20,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
   const stats: IStatsCard[] = [
     {
       label: 'الاتصالات المنفذة',
-      value: kpis.totalCalls.toLocaleString(),
+      value: (kpis.totalCalls || 0).toLocaleString(),
       change: kpis.totalCallsChange || 0,
       period: 'من الفترة السابقة',
       icon: Phone,
@@ -28,7 +28,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     },
     {
       label: 'معدل الإجابة',
-      value: `${kpis.answerRate}%`,
+      value: `${(kpis.answerRate || 0).toFixed(1)}%`,
       change: kpis.answerRateChange || 0,
       period: 'من الفترة السابقة',
       icon: CheckCircle,
@@ -36,7 +36,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     },
     {
       label: 'التحويل إلى حجز',
-      value: `${kpis.conversionToBooking}%`,
+      value: `${(kpis.conversionToBooking || 0).toFixed(1)}%`,
       change: kpis.conversionChange || 0,
       period: 'من الفترة السابقة',
       icon: Target,
@@ -44,7 +44,7 @@ export function DashboardStatsGrid({ kpis, isLoading = false }: DashboardStatsGr
     },
     {
       label: 'الإيرادات',
-      value: `${kpis.revenue.toLocaleString()} ر.س`,
+      value: `${(kpis.revenue || 0).toLocaleString()} ر.س`,
       change: kpis.revenueChange || 0,
       period: 'من الفترة السابقة',
       icon: DollarSign,
