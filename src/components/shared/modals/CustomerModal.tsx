@@ -1,8 +1,7 @@
 'use client';
-import { useState } from 'react';
 import { Customer } from '@/app/(shared)/types';
-import { useFormHandler } from '@/hooks/useFormHandler';
-import ModalFormLayout from './ModalFormLayout';
+import { FormField } from './GenericModal';
+import GenericModal from './GenericModal';
 
 interface CustomerModalProps {
   isOpen: boolean;
@@ -25,76 +24,46 @@ export default function CustomerModal({
   isSubmitting = false,
   error
 }: CustomerModalProps) {
-  const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    phone: customer?.phone || '',
-    email: customer?.email || ''
-  });
-
-  const { handleFormSubmit } = useFormHandler(onSubmit, () => {
-    if (!customer) { // Only reset form for new customers
-      setFormData({ name: '', phone: '', email: '' });
+  // Define the form fields configuration
+  const customerFields: FormField[] = [
+    {
+      name: 'name',
+      label: 'الاسم الكامل',
+      type: 'text',
+      required: true,
+      placeholder: 'أدخل الاسم الكامل'
+    },
+    {
+      name: 'phone',
+      label: 'رقم الهاتف',
+      type: 'tel',
+      required: true,
+      placeholder: '05xxxxxxxx'
+    },
+    {
+      name: 'email',
+      label: 'البريد الإلكتروني (اختياري)',
+      type: 'email',
+      placeholder: 'example@email.com'
     }
-  });
+  ];
 
-  const handleSubmit = () => {
-    handleFormSubmit(formData);
-  };
-
-  const submitLabel = customer ? 'تحديث العميل' : 'إنشاء العميل';
-  const isSubmittingLabel = customer ? 'جاري التحديث...' : 'جاري الإنشاء...';
+  // Format initial data for the customer
+  const initialData = customer ? {
+    ...customer
+  } : null;
 
   return (
-    <ModalFormLayout
-      title={title}
+    <GenericModal
       isOpen={isOpen}
-      error={error}
+      onClose={onClose}
+      onSubmit={onSubmit}
+      title={title}
+      fields={customerFields}
+      initialData={initialData}
       isSubmitting={isSubmitting}
-      submitLabel={submitLabel}
-      onSubmit={handleSubmit}
-      onCancel={onClose}
+      error={error}
       maxWidth="md"
-    >
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          الاسم الكامل *
-        </label>
-        <input
-          type="text"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          required
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-          placeholder="أدخل الاسم الكامل"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          رقم الهاتف *
-        </label>
-        <input
-          type="tel"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          required
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-          placeholder="05xxxxxxxx"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          البريد الإلكتروني (اختياري)
-        </label>
-        <input
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-          placeholder="example@email.com"
-        />
-      </div>
-    </ModalFormLayout>
+    />
   );
 }

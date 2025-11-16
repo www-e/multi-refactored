@@ -1,9 +1,7 @@
 'use client';
-import { useState } from 'react';
-import { EnhancedBooking } from '@/app/(shared)/types';
 import { Customer } from '@/app/(shared)/types';
-import { useFormHandler } from '@/hooks/useFormHandler';
-import ModalFormLayout from './ModalFormLayout';
+import { FormField } from './GenericModal';
+import GenericModal from './GenericModal';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -15,7 +13,7 @@ interface BookingModalProps {
     price: number;
     source: string;
   }) => Promise<void>;
-  booking?: EnhancedBooking | null;
+  booking?: any | null; // EnhancedBooking type
   title: string;
   customers: Customer[];
   isSubmitting?: boolean;
@@ -32,125 +30,86 @@ export default function BookingModal({
   isSubmitting = false,
   error
 }: BookingModalProps) {
-  const [formData, setFormData] = useState({
-    customerId: booking?.customerId || '',
-    propertyCode: booking?.propertyId || '',
-    startDate: booking?.startDate ? new Date(booking.startDate).toISOString().slice(0, 16) : '',
-    price: booking?.price || 0,
-    source: booking?.source || 'voice'
-  });
-
-  const { handleFormSubmit } = useFormHandler(onSubmit, () => {
-    if (!booking) { // Only reset form for new bookings
-      setFormData({
-        customerId: '',
-        propertyCode: '',
-        startDate: '',
-        price: 0,
-        source: 'voice'
-      });
+  // Define the form fields configuration
+  const bookingFields: FormField[] = [
+    {
+      name: 'customerId',
+      label: 'العميل',
+      type: 'select',
+      required: true,
+      options: customers.map(c => ({
+        value: c.id,
+        label: `${c.name} - ${c.phone}`
+      }))
+    },
+    {
+      name: 'propertyCode',
+      label: 'رمز العقار',
+      type: 'text',
+      required: true,
+      placeholder: 'e.g., MG13'
+    },
+    {
+      name: 'startDate',
+      label: 'تاريخ ووقت الموعد',
+      type: 'datetime-local',
+      required: true
+    },
+    {
+      name: 'price',
+      label: 'السعر (ر.س)',
+      type: 'number',
+      required: true,
+      min: '0',
+      step: '0.01',
+      placeholder: '0.00',
+      layout: 'half'
+    },
+    {
+      name: 'source',
+      label: 'المصدر',
+      type: 'select',
+      required: true,
+      options: [
+        { value: 'voice', label: 'مكالمة صوتية' },
+        { value: 'chat', label: 'محادثة' }
+      ],
+      layout: 'half'
     }
-  });
+  ];
 
-  const handleSubmit = () => {
-    handleFormSubmit({
+  // Format initial data for the booking
+  const initialData = booking ? {
+    ...booking,
+    startDate: booking.startDate ? new Date(booking.startDate).toISOString().slice(0, 16) : '',
+    propertyCode: booking.propertyId || booking.propertyCode || ''
+  } : null;
+
+  const handleSubmit = async (formData: any) => {
+    const processedData = {
       ...formData,
       price: Number(formData.price),
       startDate: new Date(formData.startDate).toISOString()
-    });
+    };
+    await onSubmit(processedData);
   };
 
-  const submitLabel = booking ? 'تحديث الحجز' : 'إنشاء الحجز';
-  const isSubmittingLabel = booking ? 'جاري التحديث...' : 'جاري الإنشاء...';
-
   return (
-    <ModalFormLayout
-      title={title}
+    <GenericModal
       isOpen={isOpen}
-      error={error}
-      isSubmitting={isSubmitting}
-      submitLabel={submitLabel}
+      onClose={onClose}
       onSubmit={handleSubmit}
-      onCancel={onClose}
+      title={title}
+      fields={bookingFields}
+      initialData={initialData}
+      isSubmitting={isSubmitting}
+      error={error}
+      maxWidth="lg"
     >
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          العميل *
-        </label>
-        <select
-          value={formData.customerId}
-          onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-          required
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-        >
-          <option value="" disabled>اختر عميل...</option>
-          {customers.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.name} - {c.phone}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          رمز العقار *
-        </label>
-        <input
-          type="text"
-          value={formData.propertyCode}
-          onChange={(e) => setFormData({ ...formData, propertyCode: e.target.value })}
-          required
-          placeholder="e.g., MG13"
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          تاريخ ووقت الموعد *
-        </label>
-        <input
-          type="datetime-local"
-          value={formData.startDate}
-          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-          required
-          className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-        />
-      </div>
-
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-            السعر (ر.س) *
-          </label>
-          <input
-            type="number"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-            required
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-            المصدر *
-          </label>
-          <select
-            value={formData.source}
-            onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-            required
-            className="w-full p-2 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-md focus:ring-2 focus:ring-primary"
-          >
-            <option value="voice">مكالمة صوتية</option>
-            <option value="chat">محادثة</option>
-          </select>
-        </div>
+        {/* This will render the price and source fields in a grid */}
+        {/* The grid is handled by the generic modal when needed */}
       </div>
-    </ModalFormLayout>
+    </GenericModal>
   );
 }
