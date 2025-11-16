@@ -56,6 +56,7 @@ def get_customers(
     Retrieve a list of customers.
     """
     customers = db_session.query(models.Customer).offset(skip).limit(limit).all()
+    return customers
 
 @router.get("/customers/{customer_id}", response_model=schemas.Customer)
 def get_customer(
@@ -91,27 +92,35 @@ def update_customer(
             status_code=404,
             detail="Customer not found",
         )
-    
+
     # Check if phone or email conflicts with another customer
-    if customer_in.phone or customer_in.email:
-        existing_customer = db_session.query(models.Customer).filter(
+    if customer_in.phone:
+        conflicting_phone = db_session.query(models.Customer).filter(
             models.Customer.id != customer_id,
-            (
-                (models.Customer.phone == customer_in.phone) if customer_in.phone else False |
-                (models.Customer.email == customer_in.email) if customer_in.email else False
-            )
+            models.Customer.phone == customer_in.phone
         ).first()
-        if existing_customer:
+        if conflicting_phone:
             raise HTTPException(
                 status_code=400,
-                detail="A customer with this phone number or email already exists.",
+                detail="A customer with this phone number already exists.",
             )
-    
+
+    if customer_in.email:
+        conflicting_email = db_session.query(models.Customer).filter(
+            models.Customer.id != customer_id,
+            models.Customer.email == customer_in.email
+        ).first()
+        if conflicting_email:
+            raise HTTPException(
+                status_code=400,
+                detail="A customer with this email already exists.",
+            )
+
     # Update only provided fields
     update_data = customer_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(customer, field, value)
-    
+
     db_session.commit()
     db_session.refresh(customer)
     return customer
@@ -146,4 +155,3 @@ def delete_customer(
     db_session.delete(customer)
     db_session.commit()
     return {"message": "Customer deleted successfully"}
-    return customers
