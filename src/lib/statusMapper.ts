@@ -87,3 +87,74 @@ export const mapCampaignStatusToEnglish = (status: string): string => {
   };
   return mapping[status] || status;
 };
+
+// Channel type mapping (for bookings, campaigns)
+export const mapChannelTypeToArabic = (type: string): string => {
+  const mapping: Record<string, string> = {
+    'voice': 'صوت',
+    'chat': 'رسالة',
+    'صوت': 'صوت',
+    'رسالة': 'رسالة',
+  };
+  return mapping[type] || type;
+};
+
+export const mapChannelTypeToEnglish = (type: string): string => {
+  const mapping: Record<string, string> = {
+    'voice': 'voice',
+    'chat': 'chat',
+    'صوت': 'voice',
+    'رسالة': 'chat',
+  };
+  return mapping[type] || type;
+};
+
+// Campaign type mapping
+export const mapCampaignTypeToArabic = (type: string): string => {
+  const mapping: Record<string, string> = {
+    'voice': 'صوتية',
+    'chat': 'رسائل',
+    'صوتية': 'صوتية',
+    'رسائل': 'رسائل',
+  };
+  return mapping[type] || type;
+};
+
+export const mapCampaignTypeToEnglish = (type: string): string => {
+  const mapping: Record<string, string> = {
+    'voice': 'voice',
+    'chat': 'chat',
+    'صوتية': 'voice',
+    'رسائل': 'chat',
+  };
+  return mapping[type] || type;
+};
+
+// Campaign objective mapping
+export const mapCampaignObjectiveToArabic = (objective: string): string => {
+  const mapping: Record<string, string> = {
+    'bookings': 'حجوزات',
+    'renewals': 'تجديدات',
+    'leadgen': 'تحصيل_عملاء',
+    'upsell': 'بيع_إضافي',
+    'حجوزات': 'حجوزات',
+    'تجديدات': 'تجديدات',
+    'تحصيل_عملاء': 'تحصيل_عملاء',
+    'بيع_إضافي': 'بيع_إضافي',
+  };
+  return mapping[objective] || objective;
+};
+
+export const mapCampaignObjectiveToEnglish = (objective: string): string => {
+  const mapping: Record<string, string> = {
+    'bookings': 'bookings',
+    'renewals': 'renewals',
+    'leadgen': 'leadgen',
+    'upsell': 'upsell',
+    'حجوزات': 'bookings',
+    'تجديدات': 'renewals',
+    'تحصيل_عملاء': 'leadgen',
+    'بيع_إضافي': 'upsell',
+  };
+  return mapping[objective] || objective;
+};

@@ -2,6 +2,7 @@
 import { EnhancedCampaign } from '@/app/(shared)/types';
 import { FormField } from './GenericModal';
 import GenericModal from './GenericModal';
+import { mapCampaignTypeToEnglish, mapCampaignObjectiveToEnglish } from '@/lib/statusMapper';
 
 interface CampaignModalProps {
   isOpen: boolean;
@@ -80,6 +81,8 @@ export default function CampaignModal({
     // Convert audienceQuery back from JSON string to object if it's a valid JSON
     const processedData = {
       ...formData,
+      type: mapCampaignTypeToEnglish(formData.type), // Map Arabic to English for API
+      objective: mapCampaignObjectiveToEnglish(formData.objective), // Map Arabic to English for API
       audienceQuery: typeof formData.audienceQuery === 'string'
         ? JSON.parse(formData.audienceQuery || '{"status": "new"}')
         : formData.audienceQuery

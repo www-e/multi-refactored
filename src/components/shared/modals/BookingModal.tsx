@@ -2,6 +2,7 @@
 import { Customer } from '@/app/(shared)/types';
 import { FormField } from './GenericModal';
 import GenericModal from './GenericModal';
+import { mapChannelTypeToEnglish } from '@/lib/statusMapper';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -88,6 +89,7 @@ export default function BookingModal({
   const handleSubmit = async (formData: any) => {
     const processedData = {
       ...formData,
+      source: mapChannelTypeToEnglish(formData.source), // Map Arabic to English for API
       price: Number(formData.price),
       startDate: new Date(formData.startDate).toISOString()
     };

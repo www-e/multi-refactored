@@ -145,7 +145,13 @@ export const postLog = (
   });
 };
 
-export const createBooking = (data: any, token: string): Promise<EnhancedBooking> => {
+export const createBooking = (data: {
+  customerId: string;
+  propertyCode: string;
+  startDate: string;
+  price: number;
+  source: 'voice' | 'chat';
+}, token: string): Promise<EnhancedBooking> => {
   return clientFetch('/bookings', token, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -155,7 +161,12 @@ export const createBooking = (data: any, token: string): Promise<EnhancedBooking
 export const getCampaigns = (token: string): Promise<EnhancedCampaign[]> =>
   clientFetch('/campaigns', token);
 
-export const createCampaign = (data: any, token: string): Promise<EnhancedCampaign> => {
+export const createCampaign = (data: {
+  name: string;
+  type: 'voice' | 'chat';
+  objective: 'bookings' | 'renewals' | 'leadgen' | 'upsell';
+  audienceQuery?: any;
+}, token: string): Promise<EnhancedCampaign> => {
   return clientFetch('/campaigns', token, {
     method: 'POST',
     body: JSON.stringify(data),
