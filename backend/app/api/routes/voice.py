@@ -211,10 +211,10 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
         logger.error(f"Error processing conversation {conversation_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-def verify_elevenlabs_webhook_signature(request: Request, payload: bytes, expected_signature: str) -> bool:
+def verify_elevenlabs_webhook_signature(request: Request, payload: bytes, signature_header: str) -> bool:
     """
     Verify the HMAC signature of an ElevenLabs webhook.
-    Expected signature format: v1=<HMAC-SHA256(sig, secret)>
+    ElevenLabs sends format: t=<timestamp>,v0=<signature>
     """
     webhook_secret = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
     if not webhook_secret:
@@ -222,17 +222,28 @@ def verify_elevenlabs_webhook_signature(request: Request, payload: bytes, expect
         return False
 
     try:
-        # Expected format: v1=signature
-        if expected_signature.startswith("v1="):
-            expected_sig = expected_signature[3:]  # Remove "v1=" prefix
-        else:
-            logger.error(f"Unexpected signature format: {expected_signature}")
+        # Parse the signature header format: "t=timestamp,v0=signature"
+        parts = signature_header.split(',')
+        timestamp = None
+        expected_sig = None
+        
+        for part in parts:
+            if part.startswith('t='):
+                timestamp = part[2:]
+            elif part.startswith('v0='):
+                expected_sig = part[3:]
+        
+        if not expected_sig or not timestamp:
+            logger.error(f"Invalid signature format: {signature_header}")
             return False
 
-        # Calculate HMAC-SHA256 of payload
+        # Construct the signed payload: timestamp.body
+        signed_payload = f"{timestamp}.{payload.decode('utf-8')}"
+        
+        # Calculate HMAC-SHA256
         calculated_sig = hmac.new(
             key=webhook_secret.encode('utf-8'),
-            msg=payload,
+            msg=signed_payload.encode('utf-8'),
             digestmod=hashlib.sha256
         ).hexdigest()
 
@@ -253,10 +264,10 @@ async def handle_elevenlabs_webhook(request: Request):
         # Get the raw body for signature verification
         body = await request.body()
 
-        # Get signature from header
-        signature = request.headers.get("X-Elevenlabs-Hmac-SHA256")
+        # Get signature from header - ElevenLabs uses "Elevenlabs-Signature"
+        signature = request.headers.get("Elevenlabs-Signature") or request.headers.get("X-Elevenlabs-Hmac-SHA256")
         if not signature:
-            logger.warning("Webhook request missing X-Elevenlabs-Hmac-SHA256 header")
+            logger.warning("Webhook request missing Elevenlabs-Signature header")
             raise HTTPException(status_code=401, detail="Missing signature header")
 
         # Verify signature
@@ -268,13 +279,23 @@ async def handle_elevenlabs_webhook(request: Request):
         import json
         payload = json.loads(body.decode('utf-8'))
 
-        # Log the entire payload for debugging
-        logger.info(f"Received ElevenLabs webhook payload: {payload}")
-
-        # Extract conversation data
-        conversation_id = payload.get("conversation_id")
+        # Log the payload keys to understand structure
+        logger.info(f"Received ElevenLabs webhook with keys: {list(payload.keys())}")
+        
+        # Try different possible field names for conversation ID
+        conversation_id = (
+            payload.get("conversation_id") or 
+            payload.get("conversationId") or
+            payload.get("id") or
+            payload.get("call_id") or
+            payload.get("session_id")
+        )
+        
+        # If still not found, log the full payload (excluding large audio data)
         if not conversation_id:
-            logger.error("Webhook payload missing conversation_id")
+            safe_payload = {k: v if not isinstance(v, str) or len(str(v)) < 500 else f"<{len(str(v))} chars>" 
+                           for k, v in payload.items()}
+            logger.error(f"Webhook payload missing conversation_id. Full payload: {safe_payload}")
             raise HTTPException(status_code=400, detail="Missing conversation_id in payload")
 
         # Process the conversation - reuse existing logic
