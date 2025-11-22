@@ -22,6 +22,7 @@ interface AppState {
   properties: Property[];
   // Loading states
   customersLoading: boolean;
+  conversationsLoading: boolean;
   ticketsLoading: boolean;
   bookingsLoading: boolean;
   dashboardLoading: boolean;
@@ -31,11 +32,13 @@ interface AppState {
   liveOps: LiveOps;
   // Actions
   setCustomers: (customers: Customer[]) => void;
+  setConversations: (conversations: Conversation[]) => void;
   setTickets: (tickets: EnhancedTicket[]) => void;
   setBookings: (bookings: EnhancedBooking[]) => void;
   setDashboardData: (data: { kpis: DashboardKPIs, liveOps: LiveOps }) => void;
   setCampaigns: (campaigns: EnhancedCampaign[]) => void;
   setCustomersLoading: (isLoading: boolean) => void;
+  setConversationsLoading: (isLoading: boolean) => void;
   setTicketsLoading: (isLoading: boolean) => void;
   setBookingsLoading: (isLoading: boolean) => void;
   setDashboardLoading: (isLoading: boolean) => void;
@@ -65,6 +68,7 @@ const initialState = {
   campaigns: [],
   properties: [],
   customersLoading: true,
+  conversationsLoading: true,
   ticketsLoading: true,
   bookingsLoading: true,
   dashboardLoading: true,
@@ -86,11 +90,13 @@ export const useAppStore = create<AppState>()(
       ...initialState,
       // --- Setter Actions ---
       setCustomers: (customers) => set({ customers, customersLoading: false }),
+      setConversations: (conversations) => set({ conversations, conversationsLoading: false }),
       setTickets: (tickets) => set({ tickets, ticketsLoading: false }),
       setBookings: (bookings) => set({ bookings, bookingsLoading: false }),
       setDashboardData: (data) => set({ dashboardKPIs: data.kpis, liveOps: data.liveOps, dashboardLoading: false }),
       setCampaigns: (campaigns) => set({ campaigns, campaignsLoading: false }),
       setCustomersLoading: (isLoading) => set({ customersLoading: isLoading }),
+      setConversationsLoading: (isLoading) => set({ conversationsLoading: isLoading }),
       setTicketsLoading: (isLoading) => set({ ticketsLoading: isLoading }),
       setBookingsLoading: (isLoading) => set({ bookingsLoading: isLoading }),
       setDashboardLoading: (isLoading) => set({ dashboardLoading: isLoading }),

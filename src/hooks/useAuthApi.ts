@@ -2,6 +2,7 @@ import { useSession } from 'next-auth/react';
 import { useCallback } from 'react';
 import * as apiClient from '@/lib/apiClient';
 import { Customer } from '@/app/(shared)/types';
+import { mapBookingStatusToEnglish } from '@/lib/statusMapper';
 
 /**
  * Custom hook that provides memoized, authenticated API functions.
@@ -48,6 +49,12 @@ export const useAuthApi = () => {
   const updateBookingStatus = useCallback((id: string, status: 'confirmed' | 'canceled') => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     return apiClient.updateBookingStatus(id, status, accessToken);
+  }, [accessToken]);
+
+  const updateBookingStatusWithMapping = useCallback(async (id: string, status: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    const englishStatus = mapBookingStatusToEnglish(status);
+    return apiClient.updateBookingStatus(id, englishStatus as 'confirmed' | 'canceled', accessToken);
   }, [accessToken]);
   
   const updateTicketStatus = useCallback((id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => {
@@ -118,7 +125,7 @@ const createBooking = useCallback((data: any) => {
   return {
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
-    
+
     getDashboardKpis,
     getTickets,
     getBookings,
@@ -127,6 +134,7 @@ const createBooking = useCallback((data: any) => {
     updateCustomer,
     deleteCustomer,
     updateBookingStatus,
+    updateBookingStatusWithMapping,
     updateTicketStatus,
     createVoiceSession,
     postLog,

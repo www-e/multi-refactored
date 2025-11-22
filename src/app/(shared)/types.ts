@@ -240,6 +240,9 @@ export interface DashboardKPIs {
   csatChange?: number;
   monthlyTarget?: number;
   qualifiedCount?: number;
+  aiAccuracy?: number;
+  complianceRate?: number;
+  qualityScore?: number;
 }
 
 export interface LiveOps {

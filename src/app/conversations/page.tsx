@@ -1,97 +1,158 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Phone, MessageSquare, Search, Filter, Play, Pause, User, Bot, RefreshCw, Volume2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
+import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
-import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 
 export default function ConversationsPage() {
-  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
-  // CORRECTED: Remove call to non-existent refreshAllData
-  const { conversations, customers } = useAppStore();
-  
-  // NOTE: This page does not have its own loading state or data-fetching logic yet.
-  // We will assume for now that the Dashboard has loaded the necessary customer data.
-  // A full implementation would involve fetching conversations here.
+  const { conversations, customers, setCustomers, setCustomersLoading } = useAppStore();
+  const { getCustomers, isAuthenticated } = useAuthApi();
 
-  const customerMap = useMemo(() => 
-    new Map(customers.map(c => [c.id, c.name])),
-    [customers]
-  );
+  // CRITICAL: Fetch Customers to resolve names
+  useEffect(() => {
+    if (isAuthenticated && customers.length === 0) {
+      const fetchData = async () => {
+        try {
+          setCustomersLoading(true);
+          await getCustomers().then(setCustomers);
+        } catch (error) {
+          console.error('Error fetching customers:', error);
+        } finally {
+          setCustomersLoading(false);
+        }
+      };
+      fetchData();
+    }
+  }, [isAuthenticated, getCustomers, setCustomers, setCustomersLoading, customers.length]);
 
-  const filteredConversations = conversations.filter(conv => {
-    const customerName = customerMap.get(conv.customerId) || '';
-    return (
-        conv.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customerName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || 'عميل غير معروف';
+
+  const filteredConversations = conversations.filter(c => {
+    const name = getCustomerName(c.customerId).toLowerCase();
+    return name.includes(searchQuery.toLowerCase()) || c.summary.toLowerCase().includes(searchQuery.toLowerCase());
   });
-  
-  const selectedConv = conversations.find(c => c.id === selectedConvId);
+
+  const selectedConversation = conversations.find(c => c.id === selectedId);
+
+  const handlePlay = (url: string, id: string) => {
+    if (audioRef.current) {
+      if (isPlaying === id) {
+        audioRef.current.pause();
+        setIsPlaying(null);
+      } else {
+        audioRef.current.src = url;
+        audioRef.current.play();
+        setIsPlaying(id);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <PageHeader title="المحادثات" subtitle="إدارة المكالمات والرسائل مع العملاء" />
-        
+        <PageHeader title="المحادثات" subtitle="سجل التواصل مع العملاء">
+            <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => window.location.reload()} />
+        </PageHeader>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <SearchFilterBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchPlaceholder="البحث في المحادثات..."
-              onFilterClick={() => alert('Filter')}
-            />
-            {conversations.length === 0 ? (
-                <Card className="text-center py-12"><p className="text-slate-500">لا توجد محادثات لعرضها.</p></Card>
-            ) : (
-                <div className="space-y-3">
-                {filteredConversations.map(conv => (
-                    <Card
-                    key={conv.id}
-                    onClick={() => setSelectedConvId(conv.id)}
-                    className={`p-4 cursor-pointer transition-all ${selectedConvId === conv.id ? 'ring-2 ring-primary' : ''}`}
-                    >
-                    <div className="flex items-center justify-between">
-                        <div>
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{customerMap.get(conv.customerId) || 'عميل غير معروف'}</h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">{conv.summary}</p>
+            {/* List */}
+            <div className="lg:col-span-1 space-y-4">
+                <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث..." onFilterClick={() => {}} />
+                <div className="space-y-2 h-[600px] overflow-y-auto">
+                    {filteredConversations.map(conv => (
+                        <Card 
+                            key={conv.id} 
+                            className={`p-4 cursor-pointer transition-all hover:shadow-md ${selectedId === conv.id ? 'border-primary ring-1 ring-primary' : ''}`}
+                            onClick={() => setSelectedId(conv.id)}
+                        >
+                            <div className="flex justify-between items-start">
+                                <div className="flex gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${conv.type === 'صوت' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                                        {conv.type === 'صوت' ? <Phone size={18} /> : <MessageSquare size={18} />}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-sm">{getCustomerName(conv.customerId)}</h4>
+                                        <p className="text-xs text-slate-500 line-clamp-1">{conv.summary}</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs text-slate-400">{new Date(conv.createdAt).toLocaleDateString('ar-SA')}</span>
+                            </div>
+                        </Card>
+                    ))}
+                    {filteredConversations.length === 0 && (
+                        <div className="text-center p-8 text-slate-500">لا توجد محادثات</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Detail / Chat View */}
+            <div className="lg:col-span-2">
+                {selectedConversation ? (
+                    <Card className="h-[600px] flex flex-col">
+                        {/* Header */}
+                        <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
+                            <div>
+                                <h3 className="font-bold">{getCustomerName(selectedConversation.customerId)}</h3>
+                                <span className="text-xs text-slate-500">{selectedConversation.id}</span>
+                            </div>
+                            {selectedConversation.recordingUrl && (
+                                <button 
+                                    onClick={() => handlePlay(selectedConversation.recordingUrl!, selectedConversation.id)}
+                                    className="flex items-center gap-2 bg-white dark:bg-slate-700 px-3 py-1 rounded-full text-sm shadow-sm hover:bg-slate-100"
+                                >
+                                    {isPlaying === selectedConversation.id ? <Pause size={14}/> : <Play size={14}/>}
+                                    <span>تسجيل المكالمة</span>
+                                </button>
+                            )}
                         </div>
-                        <StatusBadge status={conv.type} type="icon" />
-                    </div>
+
+                        {/* Chat Area */}
+                        <div 
+                            className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] dark:bg-[#0b141a]"
+                            style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundBlendMode: 'overlay' }}
+                        >
+                            {(!selectedConversation.transcript || selectedConversation.transcript.length === 0) && (
+                                <div className="text-center p-4 text-slate-500 bg-white/80 dark:bg-slate-900/80 rounded-lg">
+                                    لا يوجد نص متوفر لهذه المحادثة
+                                </div>
+                            )}
+                            {selectedConversation.transcript?.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[70%] p-3 rounded-lg text-sm ${
+                                        msg.role === 'user' 
+                                        ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-slate-900 dark:text-white rounded-tl-none' 
+                                        : 'bg-white dark:bg-[#202c33] text-slate-900 dark:text-white rounded-tr-none'
+                                    } shadow-sm`}>
+                                        <p>{msg.text}</p>
+                                        <span className="text-[10px] opacity-50 block text-left mt-1">
+                                            {msg.ts ? new Date(msg.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </Card>
-                ))}
-                </div>
-            )}
-          </div>
-          
-          <div className="hidden lg:block">
-            {selectedConv ? (
-              <Card className="sticky top-6">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">تفاصيل المحادثة</h3>
-                <p><strong>العميل:</strong> {customerMap.get(selectedConv.customerId)}</p>
-                <p><strong>الملخص:</strong> {selectedConv.summary}</p>
-                <div className="mt-4 pt-4 border-t">
-                    <h4 className="font-semibold mb-2">النص الكامل:</h4>
-                    <div className="space-y-2 text-sm max-h-96 overflow-y-auto">
-                        {selectedConv.transcript.map((msg, idx) => (
-                            <p key={idx} className={msg.role === 'user' ? 'text-blue-600' : ''}><strong>{msg.role}:</strong> {msg.text}</p>
-                        ))}
+                ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed">
+                        <div className="text-center">
+                            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                            <p>اختر محادثة لعرض التفاصيل</p>
+                        </div>
                     </div>
-                </div>
-              </Card>
-            ) : (
-                 <Card className="sticky top-6 text-center py-12">
-                    <p className="text-slate-500">اختر محادثة لعرض تفاصيلها</p>
-                </Card>
-            )}
-          </div>
+                )}
+            </div>
         </div>
+        <audio ref={audioRef} onEnded={() => setIsPlaying(null)} className="hidden" />
       </div>
     </div>
   );

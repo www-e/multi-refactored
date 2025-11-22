@@ -1,293 +1,169 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Play, Pause, Eye, RefreshCw, Loader2, Edit, Trash2 } from 'lucide-react';
+
+import { useState, useEffect } from 'react';
+import { Plus, Search, Filter, Play, Pause, MoreVertical, Edit, Eye, RefreshCw, BarChart3 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
-import { EnhancedCampaign } from '@/app/(shared)/types';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
-import { Card, CardHeader } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
-import { Modal } from '@/components/shared/ui/Modal';
+import { Card } from '@/components/shared/ui/Card';
 import CampaignModal from '@/components/shared/modals/CampaignModal';
-import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
-
-function CampaignCard({
-  campaign,
-  onSelect,
-  onEdit,
-  onDelete,
-  onRun,
-  onStop
-}: {
-  campaign: EnhancedCampaign;
-  onSelect: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onRun: (e: React.MouseEvent) => void;
-  onStop: (e: React.MouseEvent) => void;
-}) {
-  const getTypeIcon = (type: string) => (type === 'voice' ? '📞' : '💬');
-
-  return (
-    <Card onClick={onSelect} className="cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all">
-      <CardHeader className="mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{getTypeIcon(campaign.type)}</span>
-          <StatusBadge status={campaign.status as any} />
-        </div>
-      </CardHeader>
-
-      <div className="space-y-3 mb-4">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{campaign.name}</h3>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={campaign.objective as any} />
-          <StatusBadge status={campaign.attribution as any} />
-        </div>
-        <p className="text-sm text-slate-600 dark:text-slate-400 min-h-[40px]">
-          {JSON.stringify(campaign.audienceQuery)}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="text-sm font-semibold text-primary">{campaign.metrics.roas.toFixed(1)}x</div>
-          <div className="text-xs text-slate-500">ROAS</div>
-        </div>
-        <div className="text-center p-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-          <div className="text-sm font-semibold text-emerald-600">{campaign.metrics.revenue.toLocaleString()}</div>
-          <div className="text-xs text-slate-500">ر.س</div>
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
-        {campaign.status === 'نشطة' ? (
-          <ActionButton
-            icon={Pause}
-            label="إيقاف"
-            onClick={onStop}
-            variant="secondary"
-            className="flex-1 bg-warning hover:bg-warning/90 text-sm"
-          />
-        ) : (
-          <ActionButton
-            icon={Play}
-            label="تشغيل"
-            onClick={onRun}
-            variant="primary"
-            className="flex-1 bg-success hover:bg-success/90 text-sm"
-          />
-        )}
-        <ActionButton
-          icon={Eye}
-          label="عرض"
-          onClick={onSelect}
-          variant="secondary"
-          className="flex-1"
-        />
-      </div>
-      <div className="flex gap-2 mt-2">
-        <ActionButton
-          icon={Edit}
-          label="تعديل"
-          onClick={onEdit}
-          variant="secondary"
-          className="flex-1 text-sm"
-        />
-        <ActionButton
-          icon={Trash2}
-          label="حذف"
-          onClick={onDelete}
-          variant="secondary"
-          className="flex-1 text-sm bg-red-600 hover:bg-red-700 text-white"
-        />
-      </div>
-    </Card>
-  );
-}
+import { useModalState } from '@/hooks/useModalState';
+import { mapCampaignStatusToArabic } from '@/lib/statusMapper';
 
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCampaign, setSelectedCampaign] = useState<EnhancedCampaign | null>(null);
-  const [editingCampaign, setEditingCampaign] = useState<EnhancedCampaign | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [campaignToDelete, setCampaignToDelete] = useState<EnhancedCampaign | null>(null);
+  
+  const { campaigns, setCampaigns, setCampaignsLoading, runCampaign, stopCampaign, addCampaign } = useAppStore();
+  const { getCampaigns, createCampaign, updateCampaign, isAuthenticated } = useAuthApi();
+  const { isSubmitting, handleModalSubmit } = useModalState();
 
-  const {
-    campaigns,
-    campaignsLoading,
-    setCampaigns,
-    setCampaignsLoading,
-    addCampaign,
-    removeCampaign,
-    runCampaign,
-    stopCampaign
-  } = useAppStore();
-
-  const { getCampaigns, createCampaign, updateCampaign, deleteCampaign, isAuthenticated } = useAuthApi();
-  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
-
-  const handleRefresh = useCallback(async () => {
+  useEffect(() => {
     if (isAuthenticated) {
-      setCampaignsLoading(true);
-      try {
-        const data = await getCampaigns();
-        setCampaigns(data);
-      } catch (error) {
-        console.error("Failed to refresh campaigns:", error);
-      } finally {
-        setCampaignsLoading(false);
-      }
+      const fetchData = async () => {
+        try {
+          setCampaignsLoading(true);
+          const data = await getCampaigns();
+          setCampaigns(data);
+        } catch (error) {
+          console.error('Error fetching campaigns:', error);
+        } finally {
+          setCampaignsLoading(false);
+        }
+      };
+      fetchData();
     }
   }, [isAuthenticated, getCampaigns, setCampaigns, setCampaignsLoading]);
 
-  useEffect(() => {
-    handleRefresh();
-  }, [handleRefresh]);
-
-  const handleCreateCampaign = async (campaignData: {
-    name: string;
-    type: string;
-    objective: string;
-    audienceQuery?: any;
-  }) => {
-    await handleModalSubmit(
-      async () => {
-        const newCampaign = await createCampaign(campaignData);
-        addCampaign(newCampaign);
-        setIsAddModalOpen(false);
-      },
-      () => setIsAddModalOpen(false)
-    );
-  };
-
-  const handleEditCampaign = async (campaignData: {
-    name: string;
-    type: string;
-    objective: string;
-    audienceQuery?: any;
-  }) => {
-    if (!editingCampaign) return;
-    await handleModalSubmit(
-      async () => {
-        const updatedCampaign = await updateCampaign(editingCampaign.id, campaignData);
-        setCampaigns(campaigns.map(c => c.id === editingCampaign.id ? updatedCampaign : c));
-        setEditingCampaign(null);
-      },
-      () => setEditingCampaign(null)
-    );
-  };
-
-  const handleDeleteCampaign = async () => {
-    if (!campaignToDelete) return;
-    await handleModalSubmit(
-      async () => {
-        await deleteCampaign(campaignToDelete.id);
-        removeCampaign(campaignToDelete.id);
-        setCampaignToDelete(null);
-        setIsDeleteModalOpen(false);
-      },
-      () => {
-        setCampaignToDelete(null);
-        setIsDeleteModalOpen(false);
-      }
-    );
-  };
-
-  const filteredCampaigns = useMemo(
-    () => campaigns.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    [campaigns, searchQuery]
+  const filteredCampaigns = campaigns.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Robust Status Check
+  const isActive = (status: string) => ['active', 'نشطة'].includes(status.toLowerCase());
+
+  const toggleStatus = async (id: string, currentStatus: string) => {
+    const active = isActive(currentStatus);
+    const newStatus = active ? 'paused' : 'active';
+    const action = active ? stopCampaign : runCampaign;
+    
+    try {
+      await updateCampaign(id, { status: newStatus });
+      action(id);
+    } catch (error) {
+      console.error('Toggle failed', error);
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    const t = type.toLowerCase();
+    return t === 'voice' || t === 'صوتية' ? '📞' : '💬';
+  };
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="الحملات التسويقية" subtitle="إدارة الحملات التسويقية وتتبع الأداء">
-          <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
-          <ActionButton icon={Plus} label="حملة جديدة" onClick={() => setIsAddModalOpen(true)} />
+          <div className="flex gap-3">
+            <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => {
+              const fetchData = async () => {
+                try {
+                  setCampaignsLoading(true);
+                  const data = await getCampaigns();
+                  setCampaigns(data);
+                } catch (error) {
+                  console.error('Error refreshing campaigns:', error);
+                } finally {
+                  setCampaignsLoading(false);
+                }
+              };
+              fetchData();
+            }} />
+            <ActionButton icon={Plus} label="حملة جديدة" onClick={() => setIsAddModalOpen(true)} />
+          </div>
         </PageHeader>
 
-        <SearchFilterBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="البحث في الحملات..."
-          onFilterClick={() => alert('Filter clicked')}
+        <SearchFilterBar 
+            searchQuery={searchQuery} 
+            onSearchChange={setSearchQuery} 
+            searchPlaceholder="البحث في الحملات..." 
+            onFilterClick={() => {}} 
         />
 
-        {campaignsLoading ? (
-          <div className="text-center py-12">
-            <Card>
-              <p className="text-slate-500">جاري تحميل الحملات...</p>
-            </Card>
-          </div>
-        ) : campaigns.length === 0 ? (
-          <Card className="text-center py-12">
-            <p className="text-slate-500">لا توجد حملات لعرضها. انقر على "حملة جديدة" للبدء.</p>
-          </Card>
+        {filteredCampaigns.length === 0 ? (
+            <div className="text-center py-16 bg-white/50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+                <BarChart3 className="w-12 h-12 mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-500">لا توجد حملات حالياً</p>
+            </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCampaigns.map((campaign) => (
-              <CampaignCard
-                key={campaign.id}
-                campaign={campaign}
-                onSelect={() => setSelectedCampaign(campaign)}
-                onEdit={() => {
-                  setEditingCampaign(campaign);
-                  setSelectedCampaign(campaign);
-                }}
-                onDelete={() => {
-                  setCampaignToDelete(campaign);
-                  setIsDeleteModalOpen(true);
-                }}
-                onRun={(e) => { e.stopPropagation(); runCampaign(campaign.id); }}
-                onStop={(e) => { e.stopPropagation(); stopCampaign(campaign.id); }}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCampaigns.map(campaign => (
+                <Card key={campaign.id} className="hover:shadow-lg transition-all">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl">{getTypeIcon(campaign.type)}</span>
+                        <StatusBadge status={campaign.status as any} />
+                    </div>
+                    <MoreVertical className="text-slate-400 w-5 h-5" />
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                    <h3 className="text-lg font-bold">{campaign.name}</h3>
+                    <div className="flex gap-2">
+                        <StatusBadge status={campaign.objective as any} />
+                        <StatusBadge status={campaign.attribution as any} />
+                    </div>
+                    <p className="text-sm text-slate-500 line-clamp-2">
+                        {typeof campaign.audienceQuery === 'string' ? campaign.audienceQuery : JSON.stringify(campaign.audienceQuery)}
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <div className="text-sm font-bold">{campaign.metrics.reached}</div>
+                        <div className="text-xs text-slate-500">تم الوصول</div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <div className="text-sm font-bold text-primary">{campaign.metrics.roas}x</div>
+                        <div className="text-xs text-slate-500">ROAS</div>
+                    </div>
+                </div>
+
+                <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <button 
+                        onClick={() => toggleStatus(campaign.id, campaign.status)}
+                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm ${
+                            isActive(campaign.status) 
+                            ? 'bg-warning hover:bg-warning/90' 
+                            : 'bg-success hover:bg-success/90'
+                        }`}
+                    >
+                        {isActive(campaign.status) ? <Pause size={16} /> : <Play size={16} />}
+                        {isActive(campaign.status) ? 'إيقاف' : 'تشغيل'}
+                    </button>
+                    <button className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"><Eye size={18}/></button>
+                </div>
+                </Card>
             ))}
-          </div>
+            </div>
         )}
 
-        <CampaignModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSubmit={handleCreateCampaign}
-          title="إنشاء حملة جديدة"
-          isSubmitting={isSubmitting}
-          error={modalError}
+        <CampaignModal 
+            isOpen={isAddModalOpen} 
+            onClose={() => setIsAddModalOpen(false)} 
+            title="إنشاء حملة جديدة"
+            onSubmit={async (data) => {
+                await handleModalSubmit(async () => {
+                    const res = await createCampaign(data);
+                    addCampaign(res);
+                    setIsAddModalOpen(false);
+                });
+            }}
+            isSubmitting={isSubmitting}
         />
-
-        <CampaignModal
-          isOpen={!!editingCampaign}
-          onClose={() => setEditingCampaign(null)}
-          onSubmit={handleEditCampaign}
-          campaign={editingCampaign}
-          title="تعديل الحملة"
-          isSubmitting={isSubmitting}
-          error={modalError}
-        />
-
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => {
-            setIsDeleteModalOpen(false);
-            setCampaignToDelete(null);
-          }}
-          onConfirm={handleDeleteCampaign}
-          title="حذف الحملة"
-          message="هل أنت متأكد من رغبتك في حذف هذه الحملة؟ لا يمكن التراجع عن هذا الإجراء."
-          itemName={campaignToDelete?.name}
-          isSubmitting={isSubmitting}
-        />
-
-        <Modal isOpen={!!selectedCampaign && !editingCampaign} onClose={() => setSelectedCampaign(null)} title="تفاصيل الحملة">
-          {selectedCampaign && (
-            <div className="space-y-4">
-              {/* Details view for a selected campaign */}
-            </div>
-          )}
-        </Modal>
       </div>
     </div>
   );

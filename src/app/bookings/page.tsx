@@ -1,264 +1,222 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, RefreshCw, Edit, Eye, Trash2 } from 'lucide-react';
+
+import { useState, useEffect } from 'react';
+import {
+  Calendar, Plus, CheckCircle, XCircle,
+  User, Edit, Eye, Trash2, MoreVertical,
+  Phone, Mail, RefreshCw, Search, Filter
+} from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { useModalState } from '@/hooks/useModalState';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
-import { DataTable } from '@/components/shared/data/DataTable';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
-import { Modal } from '@/components/shared/ui/Modal';
+import { Card } from '@/components/shared/ui/Card';
 import BookingModal from '@/components/shared/modals/BookingModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
-import { Card } from '@/components/shared/ui/Card';
-import { EnhancedBooking } from '@/app/(shared)/types';
-import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
+import { useModalState } from '@/hooks/useModalState';
+import { mapBookingStatusToArabic } from '@/lib/statusMapper';
 
 export default function BookingsPage() {
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBooking, setSelectedBooking] = useState<EnhancedBooking | null>(null);
-  const [editingBooking, setEditingBooking] = useState<EnhancedBooking | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [bookingToDelete, setBookingToDelete] = useState<EnhancedBooking | null>(null);
 
-  const { bookings, customers, properties, bookingsLoading, setBookings, setBookingsLoading, removeBooking } = useAppStore();
-  const { getBookings, createBooking, updateBooking, deleteBooking, isAuthenticated } = useAuthApi();
-  const { modalError, isSubmitting, handleModalSubmit } = useModalState();
+  const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking } = useAppStore();
+  const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, createBooking, isAuthenticated } = useAuthApi();
+  const { isSubmitting, handleModalSubmit } = useModalState();
 
-  const handleRefresh = useCallback(async () => {
+  useEffect(() => {
     if (isAuthenticated) {
-      setBookingsLoading(true);
-      try {
-        const data = await getBookings();
-        setBookings(data);
-      } catch (error) {
-        console.error("Failed to refresh bookings:", error);
-      } finally {
-        setBookingsLoading(false);
-      }
+      const fetchData = async () => {
+        try {
+          setBookingsLoading(true);
+          const data = await getBookings();
+          setBookings(data);
+        } catch (error) {
+          console.error('Error fetching bookings:', error);
+        } finally {
+          setBookingsLoading(false);
+        }
+      };
+      fetchData();
     }
   }, [isAuthenticated, getBookings, setBookings, setBookingsLoading]);
 
-  const handleCreateBooking = async (bookingData: {
-    customerId: string;
-    propertyCode: string;
-    startDate: string;
-    price: number;
-    source: string;
-  }) => {
-    await handleModalSubmit(
-      async () => {
-        const newBooking = await createBooking(bookingData);
-        setBookings([...bookings, newBooking]);
-        setIsAddModalOpen(false);
-      },
-      () => setIsAddModalOpen(false)
-    );
-  };
+  // Type-Safe Lookups
+  const getCustomer = (id: string) => customers.find(c => c.id === id);
+  const getProperty = (id: string) => properties.find(p => p.id === id);
 
-  const handleEditBooking = async (bookingData: {
-    customerId: string;
-    propertyCode: string;
-    startDate: string;
-    price: number;
-    source: string;
-  }) => {
-    if (!editingBooking) return;
-    await handleModalSubmit(
-      async () => {
-        const updatedBooking = await updateBooking(editingBooking.id, bookingData);
-        setBookings(bookings.map(b => b.id === editingBooking.id ? updatedBooking : b));
-        setEditingBooking(null);
-      },
-      () => setEditingBooking(null)
-    );
-  };
-
-  const handleDeleteBooking = async () => {
-    if (!bookingToDelete) return;
-    await handleModalSubmit(
-      async () => {
-        await deleteBooking(bookingToDelete.id);
-        removeBooking(bookingToDelete.id);
-        setBookingToDelete(null);
-        setIsDeleteModalOpen(false);
-      },
-      () => {
-        setBookingToDelete(null);
-        setIsDeleteModalOpen(false);
-      }
-    );
-  };
-
-  useEffect(() => {
-    handleRefresh();
-    // PRODUCTION UX: Automatically refresh data when user switches back to this tab
-    window.addEventListener('focus', handleRefresh);
-    return () => {
-      window.removeEventListener('focus', handleRefresh);
-    };
-  }, [handleRefresh]);
-
-  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
-  const propertyMap = useMemo(() => new Map(properties.map(p => [p.id, p])), [properties]);
-
-  const filteredBookings = useMemo(() => bookings.filter(booking => {
+  const filteredBookings = bookings.filter(booking => {
     if (!searchQuery) return true;
-    const customer = customerMap.get(booking.customerId);
-    const property = propertyMap.get(booking.propertyId);
-    const lowerCaseQuery = searchQuery.toLowerCase();
+    const customer = getCustomer(booking.customerId);
+    const property = getProperty(booking.propertyId);
+    const query = searchQuery.toLowerCase();
     return (
-      customer?.name.toLowerCase().includes(lowerCaseQuery) ||
-      customer?.phone.includes(searchQuery) ||
-      (property && property.code.toLowerCase().includes(lowerCaseQuery))
+      customer?.name.toLowerCase().includes(query) ||
+      customer?.phone.includes(query) ||
+      property?.code.toLowerCase().includes(query)
     );
-  }), [bookings, searchQuery, customerMap, propertyMap]);
+  });
 
-  const TABLE_HEADERS = ['العميل', 'العقار', 'التاريخ', 'السعر', 'المصدر', 'الحالة', 'الإجراءات'];
+  // Robust Status Check (Arabic + English)
+  const isPending = (status: string) => ['pending', 'معلق'].includes(status.toLowerCase());
+
+  const pendingBookings = filteredBookings.filter(b => isPending(b.status));
+
+  const handleAction = async (id: string, action: 'confirmed' | 'canceled') => {
+    const arabicStatus = action === 'confirmed' ? 'مؤكد' : 'ملغي';
+    await updateBookingStatus(id, action);
+    updateBookingInStore(id, { status: arabicStatus });
+  };
+
+  const handleActionWithMapping = async (id: string, action: string) => {
+    const arabicStatus = mapBookingStatusToArabic(action);
+    await updateBookingStatusWithMapping(id, action);
+    // Need to cast to the correct type since mapper returns string
+    updateBookingInStore(id, { status: arabicStatus as 'معلق' | 'مؤكد' | 'ملغي' | 'مكتمل' });
+  };
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="الحجوزات والمواعيد" subtitle="إدارة حجوزات العملاء والمواعيد">
-          <ActionButton icon={RefreshCw} label="تحديث" onClick={handleRefresh} variant="secondary" />
-          <ActionButton icon={Plus} label="حجز جديد" onClick={() => setIsAddModalOpen(true)} />
+          <div className="flex gap-3">
+             <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => {
+               const fetchData = async () => {
+                 try {
+                   setBookingsLoading(true);
+                   const data = await getBookings();
+                   setBookings(data);
+                 } catch (error) {
+                   console.error('Error refreshing bookings:', error);
+                 } finally {
+                   setBookingsLoading(false);
+                 }
+               };
+               fetchData();
+             }} />
+             <ActionButton icon={Plus} label="حجز جديد" onClick={() => setIsAddModalOpen(true)} />
+          </div>
         </PageHeader>
-        <SearchFilterBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="البحث في الحجوزات..."
-          onFilterClick={() => alert('Filter clicked')}
-        />
-        <ErrorBoundary>
-          {bookingsLoading ? (
-            <Card className="p-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 dark:bg-slate-800/50">
-                    <tr>
-                      {TABLE_HEADERS.map((header) => (
-                        <th key={header} className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                    {[...Array(5)].map((_, index) => (
-                      <tr key={index}>
-                        <td className="p-4"><div className="h-4 w-24 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-4 w-20 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-4 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-4 w-12 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-5 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-6 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                        <td className="p-4"><div className="h-8 w-16 bg-slate-200/60 dark:bg-slate-700/60 rounded animate-pulse"></div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          ) : (
-            <DataTable headers={TABLE_HEADERS}>
-              {filteredBookings.map((booking) => {
-                const customer = customerMap.get(booking.customerId);
-                const property = propertyMap.get(booking.propertyId);
-                if (!customer || !property) return null;
+
+        {/* Toggle View */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-1 border border-white/20 dark:border-slate-700/20">
+            <button onClick={() => setViewMode('table')} className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'table' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400'}`}>جدول</button>
+            <button onClick={() => setViewMode('calendar')} className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'calendar' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400'}`}>تقويم</button>
+          </div>
+        </div>
+
+        <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="البحث في الحجوزات..." onFilterClick={() => {}} />
+
+        {/* Pending Requests (Only show if they exist) */}
+        {pendingBookings.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">طلبات في انتظار الموافقة ({pendingBookings.length})</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingBookings.map(booking => {
+                const customer = getCustomer(booking.customerId);
+                const property = getProperty(booking.propertyId);
                 return (
-                  <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="p-4">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{customer.name}</div>
-                      <div className="text-sm text-slate-500">{customer.phone}</div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{property.code}</div>
-                      <div className="text-sm text-slate-500">{property.neighborhood}</div>
-                    </td>
-                    <td className="p-4 text-sm text-slate-900 dark:text-slate-100">
-                      {new Date(booking.startDate).toLocaleDateString('ar-SA')}
-                    </td>
-                    <td className="p-4 font-semibold text-primary">{booking.price.toLocaleString()} ر.س</td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={booking.source} type="icon" />
+                  <Card key={booking.id} className="p-4">
+                    <div className="flex justify-between mb-3">
                         <StatusBadge status={booking.createdBy} />
-                      </div>
-                    </td>
-                    <td className="p-4"><StatusBadge status={booking.status} /></td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setSelectedBooking(booking)} className="p-2 text-slate-400 hover:text-primary rounded-lg"><Eye className="w-4 h-4" /></button>
-                        <button
-                          onClick={() => {
-                            setEditingBooking(booking);
-                            setSelectedBooking(booking);
-                          }}
-                          className="p-2 text-slate-400 hover:text-primary rounded-lg"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setBookingToDelete(booking);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-red-600 rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                        <span className="text-xs text-slate-500">{new Date(booking.createdAt).toLocaleDateString('ar-SA')}</span>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                        <h4 className="font-semibold">{customer?.name || 'عميل غير معروف'}</h4>
+                        <p className="text-sm text-slate-600">{property?.code || booking.propertyId || '...'}</p>
+                        <p className="text-lg font-bold text-primary">{booking.price.toLocaleString()} ر.س</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => handleAction(booking.id, 'confirmed')} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
+                        <button onClick={() => handleAction(booking.id, 'canceled')} className="flex-1 bg-destructive text-white p-2 rounded-lg hover:bg-destructive/90 text-sm flex items-center justify-center gap-2"><XCircle size={16}/> رفض</button>
+                    </div>
+                  </Card>
                 );
               })}
-            </DataTable>
-          )}
-        </ErrorBoundary>
-        <Modal isOpen={!!selectedBooking} onClose={() => setSelectedBooking(null)} title="تفاصيل الحجز">
-          {selectedBooking && (
-            <div>
-              <p>العميل: {customerMap.get(selectedBooking.customerId)?.name}</p>
-              <p>العقار: {propertyMap.get(selectedBooking.propertyId)?.code}</p>
-              <p>السعر: {selectedBooking.price.toLocaleString()} ر.س</p>
             </div>
-          )}
-        </Modal>
-        <BookingModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onSubmit={handleCreateBooking}
-          title="إنشاء حجز جديد"
-          customers={customers}
-          isSubmitting={isSubmitting}
-          error={modalError}
-        />
+          </div>
+        )}
+
+        {/* Main Content */}
+        {viewMode === 'table' ? (
+            <Card className="p-0 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-800/50">
+                            <tr>
+                                <th className="text-right p-4">العميل</th>
+                                <th className="text-right p-4">العقار</th>
+                                <th className="text-right p-4">التاريخ</th>
+                                <th className="text-right p-4">السعر</th>
+                                <th className="text-right p-4">المصدر</th>
+                                <th className="text-right p-4">الحالة</th>
+                                <th className="text-right p-4">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {filteredBookings.length === 0 && (
+                                <tr><td colSpan={7} className="p-8 text-center text-slate-500">لا توجد حجوزات لعرضها</td></tr>
+                            )}
+                            {filteredBookings.map(booking => {
+                                const customer = getCustomer(booking.customerId);
+                                const property = getProperty(booking.propertyId);
+                                return (
+                                    <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary"><User size={16}/></div>
+                                                <div>
+                                                    <p className="font-medium">{customer?.name || '...'}</p>
+                                                    <p className="text-xs text-slate-500">{customer?.phone}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <p className="font-medium">{property?.code || '...'}</p>
+                                            <p className="text-xs text-slate-500">{property?.neighborhood}</p>
+                                        </td>
+                                        <td className="p-4 text-sm">{new Date(booking.startDate).toLocaleDateString('ar-SA')}</td>
+                                        <td className="p-4 font-semibold text-primary">{booking.price.toLocaleString()} ر.س</td>
+                                        <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
+                                        <td className="p-4"><StatusBadge status={booking.status} /></td>
+                                        <td className="p-4">
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setSelectedBooking(booking.id)} className="p-2 hover:bg-slate-100 rounded-lg"><Eye size={16}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
+        ) : (
+            <Card className="p-12 text-center">
+                <Calendar className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">عرض التقويم</h3>
+                <p className="text-slate-500">سيتم تفعيل عرض التقويم قريباً</p>
+            </Card>
+        )}
 
         <BookingModal
-          isOpen={!!editingBooking}
-          onClose={() => setEditingBooking(null)}
-          onSubmit={handleEditBooking}
-          booking={editingBooking}
-          title="تعديل الحجز"
-          customers={customers}
-          isSubmitting={isSubmitting}
-          error={modalError}
-        />
-
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => {
-            setIsDeleteModalOpen(false);
-            setBookingToDelete(null);
-          }}
-          onConfirm={handleDeleteBooking}
-          title="حذف الحجز"
-          message="هل أنت متأكد من رغبتك في حذف هذا الحجز؟ لا يمكن التراجع عن هذا الإجراء."
-          itemName={bookingToDelete ? `${bookingToDelete.propertyId} - ${customerMap.get(bookingToDelete.customerId)?.name || 'عميل غير معروف'}` : undefined}
-          isSubmitting={isSubmitting}
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            customers={customers}
+            title="إنشاء حجز جديد"
+            onSubmit={async (data) => {
+                await handleModalSubmit(async () => {
+                    const res = await createBooking(data);
+                    addBooking(res);
+                    setIsAddModalOpen(false);
+                });
+            }}
+            isSubmitting={isSubmitting}
         />
       </div>
     </div>
