@@ -118,7 +118,8 @@ alembic revision --autogenerate -m "Your descriptive message here"
 - `POST /campaigns` - Create a new campaign
 
 ### Voice & AI Integration
-- `POST /elevenlabs/conversation/{conversation_id}/process` - Webhook receiver for ElevenLabs post-call data
+- `POST /elevenlabs/conversation/{conversation_id}/process` - Manual processing of ElevenLabs conversation data
+- `POST /voice/post_call` - Webhook receiver for ElevenLabs post-call data (automatic processing)
 
 ## ElevenLabs Webhook Configuration
 

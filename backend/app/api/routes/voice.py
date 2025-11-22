@@ -2,7 +2,9 @@
 import os
 import logging
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException
+import hashlib
+import hmac
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
@@ -36,7 +38,7 @@ class VoiceSessionResponse(BaseModel):
 def create_voice_session(body: VoiceSessionRequest, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
-        tenant_id="demo-tenant", 
+        tenant_id="demo-tenant",
         customer_id=body.customer_id,
         direction="inbound",
         status="active",
@@ -90,7 +92,7 @@ def _create_booking_from_conversation(db_session: Session, voice_session: models
     preferred_datetime_str = data_collection.get("preferred_datetime", {}).get("value", "")
     if not (preferred_datetime_str and customer_phone):
         return False
-        
+
     existing_booking = db_session.query(models.Booking).filter(models.Booking.session_id == voice_session.id).first()
     if existing_booking:
         return False # Already created
@@ -101,7 +103,7 @@ def _create_booking_from_conversation(db_session: Session, voice_session: models
         project = data_collection.get("project", {}).get("value", "")
 
         customer = _get_or_create_customer(db_session, customer_phone, customer_name)
-        
+
         booking = models.Booking(
             id=generate_id("bk"), tenant_id="demo-tenant", customer_id=customer.id,
             session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
@@ -129,7 +131,7 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
     try:
         customer_name = data_collection.get("customer_name", {}).get("value", "")
         project = data_collection.get("project", {}).get("value", "")
-        
+
         customer = _get_or_create_customer(db_session, customer_phone, customer_name)
 
         ticket = models.Ticket(
@@ -155,7 +157,7 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
             async with http_session.get(url, headers=headers) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail="Failed to fetch conversation from ElevenLabs")
-                
+
                 data = await response.json()
                 # PRODUCTION LOGGING: Log the entire raw payload for debugging
                 logger.info(f"Received ElevenLabs webhook payload for {conversation_id}: {data}")
@@ -168,7 +170,7 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     phone_metadata = data.get("metadata", {}).get("phone_call", {})
                     customer_phone = phone_metadata.get("external_number", "")
                 call_summary = analysis.get("call_summary_title", "")
-                
+
                 voice_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.conversation_id == conversation_id).first()
                 if voice_session:
                     voice_session.summary = call_summary
@@ -199,7 +201,7 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
 
                 db_session.commit()
-                
+
                 return {
                     "status": "success", "conversation_id": conversation_id,
                     "processed": { "intent": intent, "action_type": action_type, "action_taken": action_taken }
@@ -208,3 +210,146 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
         db_session.rollback()
         logger.error(f"Error processing conversation {conversation_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+def verify_elevenlabs_webhook_signature(request: Request, payload: bytes, expected_signature: str) -> bool:
+    """
+    Verify the HMAC signature of an ElevenLabs webhook.
+    Expected signature format: v1=<HMAC-SHA256(sig, secret)>
+    """
+    webhook_secret = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
+    if not webhook_secret:
+        logger.error("ELEVENLABS_WEBHOOK_SECRET not configured")
+        return False
+
+    try:
+        # Expected format: v1=signature
+        if expected_signature.startswith("v1="):
+            expected_sig = expected_signature[3:]  # Remove "v1=" prefix
+        else:
+            logger.error(f"Unexpected signature format: {expected_signature}")
+            return False
+
+        # Calculate HMAC-SHA256 of payload
+        calculated_sig = hmac.new(
+            key=webhook_secret.encode('utf-8'),
+            msg=payload,
+            digestmod=hashlib.sha256
+        ).hexdigest()
+
+        # Compare signatures securely
+        return hmac.compare_digest(calculated_sig, expected_sig)
+    except Exception as e:
+        logger.error(f"Error verifying webhook signature: {e}")
+        return False
+
+@router.post("/voice/post_call")
+async def handle_elevenlabs_webhook(request: Request):
+    """
+    Webhook endpoint for ElevenLabs post-call data.
+    Receives webhook calls from ElevenLabs after conversation ends.
+    """
+    from app.api.deps import get_session  # Import here to avoid circular dependencies
+    try:
+        # Get the raw body for signature verification
+        body = await request.body()
+
+        # Get signature from header
+        signature = request.headers.get("X-Elevenlabs-Hmac-SHA256")
+        if not signature:
+            logger.warning("Webhook request missing X-Elevenlabs-Hmac-SHA256 header")
+            raise HTTPException(status_code=401, detail="Missing signature header")
+
+        # Verify signature
+        if not verify_elevenlabs_webhook_signature(request, body, signature):
+            logger.error("Webhook signature verification failed")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+
+        # Parse the JSON payload
+        import json
+        payload = json.loads(body.decode('utf-8'))
+
+        # Log the entire payload for debugging
+        logger.info(f"Received ElevenLabs webhook payload: {payload}")
+
+        # Extract conversation data
+        conversation_id = payload.get("conversation_id")
+        if not conversation_id:
+            logger.error("Webhook payload missing conversation_id")
+            raise HTTPException(status_code=400, detail="Missing conversation_id in payload")
+
+        # Process the conversation - reuse existing logic
+        headers = get_elevenlabs_headers()
+        url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    logger.error(f"Failed to fetch conversation {conversation_id} from ElevenLabs: {response.status}")
+                    raise HTTPException(status_code=500, detail="Failed to fetch conversation from ElevenLabs")
+
+                data = await response.json()
+
+                # Process the conversation data using existing logic
+                db_session = next(get_session())
+                try:
+                    analysis = data.get("analysis", {})
+                    data_collection = analysis.get("data_collection_results", {})
+                    intent = data_collection.get("extracted_intent", {}).get("value", "unknown_intent")
+                    customer_phone = data_collection.get("phone", {}).get("value", "")
+                    if not customer_phone:
+                        phone_metadata = data.get("metadata", {}).get("phone_call", {})
+                        customer_phone = phone_metadata.get("external_number", "")
+                    call_summary = analysis.get("call_summary_title", "")
+
+                    voice_session = db_session.query(models.VoiceSession).filter(
+                        models.VoiceSession.conversation_id == conversation_id
+                    ).first()
+                    if voice_session:
+                        voice_session.summary = call_summary
+                        voice_session.extracted_intent = intent
+                        voice_session.customer_phone = customer_phone
+                        voice_session.status = models.VoiceSessionStatus.COMPLETED
+                    else:
+                        voice_session = models.VoiceSession(
+                            id=generate_id("vs"), tenant_id="demo-tenant", customer_id=f"customer_{conversation_id}",
+                            conversation_id=conversation_id, agent_id=data.get("agent_id", ""),
+                            customer_phone=customer_phone, summary=call_summary, extracted_intent=intent,
+                            status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.utcnow()
+                        )
+                        db_session.add(voice_session)
+                    db_session.flush()
+
+                    action_taken = False
+                    action_type = "none"
+
+                    if intent == "book_appointment":
+                        action_taken = _create_booking_from_conversation(db_session, voice_session, data_collection)
+                        action_type = "booking"
+                    elif intent == "raise_ticket":
+                        action_taken = _create_ticket_from_conversation(db_session, voice_session, data_collection)
+                        action_type = "ticket"
+                    else:
+                        # Log unhandled intents to diagnose mismatches
+                        logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
+
+                    db_session.commit()
+
+                    return {
+                        "status": "success",
+                        "conversation_id": conversation_id,
+                        "processed": {
+                            "intent": intent,
+                            "action_type": action_type,
+                            "action_taken": action_taken
+                        }
+                    }
+                except Exception as e:
+                    db_session.rollback()
+                    logger.error(f"Error processing webhook for conversation {conversation_id}: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail=str(e))
+                finally:
+                    db_session.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing ElevenLabs webhook: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error processing webhook")
