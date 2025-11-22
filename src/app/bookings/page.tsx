@@ -23,9 +23,13 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<{ id: string; customerName: string } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [bookingToEdit, setBookingToEdit] = useState<any>(null);
 
   const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking } = useAppStore();
-  const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, createBooking, isAuthenticated } = useAuthApi();
+  const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   useEffect(() => {
@@ -44,6 +48,31 @@ export default function BookingsPage() {
       fetchData();
     }
   }, [isAuthenticated, getBookings, setBookings, setBookingsLoading]);
+
+  const handleEditBooking = (booking: any) => {
+    setBookingToEdit(booking);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteBooking = (booking: { id: string; customerName: string }) => {
+    setBookingToDelete(booking);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+
+    try {
+      await deleteBooking(bookingToDelete.id);
+      // Update the store to remove the booking
+      setBookings(prev => prev.filter(b => b.id !== bookingToDelete.id));
+      setIsDeleteModalOpen(false);
+      setBookingToDelete(null);
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      alert('فشل حذف الحجز. يرجى المحاولة مرة أخرى.');
+    }
+  };
 
   // Type-Safe Lookups
   const getCustomer = (id: string) => customers.find(c => c.id === id);
@@ -187,6 +216,8 @@ export default function BookingsPage() {
                                         <td className="p-4">
                                             <div className="flex gap-2">
                                                 <button onClick={() => setSelectedBooking(booking.id)} className="p-2 hover:bg-slate-100 rounded-lg"><Eye size={16}/></button>
+                                                <button onClick={() => handleEditBooking(booking)} className="p-2 hover:bg-slate-100 rounded-lg"><Edit size={16}/></button>
+                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customer?.name || booking.customerName || 'عميل'})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -216,6 +247,38 @@ export default function BookingsPage() {
                     setIsAddModalOpen(false);
                 });
             }}
+            isSubmitting={isSubmitting}
+        />
+
+        <BookingModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setBookingToEdit(null);
+            }}
+            title="تعديل الحجز"
+            booking={bookingToEdit}
+            customers={customers}
+            onSubmit={async (data) => {
+                if (!bookingToEdit) return;
+                await handleModalSubmit(async () => {
+                    const res = await updateBooking(bookingToEdit.id, data);
+                    // Update the booking in the store
+                    setBookings(prev => prev.map(b => b.id === bookingToEdit.id ? res : b));
+                    setIsEditModalOpen(false);
+                    setBookingToEdit(null);
+                });
+            }}
+            isSubmitting={isSubmitting}
+        />
+
+        <DeleteConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={confirmDeleteBooking}
+            title="حذف الحجز"
+            message={`هل أنت متأكد من رغبتك في حذف الحجز للعميل "${bookingToDelete?.customerName}"؟`}
+            itemName={bookingToDelete?.customerName}
             isSubmitting={isSubmitting}
         />
       </div>

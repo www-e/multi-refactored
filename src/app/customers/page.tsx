@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw } from 'lucide-react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -10,14 +10,24 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
+import CustomerChatModal from '@/components/shared/modals/CustomerChatModal';
+import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
+  const [customerToEdit, setCustomerToEdit] = useState<any>(null);
+
   const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, conversations, addCustomer } = useAppStore();
-  const { getCustomers, getTickets, getBookings, createCustomer, isAuthenticated } = useAuthApi();
+  const { getCustomers, getTickets, getBookings, createCustomer, updateCustomer, deleteCustomer, makeCall, makeBulkCalls, sendCustomerMessage, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   // CRITICAL: Fetch ALL data to ensure stats are correct on this page
@@ -51,39 +61,168 @@ export default function CustomersPage() {
     };
   };
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const toggleCustomerSelection = (customerId: string) => {
+    setSelectedCustomerIds(prev =>
+      prev.includes(customerId)
+        ? prev.filter(id => id !== customerId)
+        : [...prev, customerId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCustomerIds.length === filteredCustomers.length) {
+      setSelectedCustomerIds([]);
+    } else {
+      setSelectedCustomerIds(filteredCustomers.map(c => c.id));
+    }
+  };
+
+  const handleBulkCall = async () => {
+    if (selectedCustomerIds.length === 0) return;
+
+    if (confirm(`هل ترغب في الاتصال بـ ${selectedCustomerIds.length} عميل؟`)) {
+      try {
+        const result = await makeBulkCalls(selectedCustomerIds);
+        alert(`تم بدء الاتصال الجماعي. ${result.initiated_calls} من ${result.created_calls} تم البدء بها.`);
+        // Reset selection after successful bulk operation
+        setSelectedCustomerIds([]);
+        setIsSelectMode(false);
+      } catch (error) {
+        console.error('Error making bulk calls:', error);
+        alert('فشل في بدء الاتصال الجماعي. يرجى المحاولة مرة أخرى.');
+      }
+    }
+  };
+
+  const handleBulkMessage = () => {
+    if (selectedCustomerIds.length === 0) return;
+
+    if (confirm(`هل ترغب في إرسال رسالة جماعية إلى ${selectedCustomerIds.length} عميل؟`)) {
+      // In a real implementation, this would trigger bulk messaging via service
+      alert('تم بدء المراسلة الجماعية. في الإصدار المنتج، سيتم استخدام خدمة المراسلة الجماعية.');
+      // Reset selection after operation
+      setSelectedCustomerIds([]);
+      setIsSelectMode(false);
+    }
+  };
+
+  const filteredCustomers = customers.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.phone.includes(searchQuery)
   );
+
+  const handleCustomerCall = async (phone: string, customerId: string) => {
+    // Confirm with user before making call
+    if (confirm(`هل ترغب في الاتصال بالعميل على الرقم ${phone}?`)) {
+      try {
+        const result = await makeCall({ customer_id: customerId, phone });
+        alert(`تم بدء الاتصال بالعميل. الحالة: ${result.status}`);
+      } catch (error) {
+        console.error('Error making call:', error);
+        alert('فشل في الاتصال بالعميل. يرجى المحاولة مرة أخرى.');
+      }
+    }
+  };
+
+  const handleCustomerMessage = (customerId: string, customerName: string, customerPhone: string, customerEmail?: string) => {
+    // Set the selected customer and open the chat modal
+    setSelectedCustomer({
+      id: customerId,
+      name: customerName,
+      phone: customerPhone,
+      email: customerEmail
+    });
+    setIsChatModalOpen(true);
+  };
+
+  const handleDeleteCustomer = (customer: { id: string; name: string }) => {
+    setCustomerToDelete(customer);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+
+    try {
+      await deleteCustomer(customerToDelete.id);
+      // Update the store to remove the customer
+      setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+      setIsDeleteModalOpen(false);
+      setCustomerToDelete(null);
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      alert('فشل حذف العميل. يرجى المحاولة مرة أخرى.');
+    }
+  };
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="العملاء" subtitle="قاعدة بيانات العملاء">
             <div className="flex gap-3">
-                <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => {
-                  const fetchData = async () => {
-                    try {
-                      setCustomersLoading(true);
-                      const data = await getCustomers();
-                      setCustomers(data);
-                    } catch (error) {
-                      console.error('Error refreshing customers:', error);
-                    } finally {
-                      setCustomersLoading(false);
-                    }
-                  };
-                  fetchData();
-                }} />
-                <ActionButton icon={Plus} label="عميل جديد" onClick={() => setIsAddModalOpen(true)} />
+                {isSelectMode ? (
+                    <>
+                        <ActionButton
+                            icon={PhoneCall}
+                            label={`اتصال (${selectedCustomerIds.length})`}
+                            onClick={handleBulkCall}
+                            disabled={selectedCustomerIds.length === 0}
+                        />
+                        <ActionButton
+                            icon={MessageSquare}
+                            label={`رسالة (${selectedCustomerIds.length})`}
+                            onClick={handleBulkMessage}
+                            disabled={selectedCustomerIds.length === 0}
+                        />
+                        <ActionButton
+                            icon={User}
+                            label="تحديد الكل"
+                            variant="secondary"
+                            onClick={toggleSelectAll}
+                        />
+                        <ActionButton
+                            icon={X}
+                            label="إلغاء التحديد"
+                            variant="secondary"
+                            onClick={() => {
+                                setSelectedCustomerIds([]);
+                                setIsSelectMode(false);
+                            }}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => {
+                          const fetchData = async () => {
+                            try {
+                              setCustomersLoading(true);
+                              const data = await getCustomers();
+                              setCustomers(data);
+                            } catch (error) {
+                              console.error('Error refreshing customers:', error);
+                            } finally {
+                              setCustomersLoading(false);
+                            }
+                          };
+                          fetchData();
+                        }} />
+                        <ActionButton
+                            icon={User}
+                            label="تحديد العملاء"
+                            variant="secondary"
+                            onClick={() => setIsSelectMode(true)}
+                        />
+                        <ActionButton icon={Plus} label="عميل جديد" onClick={() => setIsAddModalOpen(true)} />
+                    </>
+                )}
             </div>
         </PageHeader>
 
-        <SearchFilterBar 
-            searchQuery={searchQuery} 
-            onSearchChange={setSearchQuery} 
-            searchPlaceholder="بحث بالاسم أو الهاتف..." 
-            onFilterClick={() => {}} 
+        <SearchFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="بحث بالاسم أو الهاتف..."
+            onFilterClick={() => {}}
         />
 
         {filteredCustomers.length === 0 ? (
@@ -95,15 +234,32 @@ export default function CustomersPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredCustomers.map(customer => {
                     const stats = getCustomerStats(customer.id);
+                    const isSelected = selectedCustomerIds.includes(customer.id);
                     return (
-                        <Card key={customer.id} className="hover:shadow-xl transition-all">
-                            <div className="flex justify-between items-start mb-4">
+                        <Card
+                            key={customer.id}
+                            className={`hover:shadow-xl transition-all ${isSelected ? 'ring-2 ring-primary bg-primary/10' : ''}`}
+                        >
+                            <div className="flex justify-between items-start mb-4 relative">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xl">
                                     {customer.name.charAt(0)}
                                 </div>
+                                {isSelectMode && (
+                                    <button
+                                        onClick={() => toggleCustomerSelection(customer.id)}
+                                        className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border flex items-center justify-center ${
+                                            isSelected
+                                                ? 'bg-primary border-primary text-white'
+                                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                        }`}
+                                        aria-label={isSelected ? `إلغاء تحديد ${customer.name}` : `تحديد ${customer.name}`}
+                                    >
+                                        {isSelected && <Check size={14} />}
+                                    </button>
+                                )}
                                 <StatusBadge status={customer.stage as any || 'جديد'} />
                             </div>
-                            
+
                             <h3 className="text-lg font-bold mb-1">{customer.name}</h3>
                             <div className="text-sm text-slate-500 space-y-1 mb-4">
                                 <div className="flex items-center gap-2"><Phone size={14}/> {customer.phone}</div>
@@ -126,12 +282,37 @@ export default function CustomersPage() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-2">
-                                <button className="flex-1 bg-primary text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-primary/90">
-                                    <PhoneCall size={16} /> اتصال
+                            <div className="flex gap-1">
+                                <button
+                                    className="flex-1 bg-primary text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-primary/90"
+                                    onClick={() => handleCustomerCall(customer.phone, customer.id)}
+                                    aria-label={`اتصال بـ ${customer.name}`}
+                                >
+                                    <PhoneCall size={14} /> اتصال
                                 </button>
-                                <button className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-slate-200">
-                                    <MessageSquare size={16} /> رسالة
+                                <button
+                                    className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-slate-200"
+                                    onClick={() => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email)}
+                                    aria-label={`مراسلة ${customer.name}`}
+                                >
+                                    <MessageSquare size={14} /> رسالة
+                                </button>
+                                <button
+                                    className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-slate-200"
+                                    onClick={() => {
+                                      setCustomerToEdit(customer);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    aria-label={`تعديل ${customer.name}`}
+                                >
+                                    <Edit size={14} /> تعديل
+                                </button>
+                                <button
+                                    className="bg-destructive text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-destructive/90"
+                                    onClick={() => handleDeleteCustomer({id: customer.id, name: customer.name})}
+                                    aria-label={`حذف ${customer.name}`}
+                                >
+                                    <Trash2 size={14} /> حذف
                                 </button>
                             </div>
                         </Card>
@@ -140,7 +321,7 @@ export default function CustomersPage() {
             </div>
         )}
 
-        <CustomerModal 
+        <CustomerModal
             isOpen={isAddModalOpen}
             onClose={() => setIsAddModalOpen(false)}
             title="إضافة عميل"
@@ -154,6 +335,46 @@ export default function CustomersPage() {
             }}
             isSubmitting={isSubmitting}
         />
+
+        <CustomerModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setCustomerToEdit(null);
+            }}
+            title="تعديل العميل"
+            customers={customers}
+            customer={customerToEdit}
+            onSubmit={async (data) => {
+                if (!customerToEdit) return;
+                await handleModalSubmit(async () => {
+                    const res = await updateCustomer(customerToEdit.id, data);
+                    // Update the customer in the store
+                    setCustomers(prev => prev.map(c => c.id === customerToEdit.id ? res : c));
+                    setIsEditModalOpen(false);
+                    setCustomerToEdit(null);
+                });
+            }}
+            isSubmitting={isSubmitting}
+        />
+
+        <DeleteConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={confirmDeleteCustomer}
+            title="حذف العميل"
+            message={`هل أنت متأكد من رغبتك في حذف العميل "${customerToDelete?.name}"؟`}
+            itemName={customerToDelete?.name}
+            isSubmitting={isSubmitting}
+        />
+
+        {selectedCustomer && (
+          <CustomerChatModal
+            isOpen={isChatModalOpen}
+            onClose={() => setIsChatModalOpen(false)}
+            customer={selectedCustomer}
+          />
+        )}
       </div>
     </div>
   );

@@ -272,3 +272,70 @@ export const deleteTicket = (
     method: 'DELETE',
   });
 };
+
+export const makeCall = (
+  data: {
+    customer_id: string;
+    phone: string;
+    direction?: string;
+    agent_type?: string;
+    campaign_id?: string;
+  },
+  token: string
+): Promise<any> => {
+  return clientFetch('/calls', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const makeBulkCalls = (
+  customer_ids: string[],
+  token: string
+): Promise<any> => {
+  return clientFetch('/calls/bulk', token, {
+    method: 'POST',
+    body: JSON.stringify({ customer_ids }),
+  });
+};
+
+export const sendCustomerMessage = (
+  data: {
+    customer_id: string;
+    message: string;
+    channel?: string;
+  },
+  token: string
+): Promise<any> => {
+  return clientFetch('/chat/customer', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const getConversations = (token: string): Promise<any[]> => {
+  return clientFetch('/conversations', token).then(convs =>
+    convs.map((conv: any) => ({
+      ...conv,
+      customerId: conv.customer_id,  // Convert snake_case to camelCase
+      type: conv.channel === 'voice' ? 'صوت' : 'رسالة', // Map channel to Arabic type
+      createdAt: conv.created_at,
+      // Add other fields as needed to match the Conversation interface
+      transcript: conv.transcript || [],
+      entities: conv.entities || {},
+      sentiment: conv.sentiment || 'محايد',
+      recordingUrl: conv.recording_url,
+      status: conv.status || 'مفتوحة',
+      assignedTo: conv.assigned_to,
+      updatedAt: conv.updated_at || conv.created_at
+    }))
+  );
+};
+
+export const getCalls = (token: string): Promise<any[]> => {
+  return clientFetch('/calls', token);
+};
+
+export const getCall = (id: string, token: string): Promise<any> => {
+  return clientFetch(`/calls/${id}`, token);
+};

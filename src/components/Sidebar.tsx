@@ -38,6 +38,12 @@ const navigation = [
     description: 'إدارة المكالمات والرسائل'
   },
   {
+    name: 'المكالمات',
+    href: '/calls',
+    icon: Phone,
+    description: 'سجل المكالمات الصادرة والواردة'
+  },
+  {
     name: 'التذاكر',
     href: '/tickets',
     icon: Ticket,

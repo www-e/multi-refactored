@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Play, Pause, MoreVertical, Edit, Eye, RefreshCw, BarChart3 } from 'lucide-react';
+import { Plus, Search, Filter, Play, Pause, MoreVertical, Edit, Eye, RefreshCw, BarChart3, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -10,15 +10,20 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Card } from '@/components/shared/ui/Card';
 import CampaignModal from '@/components/shared/modals/CampaignModal';
+import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import { mapCampaignStatusToArabic } from '@/lib/statusMapper';
 
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [campaignToEdit, setCampaignToEdit] = useState<any>(null);
+  const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
+
   const { campaigns, setCampaigns, setCampaignsLoading, runCampaign, stopCampaign, addCampaign } = useAppStore();
-  const { getCampaigns, createCampaign, updateCampaign, isAuthenticated } = useAuthApi();
+  const { getCampaigns, createCampaign, updateCampaign, deleteCampaign, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   useEffect(() => {
@@ -44,6 +49,31 @@ export default function CampaignsPage() {
 
   // Robust Status Check
   const isActive = (status: string) => ['active', 'نشطة'].includes(status.toLowerCase());
+
+  const handleEditCampaign = (campaign: any) => {
+    setCampaignToEdit(campaign);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteCampaign = (campaign: any) => {
+    setCampaignToDelete(campaign);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteCampaign = async () => {
+    if (!campaignToDelete) return;
+
+    try {
+      await deleteCampaign(campaignToDelete.id);
+      // Update the store to remove the campaign
+      setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id));
+      setIsDeleteModalOpen(false);
+      setCampaignToDelete(null);
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      alert('فشل حذف الحملة. يرجى المحاولة مرة أخرى.');
+    }
+  };
 
   const toggleStatus = async (id: string, currentStatus: string) => {
     const active = isActive(currentStatus);
@@ -132,28 +162,41 @@ export default function CampaignsPage() {
                     </div>
                 </div>
 
-                <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <button 
+                <div className="flex gap-1 pt-4 border-t border-slate-100 dark:border-slate-700">
+                    <button
                         onClick={() => toggleStatus(campaign.id, campaign.status)}
                         className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm ${
-                            isActive(campaign.status) 
-                            ? 'bg-warning hover:bg-warning/90' 
+                            isActive(campaign.status)
+                            ? 'bg-warning hover:bg-warning/90'
                             : 'bg-success hover:bg-success/90'
                         }`}
                     >
                         {isActive(campaign.status) ? <Pause size={16} /> : <Play size={16} />}
                         {isActive(campaign.status) ? 'إيقاف' : 'تشغيل'}
                     </button>
-                    <button className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"><Eye size={18}/></button>
+                    <button
+                        onClick={() => handleEditCampaign(campaign)}
+                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
+                        title="تعديل"
+                    >
+                        <Edit size={18}/>
+                    </button>
+                    <button
+                        onClick={() => handleDeleteCampaign(campaign)}
+                        className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200"
+                        title="حذف"
+                    >
+                        <Trash2 size={18}/>
+                    </button>
                 </div>
                 </Card>
             ))}
             </div>
         )}
 
-        <CampaignModal 
-            isOpen={isAddModalOpen} 
-            onClose={() => setIsAddModalOpen(false)} 
+        <CampaignModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
             title="إنشاء حملة جديدة"
             onSubmit={async (data) => {
                 await handleModalSubmit(async () => {
@@ -162,6 +205,37 @@ export default function CampaignsPage() {
                     setIsAddModalOpen(false);
                 });
             }}
+            isSubmitting={isSubmitting}
+        />
+
+        <CampaignModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setCampaignToEdit(null);
+            }}
+            title="تعديل الحملة"
+            campaign={campaignToEdit}
+            onSubmit={async (data) => {
+                if (!campaignToEdit) return;
+                await handleModalSubmit(async () => {
+                    const res = await updateCampaign(campaignToEdit.id, data);
+                    // Update the campaign in the store
+                    setCampaigns(prev => prev.map(c => c.id === campaignToEdit.id ? res : c));
+                    setIsEditModalOpen(false);
+                    setCampaignToEdit(null);
+                });
+            }}
+            isSubmitting={isSubmitting}
+        />
+
+        <DeleteConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={confirmDeleteCampaign}
+            title="حذف الحملة"
+            message={`هل أنت متأكد من رغبتك في حذف الحملة "${campaignToDelete?.name}"؟`}
+            itemName={campaignToDelete?.name}
             isSubmitting={isSubmitting}
         />
       </div>

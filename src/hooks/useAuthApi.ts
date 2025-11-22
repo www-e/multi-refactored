@@ -122,6 +122,36 @@ const createBooking = useCallback((data: any) => {
     return apiClient.deleteTicket(id, accessToken);
   }, [accessToken]);
 
+  const makeCall = useCallback((data: { customer_id: string; phone: string; direction?: string; agent_type?: string; campaign_id?: string; }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.makeCall(data, accessToken);
+  }, [accessToken]);
+
+  const makeBulkCalls = useCallback((customer_ids: string[]) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.makeBulkCalls(customer_ids, accessToken);
+  }, [accessToken]);
+
+  const sendCustomerMessage = useCallback((data: { customer_id: string; message: string; channel?: string; }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.sendCustomerMessage(data, accessToken);
+  }, [accessToken]);
+
+  const getConversations = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getConversations(accessToken);
+  }, [accessToken]);
+
+  const getCalls = useCallback(() => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getCalls(accessToken);
+  }, [accessToken]);
+
+  const getCall = useCallback((id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    return apiClient.getCall(id, accessToken);
+  }, [accessToken]);
+
   return {
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
@@ -148,5 +178,11 @@ const createBooking = useCallback((data: any) => {
     updateTicket,
     deleteBooking,
     deleteTicket,
+    makeCall,
+    makeBulkCalls,
+    sendCustomerMessage,
+    getConversations,
+    getCalls,
+    getCall,
   };
 };

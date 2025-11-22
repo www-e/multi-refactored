@@ -18,10 +18,12 @@ export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<any>(null);
-  
+  const [ticketToEdit, setTicketToEdit] = useState<any>(null);
+
   const { tickets, setTickets, setTicketsLoading, customers, setCustomers, addTicket, removeTicket, updateTicket: updateTicketInStore } = useAppStore();
-  const { getTickets, getCustomers, createTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
+  const { getTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   // CRITICAL FIX: Fetch Customers AND Tickets
@@ -45,7 +47,12 @@ export default function TicketsPage() {
   }, [isAuthenticated, getTickets, setTickets, getCustomers, setCustomers, setTicketsLoading]);
 
   const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || 'Unknown';
-  
+
+  const handleEditTicket = (ticket: any) => {
+    setTicketToEdit(ticket);
+    setIsEditModalOpen(true);
+  };
+
   const columns = [
     { id: 'open', label: 'مفتوحة', color: 'bg-blue-500' },
     { id: 'in_progress', label: 'قيد المعالجة', color: 'bg-yellow-500' },
@@ -133,6 +140,9 @@ export default function TicketsPage() {
                                                 <button onClick={(e) => { e.stopPropagation(); setTicketToDelete(ticket); setIsDeleteModalOpen(true); }} className="p-1 hover:bg-red-50 rounded">
                                                     <Trash2 size={14} className="text-slate-400 hover:text-red-500" />
                                                 </button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleEditTicket(ticket); }} className="p-1 hover:bg-slate-100 rounded">
+                                                    <Edit size={14} className="text-slate-400 hover:text-primary" />
+                                                </button>
                                             </div>
                                         </div>
                                         <h4 className="font-semibold text-sm mb-1">{customerName}</h4>
@@ -171,20 +181,48 @@ export default function TicketsPage() {
             isSubmitting={isSubmitting}
         />
 
+        <TicketModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setTicketToEdit(null);
+            }}
+            title="تعديل التذكرة"
+            customers={customers}
+            ticket={ticketToEdit}
+            onSubmit={async (data) => {
+                if (!ticketToEdit) return;
+                await handleModalSubmit(async () => {
+                    const res = await updateTicket(ticketToEdit.id, data);
+                    // Update the ticket in the store
+                    setTickets(prev => prev.map(t => t.id === ticketToEdit.id ? res : t));
+                    setIsEditModalOpen(false);
+                    setTicketToEdit(null);
+                });
+            }}
+            isSubmitting={isSubmitting}
+        />
+
         <DeleteConfirmModal
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
-            title="حذف التذكرة"
-            message="هل أنت متأكد؟"
             onConfirm={async () => {
-                if (ticketToDelete) {
-                    await handleModalSubmit(async () => {
-                        await deleteTicket(ticketToDelete.id);
-                        removeTicket(ticketToDelete.id);
-                        setIsDeleteModalOpen(false);
-                    });
-                }
+              if (!ticketToDelete) return;
+
+              try {
+                await deleteTicket(ticketToDelete.id);
+                // Update the store to remove the ticket
+                setTickets(prev => prev.filter(t => t.id !== ticketToDelete.id));
+                setIsDeleteModalOpen(false);
+                setTicketToDelete(null);
+              } catch (error) {
+                console.error('Error deleting ticket:', error);
+                alert('فشل حذف التذكرة. يرجى المحاولة مرة أخرى.');
+              }
             }}
+            title="حذف التذكرة"
+            message={`هل أنت متأكد من رغبتك في حذف التذكرة للعميل "${getCustomerName(ticketToDelete?.customerId) || ticketToDelete?.customerName || 'عميل'}"؟`}
+            itemName={getCustomerName(ticketToDelete?.customerId) || ticketToDelete?.customerName || 'تذكرة'}
             isSubmitting={isSubmitting}
         />
       </div>

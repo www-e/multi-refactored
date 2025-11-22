@@ -15,25 +15,35 @@ export default function ConversationsPage() {
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const { conversations, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getCustomers, isAuthenticated } = useAuthApi();
+  const { conversations, setConversations, setConversationsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
+  const { getConversations, getCustomers, isAuthenticated } = useAuthApi();
 
-  // CRITICAL: Fetch Customers to resolve names
+  // CRITICAL: Fetch Customers and Conversations
   useEffect(() => {
-    if (isAuthenticated && customers.length === 0) {
+    if (isAuthenticated) {
       const fetchData = async () => {
         try {
+          // Fetch both customers and conversations
+          setConversationsLoading(true);
           setCustomersLoading(true);
-          await getCustomers().then(setCustomers);
+
+          const [conversationsData, customersData] = await Promise.all([
+            getConversations(),
+            getCustomers()
+          ]);
+
+          setConversations(conversationsData);
+          setCustomers(customersData);
         } catch (error) {
-          console.error('Error fetching customers:', error);
+          console.error('Error fetching conversations and customers:', error);
         } finally {
+          setConversationsLoading(false);
           setCustomersLoading(false);
         }
       };
       fetchData();
     }
-  }, [isAuthenticated, getCustomers, setCustomers, setCustomersLoading, customers.length]);
+  }, [isAuthenticated, getConversations, getCustomers, setConversations, setCustomers, setConversationsLoading, setCustomersLoading]);
 
   const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || 'عميل غير معروف';
 
@@ -44,8 +54,8 @@ export default function ConversationsPage() {
 
   const selectedConversation = conversations.find(c => c.id === selectedId);
 
-  const handlePlay = (url: string, id: string) => {
-    if (audioRef.current) {
+  const handlePlay = (url: string | undefined, id: string) => {
+    if (url && audioRef.current) {
       if (isPlaying === id) {
         audioRef.current.pause();
         setIsPlaying(null);
@@ -61,7 +71,28 @@ export default function ConversationsPage() {
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="المحادثات" subtitle="سجل التواصل مع العملاء">
-            <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => window.location.reload()} />
+            <ActionButton icon={RefreshCw} label="تحديث" variant="secondary" onClick={() => {
+              const fetchData = async () => {
+                try {
+                  setConversationsLoading(true);
+                  setCustomersLoading(true);
+
+                  const [conversationsData, customersData] = await Promise.all([
+                    getConversations(),
+                    getCustomers()
+                  ]);
+
+                  setConversations(conversationsData);
+                  setCustomers(customersData);
+                } catch (error) {
+                  console.error('Error refreshing conversations and customers:', error);
+                } finally {
+                  setConversationsLoading(false);
+                  setCustomersLoading(false);
+                }
+              };
+              fetchData();
+            }} />
         </PageHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
