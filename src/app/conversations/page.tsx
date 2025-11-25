@@ -116,7 +116,7 @@ export default function ConversationsPage() {
                                         <p className="text-xs text-slate-500 line-clamp-1">{conv.summary}</p>
                                     </div>
                                 </div>
-                                <span className="text-xs text-slate-400">{new Date(conv.createdAt).toLocaleDateString('ar-SA')}</span>
+                                <span className="text-xs text-slate-400">{new Date(conv.createdAt).toLocaleDateString('ar-EG')}</span>
                             </div>
                         </Card>
                     ))}

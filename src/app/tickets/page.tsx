@@ -150,7 +150,7 @@ export default function TicketsPage() {
                                         
                                         <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-700">
                                             <span className="flex items-center gap-1"><User size={12} /> {ticket.category}</span>
-                                            <span>{new Date(ticket.createdAt).toLocaleDateString('ar-SA')}</span>
+                                            <span>{new Date(ticket.createdAt).toLocaleDateString('ar-EG')}</span>
                                         </div>
                                     </Card>
                                 );

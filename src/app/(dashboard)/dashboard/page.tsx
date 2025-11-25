@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import {
@@ -14,16 +15,17 @@ import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 import { mapBookingStatusToArabic, mapTicketStatusToArabic, mapCampaignStatusToArabic } from '@/lib/statusMapper';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [selectedPeriod, setSelectedPeriod] = useState('7d');
-  
-  const { 
-    dashboardKPIs, 
-    liveOps, 
-    dashboardLoading, 
-    setDashboardData, 
-    setDashboardLoading 
+
+  const {
+    dashboardKPIs,
+    liveOps,
+    dashboardLoading,
+    setDashboardData,
+    setDashboardLoading
   } = useAppStore();
-  
+
   const { getDashboardKpis, isAuthenticated } = useAuthApi();
 
   const fetchAllData = useCallback(async () => {
@@ -227,19 +229,31 @@ export default function DashboardPage() {
         <Card>
           <CardTitle className="mb-6">إجراءات سريعة</CardTitle>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
+            <button
+              onClick={() => router.push('/calls')}
+              className="flex flex-col items-center p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
+            >
               <Phone className="w-8 h-8 mb-2" />
               <span className="font-medium">محاكاة مكالمة</span>
             </button>
-            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
+            <button
+              onClick={() => router.push('/conversations')}
+              className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
+            >
               <MessageSquare className="w-8 h-8 mb-2" />
               <span className="font-medium">محاكاة رسالة</span>
             </button>
-            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
+            <button
+              onClick={() => router.push('/customers')}
+              className="flex flex-col items-center p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
+            >
               <Users className="w-8 h-8 mb-2" />
               <span className="font-medium">إضافة عميل</span>
             </button>
-            <button className="flex flex-col items-center p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl text-white hover:scale-105 transition-transform duration-200">
+            <button
+              onClick={() => router.push('/analytics')}
+              className="flex flex-col items-center p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
+            >
               <BarChart3 className="w-8 h-8 mb-2" />
               <span className="font-medium">تقرير جديد</span>
             </button>

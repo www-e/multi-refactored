@@ -265,6 +265,10 @@ export default function CustomersPage() {
                                 <div className="flex items-center gap-2"><Phone size={14}/> {customer.phone}</div>
                                 {customer.email && <div className="flex items-center gap-2"><Mail size={14}/> {customer.email}</div>}
                                 {customer.neighborhoods?.[0] && <div className="flex items-center gap-2"><MapPin size={14}/> {customer.neighborhoods[0]}</div>}
+                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                    <span>تم الإنشاء:</span>
+                                    <span>{new Date(customer.createdAt).toLocaleDateString('ar-EG')}</span>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2 mb-4 border-t border-b border-slate-100 dark:border-slate-700 py-4">

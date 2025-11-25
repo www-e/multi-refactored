@@ -24,12 +24,12 @@ export default function CallsPage() {
         try {
           setCallsLoading(true);
           setCustomersLoading(true);
-          
+
           const [callsData, customersData] = await Promise.all([
             getCalls(),
             getCustomers()
           ]);
-          
+
           setCalls(callsData);
           setCustomers(customersData);
         } catch (error) {
@@ -53,7 +53,7 @@ export default function CallsPage() {
   const filteredCalls = calls.filter(call => {
     const customerName = getCustomerName(call.customer_id || call.customerId || '').toLowerCase();
     const callId = call.id.toLowerCase();
-    return customerName.includes(searchQuery.toLowerCase()) || 
+    return customerName.includes(searchQuery.toLowerCase()) ||
            callId.includes(searchQuery.toLowerCase()) ||
            call.status?.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -65,21 +65,21 @@ export default function CallsPage() {
     <div className="min-h-screen gradient-bg p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <PageHeader title="المكالمات" subtitle="سجل المكالمات الصادرة والواردة">
-          <ActionButton 
-            icon={RefreshCw} 
-            label="تحديث" 
-            variant="secondary" 
+          <ActionButton
+            icon={RefreshCw}
+            label="تحديث"
+            variant="secondary"
             onClick={() => {
               const fetchData = async () => {
                 try {
                   setCallsLoading(true);
                   setCustomersLoading(true);
-                  
+
                   const [callsData, customersData] = await Promise.all([
                     getCalls(),
                     getCustomers()
                   ]);
-                  
+
                   setCalls(callsData);
                   setCustomers(customersData);
                 } catch (error) {
@@ -90,18 +90,18 @@ export default function CallsPage() {
                 }
               };
               fetchData();
-            }} 
+            }}
           />
         </PageHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calls List */}
           <div className="lg:col-span-1 space-y-4">
-            <SearchFilterBar 
-              searchQuery={searchQuery} 
-              onSearchChange={setSearchQuery} 
-              searchPlaceholder="البحث في المكالمات..." 
-              onFilterClick={() => {}} 
+            <SearchFilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="البحث في المكالمات..."
+              onFilterClick={() => {}}
             />
             <div className="space-y-2 h-[600px] overflow-y-auto">
               {filteredCalls.map(call => (
@@ -133,7 +133,7 @@ export default function CallsPage() {
                     <div className="text-right">
                       <StatusBadge status={call.status || 'unknown'} />
                       <p className="text-xs text-slate-400 mt-1">
-                        {new Date(call.created_at || call.createdAt).toLocaleDateString('ar-SA')}
+                        {new Date(call.created_at || call.createdAt).toLocaleDateString('ar-EG')}
                       </p>
                     </div>
                   </div>
@@ -184,7 +184,7 @@ export default function CallsPage() {
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تاريخ البدء</h4>
                       <p className="font-medium">
-                        {new Date(selectedCall.created_at || selectedCall.createdAt).toLocaleString('ar-SA')}
+                        {new Date(selectedCall.created_at || selectedCall.createdAt).toLocaleString('ar-EG')}
                       </p>
                     </div>
                     <div>

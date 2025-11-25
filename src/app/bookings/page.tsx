@@ -153,7 +153,7 @@ export default function BookingsPage() {
                   <Card key={booking.id} className="p-4">
                     <div className="flex justify-between mb-3">
                         <StatusBadge status={booking.createdBy} />
-                        <span className="text-xs text-slate-500">{new Date(booking.createdAt).toLocaleDateString('ar-SA')}</span>
+                        <span className="text-xs text-slate-500">{new Date(booking.createdAt).toLocaleDateString('ar-EG')}</span>
                     </div>
                     <div className="space-y-2 mb-4">
                         <h4 className="font-semibold">{customer?.name || 'عميل غير معروف'}</h4>
@@ -209,7 +209,7 @@ export default function BookingsPage() {
                                             <p className="font-medium">{property?.code || '...'}</p>
                                             <p className="text-xs text-slate-500">{property?.neighborhood}</p>
                                         </td>
-                                        <td className="p-4 text-sm">{new Date(booking.startDate).toLocaleDateString('ar-SA')}</td>
+                                        <td className="p-4 text-sm">{new Date(booking.startDate).toLocaleDateString('ar-EG')}</td>
                                         <td className="p-4 font-semibold text-primary">{(booking.price || 0).toLocaleString()} ر.س</td>
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>

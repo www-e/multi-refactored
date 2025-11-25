@@ -67,8 +67,31 @@ export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
 export const getTickets = (token: string): Promise<EnhancedTicket[]> =>
   clientFetch('/tickets/recent', token);
 
+// Helper function to transform backend customer data to frontend Customer interface
+const transformCustomer = (customer: any): Customer => ({
+  id: customer.id,
+  name: customer.name,
+  phone: customer.phone,
+  email: customer.email,
+  budget: customer.budget,
+  // Convert neighborhoods from JSON to array if needed
+  neighborhoods: Array.isArray(customer.neighborhoods) ? customer.neighborhoods : (customer.neighborhoods ? [customer.neighborhoods] : []),
+  // Default stage if not provided by backend (can be calculated based on customer history)
+  stage: customer.stage || 'جديد',
+  consents: customer.consents || {
+    marketing: customer.consent || true,
+    recording: true,
+    whatsapp: true
+  },
+  createdAt: customer.created_at,
+  updatedAt: customer.updated_at || customer.created_at
+});
+
 export const getCustomers = (token: string): Promise<Customer[]> =>
-  clientFetch('/customers', token);
+  clientFetch('/customers', token).then((customers: unknown) => {
+    const custArray = Array.isArray(customers) ? customers : [];
+    return custArray.map(transformCustomer);
+  });
 
 export const createCustomer = (
   data: {
@@ -81,7 +104,7 @@ export const createCustomer = (
   return clientFetch('/customers', token, {
     method: 'POST',
     body: JSON.stringify(data),
-  });
+  }).then(transformCustomer);
 };
 
 // CORRECTED DATA CONTRACT
@@ -185,7 +208,7 @@ export const updateCustomer = (
   return clientFetch(`/customers/${id}`, token, {
     method: 'PATCH',
     body: JSON.stringify(data),
-  });
+  }).then(transformCustomer);
 };
 
 export const deleteCustomer = (
@@ -333,10 +356,31 @@ export const getConversations = (token: string): Promise<any[]> => {
   });
 };
 
+// Helper function to transform backend call data to frontend format
+const transformCall = (call: any) => ({
+  ...call,
+  // Map snake_case backend fields to camelCase for consistency
+  customerId: call.customer_id,
+  direction: call.direction === 'outbound' ? 'صادر' : 'وارد', // Map to Arabic direction
+  status: call.status,
+  aiOrHuman: call.ai_or_human,
+  outcome: call.outcome,
+  handleSec: call.handle_sec,
+  recordingUrl: call.recording_url,
+  createdAt: call.created_at,
+  updatedAt: call.updated_at || call.created_at,
+  conversationId: call.conversation_id
+});
+
 export const getCalls = (token: string): Promise<any[]> => {
-  return clientFetch('/calls', token);
+  return clientFetch('/calls', token).then((calls: unknown) => {
+    const callsArray = Array.isArray(calls) ? calls : [];
+    return callsArray.map(transformCall);
+  });
 };
 
 export const getCall = (id: string, token: string): Promise<any> => {
-  return clientFetch(`/calls/${id}`, token);
+  return clientFetch(`/calls/${id}`, token).then((call: any) => {
+    return transformCall(call);
+  });
 };
