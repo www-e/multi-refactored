@@ -148,6 +148,58 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
         logger.error(f"Could not create ticket from ElevenLabs data for session {voice_session.id}: {e}")
         return False
 
+def _create_call_from_voice_session(db_session: Session, voice_session: models.VoiceSession, call_summary: str) -> bool:
+    """Helper to create a call record from voice session data."""
+    try:
+        # Create or get customer
+        customer = _get_or_create_customer(db_session, voice_session.customer_phone, "Unknown Customer")
+
+        # Create call record
+        call = models.Call(
+            id=generate_id("call"),
+            conversation_id=voice_session.conversation_id,
+            direction="inbound",  # Voice sessions are typically inbound
+            status="completed",   # Based on voice session status
+            handle_sec=None,      # Not available from voice session
+            outcome=None,         # Not available from voice session
+            ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
+            recording_url=voice_session.conversation_id,  # Use conversation ID for reference
+            retention_expires_at=None,
+            customer_id=customer.id,
+            created_at=voice_session.created_at
+        )
+        db_session.add(call)
+        return True
+    except Exception as e:
+        logger.error(f"Could not create call from voice session {voice_session.id}: {e}")
+        return False
+
+def _create_conversation_from_voice_session(db_session: Session, voice_session: models.VoiceSession, call_summary: str) -> bool:
+    """Helper to create a conversation record from voice session data."""
+    try:
+        # Create or get customer
+        customer = _get_or_create_customer(db_session, voice_session.customer_phone, "Unknown Customer")
+
+        # Create conversation record
+        conversation = models.Conversation(
+            id=generate_id("conv"),
+            tenant_id=voice_session.tenant_id,
+            channel=models.ChannelEnum.voice,  # From voice session
+            customer_id=customer.id,
+            summary=call_summary,
+            sentiment="neutral",  # Default sentiment
+            ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
+            created_at=voice_session.created_at,
+            ended_at=voice_session.ended_at or datetime.utcnow(),
+            recording_url=voice_session.conversation_id,  # Use conversation ID for reference
+            retention_expires_at=None
+        )
+        db_session.add(conversation)
+        return True
+    except Exception as e:
+        logger.error(f"Could not create conversation from voice session {voice_session.id}: {e}")
+        return False
+
 @router.post("/elevenlabs/conversation/{conversation_id}/process")
 async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     headers = get_elevenlabs_headers()
@@ -199,6 +251,11 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                 else:
                     # PRODUCTION FIX: Log unhandled intents to diagnose mismatches
                     logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
+
+                # Always create corresponding Call and Conversation records for voice sessions
+                # This ensures they show up in the calls and conversations pages
+                _create_call_from_voice_session(db_session, voice_session, call_summary)
+                _create_conversation_from_voice_session(db_session, voice_session, call_summary)
 
                 db_session.commit()
 
@@ -351,6 +408,11 @@ async def handle_elevenlabs_webhook(request: Request):
                     else:
                         # Log unhandled intents to diagnose mismatches
                         logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
+
+                    # Always create corresponding Call and Conversation records for voice sessions
+                    # This ensures they show up in the calls and conversations pages
+                    _create_call_from_voice_session(db_session, voice_session, call_summary)
+                    _create_conversation_from_voice_session(db_session, voice_session, call_summary)
 
                     db_session.commit()
 

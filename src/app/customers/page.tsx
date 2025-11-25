@@ -26,7 +26,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
   const [customerToEdit, setCustomerToEdit] = useState<any>(null);
 
-  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, conversations, addCustomer } = useAppStore();
+  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, conversations, addCustomer, removeCustomer, updateCustomer: updateCustomerInStore } = useAppStore();
   const { getCustomers, getTickets, getBookings, createCustomer, updateCustomer, deleteCustomer, makeCall, makeBulkCalls, sendCustomerMessage, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
@@ -146,7 +146,7 @@ export default function CustomersPage() {
     try {
       await deleteCustomer(customerToDelete.id);
       // Update the store to remove the customer
-      setCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+      removeCustomer(customerToDelete.id);
       setIsDeleteModalOpen(false);
       setCustomerToDelete(null);
     } catch (error) {
@@ -350,7 +350,7 @@ export default function CustomersPage() {
                 await handleModalSubmit(async () => {
                     const res = await updateCustomer(customerToEdit.id, data);
                     // Update the customer in the store
-                    setCustomers(prev => prev.map(c => c.id === customerToEdit.id ? res : c));
+                    updateCustomerInStore(customerToEdit.id, res);
                     setIsEditModalOpen(false);
                     setCustomerToEdit(null);
                 });

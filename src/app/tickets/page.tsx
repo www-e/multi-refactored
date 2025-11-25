@@ -195,7 +195,7 @@ export default function TicketsPage() {
                 await handleModalSubmit(async () => {
                     const res = await updateTicket(ticketToEdit.id, data);
                     // Update the ticket in the store
-                    setTickets(prev => prev.map(t => t.id === ticketToEdit.id ? res : t));
+                    updateTicketInStore(ticketToEdit.id, res);
                     setIsEditModalOpen(false);
                     setTicketToEdit(null);
                 });
@@ -212,7 +212,7 @@ export default function TicketsPage() {
               try {
                 await deleteTicket(ticketToDelete.id);
                 // Update the store to remove the ticket
-                setTickets(prev => prev.filter(t => t.id !== ticketToDelete.id));
+                removeTicket(ticketToDelete.id);
                 setIsDeleteModalOpen(false);
                 setTicketToDelete(null);
               } catch (error) {

@@ -55,6 +55,7 @@ interface AppState {
   updateTicket: (id: string, updates: Partial<EnhancedTicket>) => void;
   updateBooking: (id: string, updates: Partial<EnhancedBooking>) => void;
   updateCustomer: (id: string, updates: Partial<Customer>) => void;
+  updateCampaign: (id: string, updates: Partial<EnhancedCampaign>) => void;
   removeCustomer: (id: string) => void;
   removeBooking: (id: string) => void;
   removeTicket: (id: string) => void;
@@ -133,6 +134,9 @@ export const useAppStore = create<AppState>()(
       })),
       removeTicket: (id) => set((state) => ({
         tickets: state.tickets.filter(t => t.id !== id)
+      })),
+      updateCampaign: (id, updates) => set((state) => ({
+        campaigns: state.campaigns.map(c => c.id === id ? { ...c, ...updates } : c)
       })),
       removeCampaign: (id) => set((state) => ({
         campaigns: state.campaigns.filter(c => c.id !== id)

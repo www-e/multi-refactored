@@ -314,8 +314,9 @@ export const sendCustomerMessage = (
 };
 
 export const getConversations = (token: string): Promise<any[]> => {
-  return clientFetch('/conversations', token).then(convs =>
-    convs.map((conv: any) => ({
+  return clientFetch('/conversations', token).then((convs: unknown) => {
+    const conversations = Array.isArray(convs) ? convs : [];
+    return conversations.map((conv: any) => ({
       ...conv,
       customerId: conv.customer_id,  // Convert snake_case to camelCase
       type: conv.channel === 'voice' ? 'صوت' : 'رسالة', // Map channel to Arabic type
@@ -328,8 +329,8 @@ export const getConversations = (token: string): Promise<any[]> => {
       status: conv.status || 'مفتوحة',
       assignedTo: conv.assigned_to,
       updatedAt: conv.updated_at || conv.created_at
-    }))
-  );
+    }));
+  });
 };
 
 export const getCalls = (token: string): Promise<any[]> => {

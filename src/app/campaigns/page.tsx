@@ -22,7 +22,7 @@ export default function CampaignsPage() {
   const [campaignToEdit, setCampaignToEdit] = useState<any>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
 
-  const { campaigns, setCampaigns, setCampaignsLoading, runCampaign, stopCampaign, addCampaign } = useAppStore();
+  const { campaigns, setCampaigns, setCampaignsLoading, runCampaign, stopCampaign, addCampaign, removeCampaign, updateCampaign: updateCampaignInStore } = useAppStore();
   const { getCampaigns, createCampaign, updateCampaign, deleteCampaign, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
@@ -66,7 +66,7 @@ export default function CampaignsPage() {
     try {
       await deleteCampaign(campaignToDelete.id);
       // Update the store to remove the campaign
-      setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id));
+      removeCampaign(campaignToDelete.id);
       setIsDeleteModalOpen(false);
       setCampaignToDelete(null);
     } catch (error) {
@@ -221,7 +221,7 @@ export default function CampaignsPage() {
                 await handleModalSubmit(async () => {
                     const res = await updateCampaign(campaignToEdit.id, data);
                     // Update the campaign in the store
-                    setCampaigns(prev => prev.map(c => c.id === campaignToEdit.id ? res : c));
+                    updateCampaignInStore(campaignToEdit.id, res);
                     setIsEditModalOpen(false);
                     setCampaignToEdit(null);
                 });

@@ -28,7 +28,7 @@ export default function BookingsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState<any>(null);
 
-  const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking } = useAppStore();
+  const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking, removeBooking } = useAppStore();
   const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
@@ -65,7 +65,7 @@ export default function BookingsPage() {
     try {
       await deleteBooking(bookingToDelete.id);
       // Update the store to remove the booking
-      setBookings(prev => prev.filter(b => b.id !== bookingToDelete.id));
+      removeBooking(bookingToDelete.id);
       setIsDeleteModalOpen(false);
       setBookingToDelete(null);
     } catch (error) {
@@ -158,7 +158,7 @@ export default function BookingsPage() {
                     <div className="space-y-2 mb-4">
                         <h4 className="font-semibold">{customer?.name || 'عميل غير معروف'}</h4>
                         <p className="text-sm text-slate-600">{property?.code || booking.propertyId || '...'}</p>
-                        <p className="text-lg font-bold text-primary">{booking.price.toLocaleString()} ر.س</p>
+                        <p className="text-lg font-bold text-primary">{(booking.price || 0).toLocaleString()} ر.س</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => handleAction(booking.id, 'confirmed')} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
@@ -210,14 +210,14 @@ export default function BookingsPage() {
                                             <p className="text-xs text-slate-500">{property?.neighborhood}</p>
                                         </td>
                                         <td className="p-4 text-sm">{new Date(booking.startDate).toLocaleDateString('ar-SA')}</td>
-                                        <td className="p-4 font-semibold text-primary">{booking.price.toLocaleString()} ر.س</td>
+                                        <td className="p-4 font-semibold text-primary">{(booking.price || 0).toLocaleString()} ر.س</td>
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>
                                         <td className="p-4">
                                             <div className="flex gap-2">
                                                 <button onClick={() => setSelectedBooking(booking.id)} className="p-2 hover:bg-slate-100 rounded-lg"><Eye size={16}/></button>
                                                 <button onClick={() => handleEditBooking(booking)} className="p-2 hover:bg-slate-100 rounded-lg"><Edit size={16}/></button>
-                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customer?.name || booking.customerName || 'عميل'})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
+                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customer?.name || 'عميل'})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -264,7 +264,7 @@ export default function BookingsPage() {
                 await handleModalSubmit(async () => {
                     const res = await updateBooking(bookingToEdit.id, data);
                     // Update the booking in the store
-                    setBookings(prev => prev.map(b => b.id === bookingToEdit.id ? res : b));
+                    updateBookingInStore(bookingToEdit.id, res);
                     setIsEditModalOpen(false);
                     setBookingToEdit(null);
                 });
