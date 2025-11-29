@@ -283,20 +283,20 @@ def verify_elevenlabs_webhook_signature(request: Request, payload: bytes, signat
         parts = signature_header.split(',')
         timestamp = None
         expected_sig = None
-        
+
         for part in parts:
             if part.startswith('t='):
                 timestamp = part[2:]
             elif part.startswith('v0='):
                 expected_sig = part[3:]
-        
+
         if not expected_sig or not timestamp:
             logger.error(f"Invalid signature format: {signature_header}")
             return False
 
         # Construct the signed payload: timestamp.body
         signed_payload = f"{timestamp}.{payload.decode('utf-8')}"
-        
+
         # Calculate HMAC-SHA256
         calculated_sig = hmac.new(
             key=webhook_secret.encode('utf-8'),
@@ -338,19 +338,25 @@ async def handle_elevenlabs_webhook(request: Request):
 
         # Log the payload keys to understand structure
         logger.info(f"Received ElevenLabs webhook with keys: {list(payload.keys())}")
-        
+
         # Try different possible field names for conversation ID
         conversation_id = (
-            payload.get("conversation_id") or 
+            payload.get("conversation_id") or
             payload.get("conversationId") or
             payload.get("id") or
             payload.get("call_id") or
-            payload.get("session_id")
+            payload.get("session_id") or
+            # ElevenLabs sends conversation_id nested in the data object
+            payload.get("data", {}).get("conversation_id") or
+            payload.get("data", {}).get("conversationId") or
+            payload.get("data", {}).get("id") or
+            payload.get("data", {}).get("call_id") or
+            payload.get("data", {}).get("session_id")
         )
-        
+
         # If still not found, log the full payload (excluding large audio data)
         if not conversation_id:
-            safe_payload = {k: v if not isinstance(v, str) or len(str(v)) < 500 else f"<{len(str(v))} chars>" 
+            safe_payload = {k: v if not isinstance(v, str) or len(str(v)) < 500 else f"<{len(str(v))} chars>"
                            for k, v in payload.items()}
             logger.error(f"Webhook payload missing conversation_id. Full payload: {safe_payload}")
             raise HTTPException(status_code=400, detail="Missing conversation_id in payload")
