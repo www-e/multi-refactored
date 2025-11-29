@@ -68,7 +68,6 @@ async def create_call(
     db_call = models.Call(
         id=generate_id(),
         conversation_id=conversation.id,  # Link to conversation
-        customer_id=call_in.customer_id,
         direction=call_in.direction,
         status="initiated",  # Initial status
         created_at=datetime.utcnow(),
@@ -121,18 +120,22 @@ def get_calls(
     """
     Retrieve a list of calls.
     """
-    calls = db_session.query(models.Call).offset(skip).limit(limit).all()
+    # Join Call with Conversation to get customer_id efficiently
+    call_data = db_session.query(models.Call, models.Conversation.customer_id).join(
+        models.Conversation, models.Call.conversation_id == models.Conversation.id
+    ).offset(skip).limit(limit).all()
+
     # Convert to response format
     return [
         CallResponse(
             id=call.id,
             conversation_id=call.conversation_id,
-            customer_id=call.customer_id,
+            customer_id=customer_id,
             direction=call.direction,
             status=call.status,
             created_at=call.created_at
         )
-        for call in calls
+        for call, customer_id in call_data
     ]
 
 @router.get("/calls/{call_id}", response_model=CallResponse)
@@ -148,10 +151,16 @@ def get_call(
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
 
+    # Get customer_id from the linked conversation
+    conversation = db_session.query(models.Conversation).filter(
+        models.Conversation.id == call.conversation_id
+    ).first()
+    customer_id = conversation.customer_id if conversation else None
+
     return CallResponse(
         id=call.id,
         conversation_id=call.conversation_id,
-        customer_id=call.customer_id,
+        customer_id=customer_id,
         direction=call.direction,
         status=call.status,
         created_at=call.created_at
@@ -196,7 +205,6 @@ async def create_bulk_calls(
         db_call = models.Call(
             id=generate_id(),
             conversation_id=conversation.id,
-            customer_id=customer_id,
             direction="outbound",
             status="initiated",
             created_at=datetime.utcnow(),

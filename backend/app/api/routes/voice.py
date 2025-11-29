@@ -151,22 +151,18 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
 def _create_call_from_voice_session(db_session: Session, voice_session: models.VoiceSession, call_summary: str) -> bool:
     """Helper to create a call record from voice session data."""
     try:
-        # Create or get customer
-        customer = _get_or_create_customer(db_session, voice_session.customer_phone, "Unknown Customer")
-
-        # Create call record
+        # Create call record (Call model doesn't have customer_id, only conversation_id)
         call = models.Call(
             id=generate_id("call"),
             conversation_id=voice_session.conversation_id,
             direction="inbound",  # Voice sessions are typically inbound
-            status="completed",   # Based on voice session status
+            status="connected",   # Use valid CallStatusEnum value (connected, no_answer, abandoned)
             handle_sec=None,      # Not available from voice session
             outcome=None,         # Not available from voice session
             ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
             recording_url=voice_session.conversation_id,  # Use conversation ID for reference
-            retention_expires_at=None,
-            customer_id=customer.id,
-            created_at=voice_session.created_at
+            retention_expires_at=None
+            # Note: Call model doesn't have customer_id field - it links to conversation which has customer_id
         )
         db_session.add(call)
         return True
@@ -252,10 +248,17 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     # PRODUCTION FIX: Log unhandled intents to diagnose mismatches
                     logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
 
-                # Always create corresponding Call and Conversation records for voice sessions
+                # Always create corresponding Conversation and Call records for voice sessions
                 # This ensures they show up in the calls and conversations pages
-                _create_call_from_voice_session(db_session, voice_session, call_summary)
-                _create_conversation_from_voice_session(db_session, voice_session, call_summary)
+                # Note: Create Conversation first since Call references it via conversation_id
+                conv_success = _create_conversation_from_voice_session(db_session, voice_session, call_summary)
+                call_success = _create_call_from_voice_session(db_session, voice_session, call_summary)
+
+                # Log if these operations fail, but continue processing
+                if not conv_success:
+                    logger.warning(f"Failed to create conversation record for voice session {voice_session.id}")
+                if not call_success:
+                    logger.warning(f"Failed to create call record for voice session {voice_session.id}")
 
                 db_session.commit()
 
@@ -415,10 +418,17 @@ async def handle_elevenlabs_webhook(request: Request):
                         # Log unhandled intents to diagnose mismatches
                         logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
 
-                    # Always create corresponding Call and Conversation records for voice sessions
+                    # Always create corresponding Conversation and Call records for voice sessions
                     # This ensures they show up in the calls and conversations pages
-                    _create_call_from_voice_session(db_session, voice_session, call_summary)
-                    _create_conversation_from_voice_session(db_session, voice_session, call_summary)
+                    # Note: Create Conversation first since Call references it via conversation_id
+                    conv_success = _create_conversation_from_voice_session(db_session, voice_session, call_summary)
+                    call_success = _create_call_from_voice_session(db_session, voice_session, call_summary)
+
+                    # Log if these operations fail, but continue processing
+                    if not conv_success:
+                        logger.warning(f"Failed to create conversation record for voice session {voice_session.id}")
+                    if not call_success:
+                        logger.warning(f"Failed to create call record for voice session {voice_session.id}")
 
                     db_session.commit()
 
