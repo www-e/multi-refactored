@@ -35,13 +35,13 @@ class VoiceSessionResponse(BaseModel):
 
 # --- Voice Session Endpoint ---
 @router.post("/voice/sessions", response_model=VoiceSessionResponse)
-def create_voice_session(body: VoiceSessionRequest, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+def create_voice_session(body: VoiceSessionRequest, tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     # 1. Handle Customer
     customer = db_session.query(models.Customer).filter(models.Customer.id == body.customer_id).first()
     if not customer:
         customer = models.Customer(
             id=body.customer_id,
-            tenant_id="demo-tenant",
+            tenant_id=tenant_id,
             name="Playground Guest",
             phone="N/A",
             created_at=datetime.now(timezone.utc)
@@ -54,7 +54,7 @@ def create_voice_session(body: VoiceSessionRequest, _=Depends(deps.get_current_u
     # It must NOT be inside the 'if' block.
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
-        tenant_id="demo-tenant",
+        tenant_id=tenant_id,
         customer_id=body.customer_id,
         direction="inbound",
         status="active",
@@ -168,6 +168,11 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
 def _create_call_from_voice_session(db_session: Session, voice_session: models.VoiceSession, call_summary: str) -> bool:
     """Helper to create a call record from voice session data."""
     try:
+        # Only create call if there's a conversation_id (set by _create_conversation_from_voice_session)
+        if not voice_session.conversation_id:
+            logger.warning(f"Cannot create call for voice session {voice_session.id} - no conversation_id set")
+            return False
+
         # Create call record (Call model doesn't have customer_id, only conversation_id)
         call = models.Call(
             id=generate_id("call"),
@@ -208,6 +213,11 @@ def _create_conversation_from_voice_session(db_session: Session, voice_session: 
             retention_expires_at=None
         )
         db_session.add(conversation)
+        db_session.flush()  # Ensure conversation gets an ID
+
+        # Update the voice session to link to the created conversation
+        voice_session.conversation_id = conversation.id
+
         return True
     except Exception as e:
         logger.error(f"Could not create conversation from voice session {voice_session.id}: {e}")
@@ -247,7 +257,7 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
                     temp_customer = models.Customer(
                         id=temp_customer_id,
-                        tenant_id="demo-tenant",  # Would use tenant_id parameter in full implementation
+                        tenant_id=voice_session.tenant_id,  # Use the voice session's tenant_id
                         name="System Generated Customer",
                         phone=customer_phone or "N/A",
                         created_at=datetime.now(timezone.utc)
@@ -428,7 +438,7 @@ async def handle_elevenlabs_webhook(request: Request):
                         temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
                         temp_customer = models.Customer(
                             id=temp_customer_id,
-                            tenant_id="demo-tenant",  # Would use tenant_id parameter in full implementation
+                            tenant_id=voice_session.tenant_id,  # Use the voice session's tenant_id
                             name="System Generated Customer",
                             phone=customer_phone or "N/A",
                             created_at=datetime.now(timezone.utc)
