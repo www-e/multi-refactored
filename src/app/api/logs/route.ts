@@ -15,13 +15,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // CRITICAL SECURITY MITIGATION: This check is still valuable as a second layer of defense.
-    if (process.env.NODE_ENV === 'production') {
+    // CRITICAL SECURITY MITIGATION: Check if logging is enabled based on environment
+    // Allow logs in development and when explicitly enabled via environment variable
+    const isLoggingEnabled = process.env.NODE_ENV !== 'production' ||
+                             process.env.ALLOW_CLIENT_LOGS === 'true';
+
+    if (!isLoggingEnabled) {
       return NextResponse.json(
         { error: 'Client-side logging is disabled in this environment.' },
         { status: 403 }
       );
     }
+
     try {
       const { source = 'client', level = 'info', message = '', meta } = await request.json();
       await logEvent(String(source), level, String(message), meta);
@@ -56,9 +61,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // For now, we'll skip the admin check and just verify authentication
     // In a real implementation you would decode the JWT to check roles
 
-    if (process.env.NODE_ENV === 'production') {
+    // CRITICAL SECURITY MITIGATION: Check if log access is enabled based on environment
+    // Allow logs in development and when explicitly enabled via environment variable
+    const isLoggingEnabled = process.env.NODE_ENV !== 'production' ||
+                             process.env.ALLOW_CLIENT_LOGS === 'true';
+
+    if (!isLoggingEnabled) {
        return NextResponse.json({ error: 'Access forbidden.' }, { status: 403 });
     }
+
     try {
       const { searchParams } = new URL(request.url);
       const tail = Math.max(1, Math.min(500, Number(searchParams.get('tail') || 200)));

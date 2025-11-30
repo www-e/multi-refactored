@@ -274,3 +274,20 @@ export async function handleSessionPostApi(
   const body = await req.json();
   return handleSessionBasedApi(req, endpoint, 'POST', body, config);
 }
+
+export async function handleSessionPatchApi(
+  req: NextRequest,
+  endpoint: string,
+  config: ApiHandlerConfig = {}
+): Promise<NextResponse> {
+  const body = await req.json();
+  return handleSessionBasedApi(req, endpoint, 'PATCH', body, config);
+}
+
+export async function handleSessionDeleteApi(
+  req: NextRequest,
+  endpoint: string,
+  config: ApiHandlerConfig = {}
+): Promise<NextResponse> {
+  return handleSessionBasedApi(req, endpoint, 'DELETE', undefined, config);
+}

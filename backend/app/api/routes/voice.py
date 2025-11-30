@@ -61,6 +61,8 @@ def create_voice_session(body: VoiceSessionRequest, tenant_id: str = Depends(dep
         created_at=datetime.now(timezone.utc)
     )
 
+    # Set the conversation_id to match the session ID so webhook can find this session
+    voice_session.conversation_id = voice_session.id
     db_session.add(voice_session)
     db_session.commit()
     db_session.refresh(voice_session)
@@ -90,12 +92,12 @@ async def fetch_elevenlabs_conversations(_=Depends(deps.get_current_user)):
             data = await response.json()
             return {"status": "success", "conversations": data.get("conversations", [])}
 
-def _get_or_create_customer(db_session: Session, customer_phone: str, customer_name: str) -> models.Customer:
+def _get_or_create_customer(db_session: Session, customer_phone: str, customer_name: str, tenant_id: str = "demo-tenant") -> models.Customer:
     """Finds a customer by phone or creates a new one."""
     customer = db_session.query(models.Customer).filter(models.Customer.phone == customer_phone).first()
     if not customer:
         customer = models.Customer(
-            id=generate_id("cust"), tenant_id="demo-tenant",
+            id=generate_id("cust"), tenant_id=tenant_id,
             name=customer_name or f"Customer {customer_phone}",
             phone=customer_phone, created_at=datetime.now(timezone.utc)
         )
@@ -119,10 +121,10 @@ def _create_booking_from_conversation(db_session: Session, voice_session: models
         customer_name = data_collection.get("customer_name", {}).get("value", "")
         project = data_collection.get("project", {}).get("value", "")
 
-        customer = _get_or_create_customer(db_session, customer_phone, customer_name)
+        customer = _get_or_create_customer(db_session, customer_phone, customer_name, voice_session.tenant_id)
 
         booking = models.Booking(
-            id=generate_id("bk"), tenant_id="demo-tenant", customer_id=customer.id,
+            id=generate_id("bk"), tenant_id=voice_session.tenant_id, customer_id=customer.id,
             session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
             property_code=project or "PROP-DEFAULT", start_date=appointment_dt,
             source=models.ChannelEnum.voice, created_by=models.AIOrHumanEnum.AI,
@@ -149,10 +151,10 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
         customer_name = data_collection.get("customer_name", {}).get("value", "")
         project = data_collection.get("project", {}).get("value", "")
 
-        customer = _get_or_create_customer(db_session, customer_phone, customer_name)
+        customer = _get_or_create_customer(db_session, customer_phone, customer_name, voice_session.tenant_id)
 
         ticket = models.Ticket(
-            id=generate_id("tkt"), tenant_id="demo-tenant", customer_id=customer.id,
+            id=generate_id("tkt"), tenant_id=voice_session.tenant_id, customer_id=customer.id,
             session_id=voice_session.id, customer_name=customer.name, phone=customer_phone,
             issue=voice_session.summary or "No summary provided", project=project or "N/A",
             category=data_collection.get("category", {}).get("value", "General"),
@@ -206,7 +208,7 @@ def _create_conversation_from_voice_session(db_session: Session, voice_session: 
     """Helper to create a conversation record from voice session data."""
     try:
         # Create or get customer
-        customer = _get_or_create_customer(db_session, voice_session.customer_phone, "Unknown Customer")
+        customer = _get_or_create_customer(db_session, voice_session.customer_phone, "Unknown Customer", voice_session.tenant_id)
 
         # Create conversation record
         conversation = models.Conversation(
@@ -267,7 +269,7 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
                     temp_customer = models.Customer(
                         id=temp_customer_id,
-                        tenant_id=voice_session.tenant_id,  # Use the voice session's tenant_id
+                        tenant_id="demo-tenant",  # Use default tenant_id since voice_session is None here
                         name="System Generated Customer",
                         phone=customer_phone or "N/A",
                         created_at=datetime.now(timezone.utc)
@@ -448,7 +450,7 @@ async def handle_elevenlabs_webhook(request: Request):
                         temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
                         temp_customer = models.Customer(
                             id=temp_customer_id,
-                            tenant_id=voice_session.tenant_id,  # Use the voice session's tenant_id
+                            tenant_id="demo-tenant",  # Use default tenant_id instead of voice_session.tenant_id which is None
                             name="System Generated Customer",
                             phone=customer_phone or "N/A",
                             created_at=datetime.now(timezone.utc)
