@@ -65,27 +65,27 @@ class Customer(Base):
     __tablename__ = "customers"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    name: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String, index=True)
     phone: Mapped[str] = mapped_column(String, index=True)
-    email: Mapped[str | None] = mapped_column(String, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     language: Mapped[str | None] = mapped_column(String, nullable=True)
     budget: Mapped[float | None] = mapped_column(Float, nullable=True)
     bedrooms_pref: Mapped[int | None] = mapped_column(Integer, nullable=True)
     neighborhoods: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     tags: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     consent: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
 
 class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    channel: Mapped[ChannelEnum] = mapped_column(Enum(ChannelEnum))
-    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
+    channel: Mapped[ChannelEnum] = mapped_column(Enum(ChannelEnum), index=True)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), index=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     sentiment: Mapped[str | None] = mapped_column(String, nullable=True)
-    ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     recording_url: Mapped[str | None] = mapped_column(String, nullable=True)
     retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -94,19 +94,19 @@ class Message(Base):
     __tablename__ = "messages"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), index=True)
-    role: Mapped[str] = mapped_column(String)  # user|agent
+    role: Mapped[str] = mapped_column(String, index=True)  # user|agent
     text: Mapped[str] = mapped_column(Text)
-    ts: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    ts: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
 
 class Call(Base):
     __tablename__ = "calls"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), index=True)
-    direction: Mapped[CallDirectionEnum] = mapped_column(Enum(CallDirectionEnum))
-    status: Mapped[CallStatusEnum] = mapped_column(Enum(CallStatusEnum))
+    direction: Mapped[CallDirectionEnum] = mapped_column(Enum(CallDirectionEnum), index=True)
+    status: Mapped[CallStatusEnum] = mapped_column(Enum(CallStatusEnum), index=True)
     handle_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    outcome: Mapped[CallOutcomeEnum | None] = mapped_column(Enum(CallOutcomeEnum), nullable=True)
-    ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI)
+    outcome: Mapped[CallOutcomeEnum | None] = mapped_column(Enum(CallOutcomeEnum), index=True, nullable=True)
+    ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI, index=True)
     recording_url: Mapped[str | None] = mapped_column(String, nullable=True)
     retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -114,18 +114,18 @@ class Ticket(Base):
     __tablename__ = "tickets"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
-    priority: Mapped[TicketPriorityEnum] = mapped_column(Enum(TicketPriorityEnum))
-    category: Mapped[str] = mapped_column(String)
-    status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum), default=TicketStatusEnum.open)
-    assignee: Mapped[str | None] = mapped_column(String, nullable=True)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), index=True)
+    priority: Mapped[TicketPriorityEnum] = mapped_column(Enum(TicketPriorityEnum), index=True)
+    category: Mapped[str] = mapped_column(String, index=True)
+    status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum), default=TicketStatusEnum.open, index=True)
+    assignee: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     sla_due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
 
     # Webhook-specific fields
-    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
+    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), index=True, nullable=True)
     customer_name: Mapped[str] = mapped_column(String, nullable=True)
     phone: Mapped[str] = mapped_column(String, nullable=True)
     issue: Mapped[str] = mapped_column(Text, nullable=True)
@@ -135,17 +135,17 @@ class Booking(Base):
     __tablename__ = "bookings"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
-    property_code: Mapped[str] = mapped_column(String)
-    start_date: Mapped[datetime] = mapped_column(DateTime)
-    status: Mapped[BookingStatusEnum] = mapped_column(Enum(BookingStatusEnum), default=BookingStatusEnum.pending)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), index=True)
+    property_code: Mapped[str] = mapped_column(String, index=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    status: Mapped[BookingStatusEnum] = mapped_column(Enum(BookingStatusEnum), default=BookingStatusEnum.pending, index=True)
     price_sar: Mapped[float | None] = mapped_column(Float, nullable=True)
-    source: Mapped[ChannelEnum] = mapped_column(Enum(ChannelEnum))
-    created_by: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    
+    source: Mapped[ChannelEnum] = mapped_column(Enum(ChannelEnum), index=True)
+    created_by: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
+
     # Webhook-specific fields
-    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
+    session_id: Mapped[str] = mapped_column(String, ForeignKey("voice_sessions.id"), index=True, nullable=True)
     customer_name: Mapped[str] = mapped_column(String, nullable=True)
     phone: Mapped[str] = mapped_column(String, nullable=True)
     project: Mapped[str] = mapped_column(String, nullable=True)
@@ -155,13 +155,13 @@ class Campaign(Base):
     __tablename__ = "campaigns"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    name: Mapped[str] = mapped_column(String)
-    type: Mapped[CampaignTypeEnum] = mapped_column(Enum(CampaignTypeEnum))
-    objective: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String, default="active")
+    name: Mapped[str] = mapped_column(String, index=True)
+    type: Mapped[CampaignTypeEnum] = mapped_column(Enum(CampaignTypeEnum), index=True)
+    objective: Mapped[str] = mapped_column(String, index=True)
+    status: Mapped[str] = mapped_column(String, default="active", index=True)
     audience_query: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     schedule: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
 
 
 class CampaignMetrics(Base):

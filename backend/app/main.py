@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from app.db import get_session
 from app.api.api import api_router
 from app.auth_utils import require_auth
+from app.error_handlers import add_error_handlers
 
 # Load .env file from the 'backend' directory
 load_dotenv()
@@ -72,3 +73,6 @@ def health_check(db_session: Session = Depends(get_session)):
             "db_connection": "error",
             "timestamp": datetime.utcnow().isoformat()
         }
+
+# Add standardized error handlers to the app
+app = add_error_handlers(app)

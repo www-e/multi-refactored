@@ -8,7 +8,8 @@ import {
   EnhancedCampaign,
   DashboardKPIs,
   LiveOps,
-  Property
+  Property,
+  Call
 } from '@/app/(shared)/types';
 
 
@@ -16,7 +17,7 @@ interface AppState {
   // Core data
   customers: Customer[];
   conversations: Conversation[];
-  calls: any[]; // Array to hold call data from backend
+  calls: Call[]; // Array to hold call data from backend
   tickets: EnhancedTicket[];
   bookings: EnhancedBooking[];
   campaigns: EnhancedCampaign[];

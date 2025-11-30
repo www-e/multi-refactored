@@ -87,12 +87,40 @@ export async function handleAuthenticatedApi(
     const response = await fetch(backendEndpoint, fetchOptions);
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error from backend service on ${method} ${endpoint}: ${response.status} ${errorBody}`);
-      return NextResponse.json(
-        { error: `Backend failed: ${response.statusText}` },
-        { status: response.status }
-      );
+      let errorBody;
+      try {
+        // Try to parse the standardized error response from backend
+        errorBody = await response.json();
+
+        // Check if this is a standardized error response from our backend
+        if (errorBody && typeof errorBody === 'object' && errorBody.error) {
+          console.error(`Standardized error from backend service on ${method} ${endpoint}:`, response.status, errorBody.error);
+          return NextResponse.json(errorBody, { status: response.status });
+        } else {
+          // If not a standardized error, create a formatted error response
+          const formattedError = {
+            error: {
+              message: errorBody?.detail || `Backend failed: ${response.statusText}`,
+              code: "BACKEND_ERROR",
+              status_code: response.status
+            }
+          };
+          console.error(`Error from backend service on ${method} ${endpoint}:`, response.status, errorBody);
+          return NextResponse.json(formattedError, { status: response.status });
+        }
+      } catch (parseError) {
+        // If the error response isn't JSON, handle it as text
+        const textError = await response.text();
+        console.error(`Non-JSON error from backend service on ${method} ${endpoint}:`, response.status, textError);
+        const formattedError = {
+          error: {
+            message: `Backend failed: ${response.statusText}`,
+            code: "BACKEND_ERROR",
+            status_code: response.status
+          }
+        };
+        return NextResponse.json(formattedError, { status: response.status });
+      }
     }
 
     // Return the response from backend

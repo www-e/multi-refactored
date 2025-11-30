@@ -1,158 +1,363 @@
 import { useSession } from 'next-auth/react';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import * as apiClient from '@/lib/apiClient';
 import { Customer } from '@/app/(shared)/types';
 import { mapBookingStatusToEnglish } from '@/lib/statusMapper';
 
 /**
- * Custom hook that provides memoized, authenticated API functions.
+ * Custom hook that provides memoized, authenticated API functions with loading states.
  */
 export const useAuthApi = () => {
   const { data: session, status } = useSession();
   const accessToken = (session as any)?.accessToken as string;
 
-  const getDashboardKpis = useCallback(() => {
+  // Loading states for different operations
+  const [loadingStates, setLoadingStates] = useState({
+    getDashboardKpis: false,
+    getTickets: false,
+    getBookings: false,
+    getCustomers: false,
+    createCustomer: false,
+    updateCustomer: false,
+    deleteCustomer: false,
+    updateBookingStatus: false,
+    updateBookingStatusWithMapping: false,
+    updateTicketStatus: false,
+    createVoiceSession: false,
+    postLog: false,
+    createTicket: false,
+    createBooking: false,
+    getCampaigns: false,
+    createCampaign: false,
+    updateCampaign: false,
+    deleteCampaign: false,
+    updateBooking: false,
+    updateTicket: false,
+    deleteBooking: false,
+    deleteTicket: false,
+    makeCall: false,
+    makeBulkCalls: false,
+    sendCustomerMessage: false,
+    getConversations: false,
+    getCalls: false,
+    getCall: false,
+  });
+
+  const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
+    setLoadingStates(prev => ({ ...prev, [operation]: isLoading }));
+  };
+
+  const getDashboardKpis = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getDashboardKpis(accessToken);
+    updateLoadingState('getDashboardKpis', true);
+    try {
+      const result = await apiClient.getDashboardKpis(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getDashboardKpis', false);
+    }
   }, [accessToken]);
 
-  const getTickets = useCallback(() => {
+  const getTickets = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getTickets(accessToken);
+    updateLoadingState('getTickets', true);
+    try {
+      const result = await apiClient.getTickets(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getTickets', false);
+    }
   }, [accessToken]);
 
-  const getBookings = useCallback(() => {
+  const getBookings = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getBookings(accessToken);
+    updateLoadingState('getBookings', true);
+    try {
+      const result = await apiClient.getBookings(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getBookings', false);
+    }
   }, [accessToken]);
 
-  const getCustomers = useCallback(() => { // <-- ADDED
+  const getCustomers = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getCustomers(accessToken);
+    updateLoadingState('getCustomers', true);
+    try {
+      const result = await apiClient.getCustomers(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getCustomers', false);
+    }
   }, [accessToken]);
 
-  const createCustomer = useCallback((data: { name: string; phone: string; email?: string; }) => { // <-- ADDED
+  const createCustomer = useCallback(async (data: { name: string; phone: string; email?: string; }) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.createCustomer(data, accessToken);
-  }, [accessToken]);
-  
-  const updateCustomer = useCallback((id: string, data: { name: string; phone: string; email?: string; }) => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateCustomer(id, data, accessToken);
+    updateLoadingState('createCustomer', true);
+    try {
+      const result = await apiClient.createCustomer(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createCustomer', false);
+    }
   }, [accessToken]);
 
-  const deleteCustomer = useCallback((id: string) => {
+  const updateCustomer = useCallback(async (id: string, data: { name: string; phone: string; email?: string; }) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.deleteCustomer(id, accessToken);
+    updateLoadingState('updateCustomer', true);
+    try {
+      const result = await apiClient.updateCustomer(id, data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateCustomer', false);
+    }
   }, [accessToken]);
-  
-  const updateBookingStatus = useCallback((id: string, status: 'confirmed' | 'canceled') => {
+
+  const deleteCustomer = useCallback(async (id: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateBookingStatus(id, status, accessToken);
+    updateLoadingState('deleteCustomer', true);
+    try {
+      const result = await apiClient.deleteCustomer(id, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('deleteCustomer', false);
+    }
+  }, [accessToken]);
+
+  const updateBookingStatus = useCallback(async (id: string, status: 'confirmed' | 'canceled') => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('updateBookingStatus', true);
+    try {
+      const result = await apiClient.updateBookingStatus(id, status, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateBookingStatus', false);
+    }
   }, [accessToken]);
 
   const updateBookingStatusWithMapping = useCallback(async (id: string, status: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    const englishStatus = mapBookingStatusToEnglish(status);
-    return apiClient.updateBookingStatus(id, englishStatus as 'confirmed' | 'canceled', accessToken);
-  }, [accessToken]);
-  
-  const updateTicketStatus = useCallback((id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateTicketStatus(id, status, accessToken);
-  }, [accessToken]);
-
-  const createVoiceSession = useCallback((agentType: 'support' | 'sales') => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.createVoiceSession(agentType, accessToken);
-  }, [accessToken]);
-    
-  const postLog = useCallback((level: 'info' | 'warn' | 'error', message: string, meta?: any) => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.postLog(level, message, meta, accessToken);
+    updateLoadingState('updateBookingStatusWithMapping', true);
+    try {
+      const englishStatus = mapBookingStatusToEnglish(status);
+      const result = await apiClient.updateBookingStatus(id, englishStatus as 'confirmed' | 'canceled', accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateBookingStatusWithMapping', false);
+    }
   }, [accessToken]);
 
-  const createTicket = useCallback((data: any) => {
+  const updateTicketStatus = useCallback(async (id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.createTicket(data, accessToken);
+    updateLoadingState('updateTicketStatus', true);
+    try {
+      const result = await apiClient.updateTicketStatus(id, status, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateTicketStatus', false);
+    }
   }, [accessToken]);
 
-const createBooking = useCallback((data: any) => {
+  const createVoiceSession = useCallback(async (agentType: 'support' | 'sales') => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.createBooking(data, accessToken);
+    updateLoadingState('createVoiceSession', true);
+    try {
+      const result = await apiClient.createVoiceSession(agentType, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createVoiceSession', false);
+    }
   }, [accessToken]);
 
-  const getCampaigns = useCallback(() => {
+  const postLog = useCallback(async (level: 'info' | 'warn' | 'error', message: string, meta?: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getCampaigns(accessToken);
+    updateLoadingState('postLog', true);
+    try {
+      const result = await apiClient.postLog(level, message, meta, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('postLog', false);
+    }
   }, [accessToken]);
 
-  const createCampaign = useCallback((data: any) => {
+  const createTicket = useCallback(async (data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.createCampaign(data, accessToken);
+    updateLoadingState('createTicket', true);
+    try {
+      const result = await apiClient.createTicket(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createTicket', false);
+    }
   }, [accessToken]);
 
-  const updateCampaign = useCallback((id: string, data: any) => {
+  const createBooking = useCallback(async (data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateCampaign(id, data, accessToken);
+    updateLoadingState('createBooking', true);
+    try {
+      const result = await apiClient.createBooking(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createBooking', false);
+    }
   }, [accessToken]);
 
-  const deleteCampaign = useCallback((id: string) => {
+  const getCampaigns = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.deleteCampaign(id, accessToken);
+    updateLoadingState('getCampaigns', true);
+    try {
+      const result = await apiClient.getCampaigns(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getCampaigns', false);
+    }
   }, [accessToken]);
 
-  const updateBooking = useCallback((id: string, data: any) => {
+  const createCampaign = useCallback(async (data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateBooking(id, data, accessToken);
+    updateLoadingState('createCampaign', true);
+    try {
+      const result = await apiClient.createCampaign(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createCampaign', false);
+    }
   }, [accessToken]);
 
-  const updateTicket = useCallback((id: string, data: any) => {
+  const updateCampaign = useCallback(async (id: string, data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.updateTicket(id, data, accessToken);
+    updateLoadingState('updateCampaign', true);
+    try {
+      const result = await apiClient.updateCampaign(id, data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateCampaign', false);
+    }
   }, [accessToken]);
 
-  const deleteBooking = useCallback((id: string) => {
+  const deleteCampaign = useCallback(async (id: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.deleteBooking(id, accessToken);
+    updateLoadingState('deleteCampaign', true);
+    try {
+      const result = await apiClient.deleteCampaign(id, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('deleteCampaign', false);
+    }
   }, [accessToken]);
 
-  const deleteTicket = useCallback((id: string) => {
+  const updateBooking = useCallback(async (id: string, data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.deleteTicket(id, accessToken);
+    updateLoadingState('updateBooking', true);
+    try {
+      const result = await apiClient.updateBooking(id, data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateBooking', false);
+    }
   }, [accessToken]);
 
-  const makeCall = useCallback((data: { customer_id: string; phone: string; direction?: string; agent_type?: string; campaign_id?: string; }) => {
+  const updateTicket = useCallback(async (id: string, data: any) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.makeCall(data, accessToken);
+    updateLoadingState('updateTicket', true);
+    try {
+      const result = await apiClient.updateTicket(id, data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateTicket', false);
+    }
   }, [accessToken]);
 
-  const makeBulkCalls = useCallback((customer_ids: string[]) => {
+  const deleteBooking = useCallback(async (id: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.makeBulkCalls(customer_ids, accessToken);
+    updateLoadingState('deleteBooking', true);
+    try {
+      const result = await apiClient.deleteBooking(id, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('deleteBooking', false);
+    }
   }, [accessToken]);
 
-  const sendCustomerMessage = useCallback((data: { customer_id: string; message: string; channel?: string; }) => {
+  const deleteTicket = useCallback(async (id: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.sendCustomerMessage(data, accessToken);
+    updateLoadingState('deleteTicket', true);
+    try {
+      const result = await apiClient.deleteTicket(id, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('deleteTicket', false);
+    }
   }, [accessToken]);
 
-  const getConversations = useCallback(() => {
+  const makeCall = useCallback(async (data: { customer_id: string; phone: string; direction?: string; agent_type?: string; campaign_id?: string; }) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getConversations(accessToken);
+    updateLoadingState('makeCall', true);
+    try {
+      const result = await apiClient.makeCall(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('makeCall', false);
+    }
   }, [accessToken]);
 
-  const getCalls = useCallback(() => {
+  const makeBulkCalls = useCallback(async (customer_ids: string[]) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getCalls(accessToken);
+    updateLoadingState('makeBulkCalls', true);
+    try {
+      const result = await apiClient.makeBulkCalls(customer_ids, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('makeBulkCalls', false);
+    }
   }, [accessToken]);
 
-  const getCall = useCallback((id: string) => {
+  const sendCustomerMessage = useCallback(async (data: { customer_id: string; message: string; channel?: string; }) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    return apiClient.getCall(id, accessToken);
+    updateLoadingState('sendCustomerMessage', true);
+    try {
+      const result = await apiClient.sendCustomerMessage(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('sendCustomerMessage', false);
+    }
+  }, [accessToken]);
+
+  const getConversations = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getConversations', true);
+    try {
+      const result = await apiClient.getConversations(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getConversations', false);
+    }
+  }, [accessToken]);
+
+  const getCalls = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getCalls', true);
+    try {
+      const result = await apiClient.getCalls(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getCalls', false);
+    }
+  }, [accessToken]);
+
+  const getCall = useCallback(async (id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getCall', true);
+    try {
+      const result = await apiClient.getCall(id, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getCall', false);
+    }
   }, [accessToken]);
 
   return {
+    loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
 

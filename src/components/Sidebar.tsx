@@ -100,7 +100,7 @@ interface SidebarProps {
   setIsCollapsed: (isCollapsed: boolean) => void
 }
 
-function UserProfile() {
+function UserProfile({ isCollapsed }: { isCollapsed: boolean }) {
   const { data: session, status } = useSession();
   const user = session?.user;
 
@@ -109,18 +109,58 @@ function UserProfile() {
 
   const isAdmin = user.role === 'admin';
 
+  // Show different UI based on collapsed state
+  if (isCollapsed) {
+    return (
+      <div className="flex flex-col items-center py-2">
+        <div className="relative group">
+          <div className="bg-gray-200 border-2 border-dashed rounded-xl w-10 h-10 flex items-center justify-center">
+            <span className="text-xs font-bold text-slate-700">
+              {user.name?.charAt(0) || 'U'}
+            </span>
+          </div>
+
+          {/* Tooltip for collapsed state */}
+          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-sm px-3 py-2 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-60">
+            <div className="font-medium">{user.name}</div>
+            <div className="text-xs opacity-80">{user.email}</div>
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45"></div>
+          </div>
+        </div>
+
+        <a
+          href="/api/auth/signout?callbackUrl=/"
+          className="mt-3 relative group flex items-center justify-center p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-all duration-200"
+          title="تسجيل الخروج"
+        >
+          <LogOut className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+
+          {/* Tooltip for sign out button */}
+          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-sm px-3 py-1 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-60">
+            تسجيل الخروج
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45"></div>
+          </div>
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center space-x-3 space-x-reverse">
-        <div className="bg-gray-200 border-2 border-dashed rounded-xl w-10 h-10" />
-        <div>
-          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">{user.name}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+        <div className="bg-gray-200 border-2 border-dashed rounded-xl w-10 h-10 flex items-center justify-center">
+          <span className="font-bold text-slate-700">
+            {user.name?.charAt(0) || 'U'}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{user.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
         </div>
       </div>
       <div className="mt-4 space-y-2">
         {isAdmin && (
-          <span className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200 cursor-not-allowed opacity-70">
+          <span className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
             <UserCog className="w-4 h-4" />
             <span>صلاحيات المشرف</span>
           </span>
@@ -229,7 +269,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
+        <nav className={`${(isCollapsed && !isMobile) ? 'p-1' : 'p-4'} space-y-2 flex-1 overflow-y-auto`}>
           {navigation.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -285,7 +325,7 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
                 <Phone className="w-4 h-4" />
                 <span>مكالمة جديدة</span>
               </button>
-              <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
+              <button className="w-full flex items-center space-x-2 space-x-reverse p-3 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50 rounded-lg transition-all duration-200">
                 <Mail className="w-4 h-4" />
                 <span>رسالة جديدة</span>
               </button>
@@ -294,8 +334,8 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         )}
 
         {/* User Profile & Logout */}
-        <div className={`p-4 border-t border-slate-200/50 dark:border-slate-700/50`}>
-          <UserProfile />
+        <div className={`${(isCollapsed && !isMobile) ? 'p-1' : 'p-4'} border-t border-slate-200/50 dark:border-slate-700/50`}>
+          <UserProfile isCollapsed={isCollapsed && !isMobile} />
         </div>
       </div>
     </>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import {
-  Activity, Star, TrendingUp, BarChart3, MessageSquare, Users, Phone, AlertCircle,
+  Activity, Star, TrendingUp, BarChart3, MessageSquare, Users, Phone, AlertCircle, Clock
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
@@ -21,29 +21,40 @@ export default function DashboardPage() {
   const {
     dashboardKPIs,
     liveOps,
+    calls,
     dashboardLoading,
     setDashboardData,
-    setDashboardLoading
+    setDashboardLoading,
+    setCalls
   } = useAppStore();
 
-  const { getDashboardKpis, isAuthenticated } = useAuthApi();
+  const { getDashboardKpis, getCalls, isAuthenticated } = useAuthApi();
 
   const fetchAllData = useCallback(async () => {
     if (isAuthenticated) {
       setDashboardLoading(true);
       try {
-        const dashboardData = await getDashboardKpis();
+        const [dashboardData, callsData] = await Promise.all([
+          getDashboardKpis(),
+          getCalls()
+        ]);
         setDashboardData(dashboardData);
+        setCalls(callsData);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
         setDashboardLoading(false);
       }
     }
-  }, [isAuthenticated, getDashboardKpis, setDashboardData, setDashboardLoading]);
+  }, [isAuthenticated, getDashboardKpis, getCalls, setDashboardData, setCalls, setDashboardLoading]);
 
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  // Get the latest 4 calls, sorted by creation date (newest first)
+  const latestCalls = calls
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
 
   const periods = [
     { value: '1d', label: 'اليوم' },
@@ -161,6 +172,67 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Latest Calls Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 space-x-reverse">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <Phone className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle>آخر المكالمات</CardTitle>
+                  <p className="text-slate-600 dark:text-slate-400">عرض آخر 4 مكالمات</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/calls')}
+                className="text-sm text-primary hover:underline"
+              >
+                عرض الكل
+              </button>
+            </div>
+          </CardHeader>
+          <div className="space-y-3 p-4">
+            {latestCalls.length > 0 ? (
+              latestCalls.map((call) => (
+                <div
+                  key={call.id}
+                  className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg hover:bg-white dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                  onClick={() => router.push(`/calls#${call.id}`)}
+                >
+                  <div className="flex items-center space-x-3 space-x-reverse">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      call.direction === 'صادر' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+                    }`}>
+                      <Phone size={18} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                        {call.customerId ? `مكالمة مع عميل` : 'مكالمة'}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span>{call.direction}</span>
+                        <span>•</span>
+                        <span>{new Date(call.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge
+                      status={call.status as any || 'unknown' as any}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                لا توجد مكالمات حديثة
+              </div>
+            )}
           </div>
         </Card>
 

@@ -31,6 +31,10 @@ class CallResponse(BaseModel):
     customer_id: str
     direction: str
     status: str
+    handle_sec: Optional[int] = None
+    outcome: Optional[str] = None
+    ai_or_human: Optional[str] = None
+    recording_url: Optional[str] = None
     created_at: datetime
 
 @router.post("/calls", response_model=CallResponse)
@@ -75,7 +79,8 @@ async def create_call(
         created_at=datetime.now(timezone.utc),
         handle_sec=None,
         outcome=None,
-        ai_or_human=models.AIOrHumanEnum.Human if call_in.agent_type == "human" else models.AIOrHumanEnum.AI
+        ai_or_human=models.AIOrHumanEnum.Human if call_in.agent_type == "human" else models.AIOrHumanEnum.AI,
+        recording_url=None
     )
     db_session.add(db_call)
     db_session.commit()
@@ -106,9 +111,13 @@ async def create_call(
     return CallResponse(
         id=db_call.id,
         conversation_id=db_call.conversation_id,
-        customer_id=db_call.customer_id,
+        customer_id=call_in.customer_id,  # Use the customer_id from the request
         direction=db_call.direction,
         status=db_call.status,
+        handle_sec=db_call.handle_sec,
+        outcome=db_call.outcome,
+        ai_or_human=db_call.ai_or_human,
+        recording_url=db_call.recording_url,
         created_at=db_call.created_at
     )
 
@@ -138,6 +147,10 @@ def get_calls(
             customer_id=customer_id,
             direction=call.direction,
             status=call.status,
+            handle_sec=call.handle_sec,
+            outcome=call.outcome,
+            ai_or_human=call.ai_or_human,
+            recording_url=call.recording_url,
             created_at=call.created_at
         )
         for call, customer_id in call_data
@@ -153,21 +166,17 @@ def get_call(
     """
     Retrieve a specific call by ID.
     """
-    call = db_session.query(models.Call).join(
+    call_with_customer = db_session.query(models.Call, models.Conversation.customer_id).join(
         models.Conversation, models.Call.conversation_id == models.Conversation.id
     ).filter(
         models.Call.id == call_id,
         models.Conversation.tenant_id == tenant_id  # Filter by tenant through conversation
     ).first()
-    if not call:
+
+    if not call_with_customer:
         raise HTTPException(status_code=404, detail="Call not found")
 
-    # Get customer_id from the linked conversation
-    conversation = db_session.query(models.Conversation).filter(
-        models.Conversation.id == call.conversation_id,
-        models.Conversation.tenant_id == tenant_id  # Ensure conversation belongs to tenant
-    ).first()
-    customer_id = conversation.customer_id if conversation else None
+    call, customer_id = call_with_customer
 
     return CallResponse(
         id=call.id,
@@ -175,6 +184,10 @@ def get_call(
         customer_id=customer_id,
         direction=call.direction,
         status=call.status,
+        handle_sec=call.handle_sec,
+        outcome=call.outcome,
+        ai_or_human=call.ai_or_human,
+        recording_url=call.recording_url,
         created_at=call.created_at
     )
 

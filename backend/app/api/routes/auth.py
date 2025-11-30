@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from app import models
 from app.api import deps
-from app.auth_utils import authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.auth_utils import authenticate_user, create_access_token, create_refresh_token, ACCESS_TOKEN_EXPIRE_MINUTES, verify_refresh_token
 from app.password_utils import validate_password_strength, hash_password
 
 router = APIRouter()
@@ -19,7 +19,8 @@ class TokenRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 class UserCreateRequest(BaseModel):
     email: str
@@ -52,7 +53,57 @@ async def login_for_access_token(form_data: TokenRequest, db_session: Session = 
         data={"sub": user.id, "email": user.email, "role": user.role.value},
         expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = create_refresh_token(
+        data={"sub": user.id, "email": user.email, "role": user.role.value}
+    )
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+@router.post("/auth/refresh", response_model=TokenResponse)
+async def refresh_access_token(refresh_token_data: RefreshTokenRequest, db_session: Session = Depends(deps.get_session)):
+    try:
+        payload = verify_refresh_token(refresh_token_data.refresh_token)
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Get user from database to ensure they still exist and are active
+        user = db_session.query(models.User).filter(models.User.id == user_id).first()
+        if user is None or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User no longer exists or is inactive",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Create new access token with the same user data
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.id, "email": user.email, "role": user.role.value},
+            expires_delta=access_token_expires
+        )
+
+        # Create a new refresh token to replace the old one
+        new_refresh_token = create_refresh_token(
+            data={"sub": user.id, "email": user.email, "role": user.role.value}
+        )
+
+        return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 @router.post("/auth/register", response_model=UserResponse)
 async def register_user(user_data: UserCreateRequest, db_session: Session = Depends(deps.get_session)):

@@ -51,7 +51,7 @@ export default function CallsPage() {
 
   // Filter calls based on search query
   const filteredCalls = calls.filter(call => {
-    const customerName = getCustomerName(call.customer_id || call.customerId || '').toLowerCase();
+    const customerName = getCustomerName(call.customerId || '').toLowerCase();
     const callId = call.id.toLowerCase();
     return customerName.includes(searchQuery.toLowerCase()) ||
            callId.includes(searchQuery.toLowerCase()) ||
@@ -115,25 +115,25 @@ export default function CallsPage() {
                   <div className="flex justify-between items-start">
                     <div className="flex gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        call.direction === 'outbound' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+                        call.direction === 'صادر' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
                       }`}>
                         <Phone size={18} />
                       </div>
                       <div>
                         <h4 className="font-semibold text-sm">
-                          {getCustomerName(call.customer_id || call.customerId || '')}
+                          {getCustomerName(call.customerId || '')}
                         </h4>
                         <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <span>{call.direction === 'outbound' ? 'صادر' : 'وارد'}</span>
+                          <span>{call.direction}</span>
                           <span>•</span>
                           <span>{call.status}</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <StatusBadge status={call.status || 'unknown'} />
+                      <StatusBadge status={call.status as any || 'unknown' as any} />
                       <p className="text-xs text-slate-400 mt-1">
-                        {new Date(call.created_at || call.createdAt).toLocaleDateString('ar-EG')}
+                        {new Date(call.createdAt).toLocaleDateString('ar-EG')}
                       </p>
                     </div>
                   </div>
@@ -153,11 +153,11 @@ export default function CallsPage() {
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
                   <div>
                     <h3 className="font-bold">
-                      {getCustomerName(selectedCall.customer_id || selectedCall.customerId || '')}
+                      {getCustomerName(selectedCall.customerId || '')}
                     </h3>
-                    <p className="text-sm text-slate-500">مكالمة {selectedCall.direction === 'outbound' ? 'صادرية' : 'واردة'}</p>
+                    <p className="text-sm text-slate-500">مكالمة {selectedCall.direction === 'صادر' ? 'صادرية' : 'واردة'}</p>
                   </div>
-                  <StatusBadge status={selectedCall.status || 'unknown'} />
+                  <StatusBadge status={selectedCall.status as any || 'unknown' as any} />
                 </div>
 
                 {/* Details */}
@@ -173,24 +173,24 @@ export default function CallsPage() {
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">الاتجاه</h4>
-                      <p className="font-medium">{selectedCall.direction === 'outbound' ? 'صادر' : 'وارد'}</p>
+                      <p className="font-medium">{selectedCall.direction}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">النوع</h4>
                       <p className="font-medium">
-                        {selectedCall.ai_or_human === 'AI' ? 'ذكاء اصطناعي' : ' بشري'}
+                        {selectedCall.aiOrHuman === 'AI' ? 'ذكاء اصطناعي' : ' بشري'}
                       </p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تاريخ البدء</h4>
                       <p className="font-medium">
-                        {new Date(selectedCall.created_at || selectedCall.createdAt).toLocaleString('ar-EG')}
+                        {new Date(selectedCall.createdAt).toLocaleString('ar-EG')}
                       </p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">مدة المكالمة</h4>
                       <p className="font-medium">
-                        {selectedCall.handle_sec ? `${selectedCall.handle_sec} ثانية` : 'غير متوفرة'}
+                        {selectedCall.handleSec ? `${selectedCall.handleSec} ثانية` : 'غير متوفرة'}
                       </p>
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export default function CallsPage() {
                     </div>
                   )}
 
-                  {selectedCall.recording_url && (
+                  {selectedCall.recordingUrl && (
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تسجيل المكالمة</h4>
                       <button className="flex items-center gap-2 bg-primary text-white px-3 py-1 rounded-full text-sm">

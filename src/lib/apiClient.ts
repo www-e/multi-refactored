@@ -361,15 +361,15 @@ const transformCall = (call: any) => ({
   ...call,
   // Map snake_case backend fields to camelCase for consistency
   customerId: call.customer_id,
+  conversationId: call.conversation_id,
   direction: call.direction === 'outbound' ? 'صادر' : 'وارد', // Map to Arabic direction
   status: call.status,
-  aiOrHuman: call.ai_or_human,
   outcome: call.outcome,
   handleSec: call.handle_sec,
+  aiOrHuman: call.ai_or_human,
   recordingUrl: call.recording_url,
   createdAt: call.created_at,
-  updatedAt: call.updated_at || call.created_at,
-  conversationId: call.conversation_id
+  updatedAt: call.updated_at || call.created_at
 });
 
 export const getCalls = (token: string): Promise<any[]> => {

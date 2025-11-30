@@ -51,6 +51,20 @@ export interface CallAction {
   createdAt: string;
 }
 
+export interface Call {
+  id: string;
+  conversationId: string;
+  customerId: string;
+  direction: 'وارد' | 'صادر';
+  status: string;
+  outcome?: string;
+  handleSec?: number;
+  aiOrHuman?: string;
+  recordingUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface CallRecord {
   id: string;
   direction: 'وارد' | 'صادر';

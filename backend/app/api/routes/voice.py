@@ -173,23 +173,33 @@ def _create_call_from_voice_session(db_session: Session, voice_session: models.V
             logger.warning(f"Cannot create call for voice session {voice_session.id} - no conversation_id set")
             return False
 
+        # Determine direction based on voice session direction, default to inbound if not specified
+        direction = models.CallDirectionEnum.inbound
+        if voice_session.direction:
+            if voice_session.direction.lower() == "outbound":
+                direction = models.CallDirectionEnum.outbound
+            elif voice_session.direction.lower() == "inbound":
+                direction = models.CallDirectionEnum.inbound
+
         # Create call record (Call model doesn't have customer_id, only conversation_id)
         call = models.Call(
             id=generate_id("call"),
             conversation_id=voice_session.conversation_id,
-            direction="inbound",  # Voice sessions are typically inbound
-            status="connected",   # Use valid CallStatusEnum value (connected, no_answer, abandoned)
+            direction=direction,
+            status=models.CallStatusEnum.connected,   # Use valid CallStatusEnum value
             handle_sec=None,      # Not available from voice session
             outcome=None,         # Not available from voice session
             ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
-            recording_url=voice_session.conversation_id,  # Use conversation ID for reference
+            recording_url=None,   # Will be populated later if recording exists
             retention_expires_at=None
             # Note: Call model doesn't have customer_id field - it links to conversation which has customer_id
         )
         db_session.add(call)
+        db_session.commit()  # Commit to ensure the call record is saved
         return True
     except Exception as e:
         logger.error(f"Could not create call from voice session {voice_session.id}: {e}")
+        db_session.rollback()  # Rollback on error
         return False
 
 def _create_conversation_from_voice_session(db_session: Session, voice_session: models.VoiceSession, call_summary: str) -> bool:

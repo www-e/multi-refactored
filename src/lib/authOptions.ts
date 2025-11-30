@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
           console.error("CRITICAL: BACKEND_URL is not set in NextAuth configuration.");
           return null;
         }
-        
+
         try {
           // CRITICAL FIX: The backend's /auth/token endpoint expects a JSON body, not form data.
           const response = await fetch(`${backendUrl}/auth/token`, {
@@ -58,7 +58,8 @@ export const authOptions: NextAuthOptions = {
               email: user.email,
               name: user.name,
               role: user.role,
-              accessToken: tokenData.access_token
+              accessToken: tokenData.access_token,
+              refreshToken: tokenData.refresh_token
             };
           }
         } catch (error) {
@@ -74,12 +75,20 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/login',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.accessToken = user.accessToken;
+        token.refreshToken = user.refreshToken;
+        token.accessTokenExpires = Date.now() + 14.5 * 60 * 1000; // 14.5 minutes in ms (to refresh before expiry)
       }
+
+      // If token is expired, try to refresh it
+      if (Date.now() >= (token.accessTokenExpires as number)) {
+        return await refreshAccessToken(token);
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -96,3 +105,48 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
 };
+
+// Function to refresh access token
+async function refreshAccessToken(token: any) {
+  try {
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) {
+      console.error("CRITICAL: BACKEND_URL is not set for token refresh.");
+      return token;
+    }
+
+    const response = await fetch(`${backendUrl}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refresh_token: token.refreshToken
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Token refresh failed:", response.status);
+      // If refresh fails, return the token as is to trigger a new login
+      return {
+        ...token,
+        error: 'RefreshAccessTokenError'
+      };
+    }
+
+    const refreshedTokens = await response.json();
+
+    return {
+      ...token,
+      accessToken: refreshedTokens.access_token,
+      refreshToken: refreshedTokens.refresh_token,
+      accessTokenExpires: Date.now() + 14.5 * 60 * 1000, // 14.5 minutes in ms
+    };
+  } catch (error) {
+    console.error("Error during token refresh:", error);
+    return {
+      ...token,
+      error: 'RefreshAccessTokenError'
+    };
+  }
+}

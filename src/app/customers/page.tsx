@@ -231,97 +231,138 @@ export default function CustomersPage() {
                 <p className="text-slate-500">لا يوجد عملاء</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCustomers.map(customer => {
-                    const stats = getCustomerStats(customer.id);
-                    const isSelected = selectedCustomerIds.includes(customer.id);
-                    return (
-                        <Card
-                            key={customer.id}
-                            className={`hover:shadow-xl transition-all ${isSelected ? 'ring-2 ring-primary bg-primary/10' : ''}`}
-                        >
-                            <div className="flex justify-between items-start mb-4 relative">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-bold text-xl">
-                                    {customer.name.charAt(0)}
-                                </div>
-                                {isSelectMode && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <table className="w-full">
+                    <thead className="bg-slate-50 dark:bg-slate-800/50">
+                        <tr>
+                            {isSelectMode && (
+                                <th className="p-4 w-12">
                                     <button
-                                        onClick={() => toggleCustomerSelection(customer.id)}
-                                        className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border flex items-center justify-center ${
-                                            isSelected
-                                                ? 'bg-primary border-primary text-white'
-                                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                                        }`}
-                                        aria-label={isSelected ? `إلغاء تحديد ${customer.name}` : `تحديد ${customer.name}`}
+                                        onClick={toggleSelectAll}
+                                        className="w-6 h-6 rounded-full border flex items-center justify-center border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                        aria-label="تحديد الكل"
                                     >
-                                        {isSelected && <Check size={14} />}
+                                        {selectedCustomerIds.length === filteredCustomers.length && <Check size={14} />}
                                     </button>
-                                )}
-                                <StatusBadge status={customer.stage as any || 'جديد'} />
-                            </div>
-
-                            <h3 className="text-lg font-bold mb-1">{customer.name}</h3>
-                            <div className="text-sm text-slate-500 space-y-1 mb-4">
-                                <div className="flex items-center gap-2"><Phone size={14}/> {customer.phone}</div>
-                                {customer.email && <div className="flex items-center gap-2"><Mail size={14}/> {customer.email}</div>}
-                                {customer.neighborhoods?.[0] && <div className="flex items-center gap-2"><MapPin size={14}/> {customer.neighborhoods[0]}</div>}
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <span>تم الإنشاء:</span>
-                                    <span>{new Date(customer.createdAt).toLocaleDateString('ar-EG')}</span>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2 mb-4 border-t border-b border-slate-100 dark:border-slate-700 py-4">
-                                <div className="text-center">
-                                    <span className="block font-bold">{stats.calls}</span>
-                                    <span className="text-xs text-slate-500">محادثات</span>
-                                </div>
-                                <div className="text-center border-x border-slate-100 dark:border-slate-700">
-                                    <span className="block font-bold">{stats.tickets}</span>
-                                    <span className="text-xs text-slate-500">تذاكر</span>
-                                </div>
-                                <div className="text-center">
-                                    <span className="block font-bold">{stats.bookings}</span>
-                                    <span className="text-xs text-slate-500">حجوزات</span>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-1">
-                                <button
-                                    className="flex-1 bg-primary text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-primary/90"
-                                    onClick={() => handleCustomerCall(customer.phone, customer.id)}
-                                    aria-label={`اتصال بـ ${customer.name}`}
+                                </th>
+                            )}
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">العميل</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الهاتف</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">البريد الإلكتروني</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المنطقة</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحالة</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المحادثات</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">التذاكر</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحجوزات</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">تاريخ الإنشاء</th>
+                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {filteredCustomers.map(customer => {
+                            const stats = getCustomerStats(customer.id);
+                            const isSelected = selectedCustomerIds.includes(customer.id);
+                            return (
+                                <tr
+                                    key={customer.id}
+                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/10' : ''}`}
                                 >
-                                    <PhoneCall size={14} /> اتصال
-                                </button>
-                                <button
-                                    className="flex-1 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-slate-200"
-                                    onClick={() => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email)}
-                                    aria-label={`مراسلة ${customer.name}`}
-                                >
-                                    <MessageSquare size={14} /> رسالة
-                                </button>
-                                <button
-                                    className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-slate-200"
-                                    onClick={() => {
-                                      setCustomerToEdit(customer);
-                                      setIsEditModalOpen(true);
-                                    }}
-                                    aria-label={`تعديل ${customer.name}`}
-                                >
-                                    <Edit size={14} /> تعديل
-                                </button>
-                                <button
-                                    className="bg-destructive text-white py-2 rounded-lg text-sm flex items-center justify-center gap-2 hover:bg-destructive/90"
-                                    onClick={() => handleDeleteCustomer({id: customer.id, name: customer.name})}
-                                    aria-label={`حذف ${customer.name}`}
-                                >
-                                    <Trash2 size={14} /> حذف
-                                </button>
-                            </div>
-                        </Card>
-                    );
-                })}
+                                    {isSelectMode && (
+                                        <td className="p-4">
+                                            <button
+                                                onClick={() => toggleCustomerSelection(customer.id)}
+                                                className={`w-6 h-6 rounded-full border flex items-center justify-center ${
+                                                    isSelected
+                                                        ? 'bg-primary border-primary text-white'
+                                                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                                }`}
+                                                aria-label={isSelected ? `إلغاء تحديد ${customer.name}` : `تحديد ${customer.name}`}
+                                            >
+                                                {isSelected && <Check size={14} />}
+                                            </button>
+                                        </td>
+                                    )}
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                                                {customer.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div className="font-medium">{customer.name}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                            <Phone size={16}/>
+                                            {customer.phone}
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        {customer.email && (
+                                            <div className="flex items-center gap-2">
+                                                <Mail size={16}/>
+                                                {customer.email}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        {customer.neighborhoods?.[0] && (
+                                            <div className="flex items-center gap-2">
+                                                <MapPin size={16}/>
+                                                {customer.neighborhoods[0]}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-4">
+                                        <StatusBadge status={customer.stage as any || 'جديد'} />
+                                    </td>
+                                    <td className="p-4 text-center font-bold">{stats.calls}</td>
+                                    <td className="p-4 text-center font-bold">{stats.tickets}</td>
+                                    <td className="p-4 text-center font-bold">{stats.bookings}</td>
+                                    <td className="p-4 text-sm text-slate-500">
+                                        {new Date(customer.createdAt).toLocaleDateString('ar-EG')}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex gap-1">
+                                            <button
+                                                className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                                                onClick={() => handleCustomerCall(customer.phone, customer.id)}
+                                                aria-label={`اتصال بـ ${customer.name}`}
+                                            >
+                                                <PhoneCall size={16} />
+                                            </button>
+                                            <button
+                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
+                                                onClick={() => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email)}
+                                                aria-label={`مراسلة ${customer.name}`}
+                                            >
+                                                <MessageSquare size={16} />
+                                            </button>
+                                            <button
+                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
+                                                onClick={() => {
+                                                  setCustomerToEdit(customer);
+                                                  setIsEditModalOpen(true);
+                                                }}
+                                                aria-label={`تعديل ${customer.name}`}
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                className="p-2 bg-destructive text-white rounded-lg hover:bg-destructive/90"
+                                                onClick={() => handleDeleteCustomer({id: customer.id, name: customer.name})}
+                                                aria-label={`حذف ${customer.name}`}
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
         )}
 
