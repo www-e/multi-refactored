@@ -1,0 +1,64 @@
+name: Perfect Auto-Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy_and_verify:
+    name: Build, Deploy & Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Executing remote SSH commands
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop_on_error: true # Stop immediately if any command fails
+          script: |
+            # 1. Go to project folder
+            cd /var/www/voice_agent
+            
+            # 2. Sync Code (Force Server to match GitHub)
+            echo "📥 Pulling latest code..."
+            git fetch --all
+            git reset --hard origin/main
+            
+            # 3. Rebuild and Restart Containers
+            echo "🏗️ Building and Starting Docker Containers..."
+            docker-compose up -d --build
+            
+            # 4. Wait for Boot (Give Next.js and Python time to start)
+            echo "⏳ Waiting 15 seconds for services to initialize..."
+            sleep 15
+            
+            # 5. Run Database Migrations
+            echo "🔄 Running Database Migrations..."
+            docker exec navaia_backend alembic upgrade head
+            
+            # 6. Cleanup Disk Space
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+            
+            # 7. HEALTH CHECKS (The "Make sure it works" part)
+            echo "🏥 Running Health Checks..."
+            
+            # Check Backend
+            if curl -f -s -o /dev/null http://127.0.0.1:8000/healthz; then
+                echo "✅ Backend is HEALTHY"
+            else
+                echo "❌ Backend is DEAD"
+                exit 1
+            fi
+            
+            # Check Frontend (Port 3001)
+            if curl -f -s -o /dev/null http://127.0.0.1:3001; then
+                echo "✅ Frontend is HEALTHY"
+            else
+                echo "❌ Frontend is DEAD (Check PM2/Docker logs)"
+                exit 1
+            fi
+            
+            echo "🚀 Deployment Complete Successfully!"
