@@ -1,28 +1,55 @@
 version: "3.9"
 services:
+  # 1. Database
   postgres:
     image: postgres:15-alpine
+    container_name: navaia_db
     environment:
       POSTGRES_DB: navaia
       POSTGRES_USER: navaia
       POSTGRES_PASSWORD: navaia
-    ports:
-      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - navaia_net
 
+  # 2. Python Backend
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: navaia_backend
+    # Explicitly load the unified .env file
     env_file:
       - .env
-    ports:
-      - "8000:8000"
     depends_on:
       - postgres
     restart: unless-stopped
+    networks:
+      - navaia_net
+
+  # 3. Next.js Frontend (New!)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: navaia_frontend
+    env_file:
+      - .env
+    ports:
+      # Map container port 3000 to host port 3001
+      - "3001:3001"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - navaia_net
+
+# Define a custom network so they can talk internally
+networks:
+  navaia_net:
+    driver: bridge
 
 volumes:
   pgdata:

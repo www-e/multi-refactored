@@ -7,7 +7,7 @@ import hmac
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 from app import models
 from app.api import deps
 
@@ -36,14 +36,31 @@ class VoiceSessionResponse(BaseModel):
 # --- Voice Session Endpoint ---
 @router.post("/voice/sessions", response_model=VoiceSessionResponse)
 def create_voice_session(body: VoiceSessionRequest, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+    # 1. Handle Customer
+    customer = db_session.query(models.Customer).filter(models.Customer.id == body.customer_id).first()
+    if not customer:
+        customer = models.Customer(
+            id=body.customer_id,
+            tenant_id="demo-tenant",
+            name="Playground Guest",
+            phone="N/A",
+            created_at=datetime.now(timezone.utc)
+        )
+        db_session.add(customer)
+        db_session.flush()
+
+    # 2. Create Session
+    # CRITICAL: This must start at the same column as 'if not customer:'
+    # It must NOT be inside the 'if' block.
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
         tenant_id="demo-tenant",
         customer_id=body.customer_id,
         direction="inbound",
         status="active",
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
+
     db_session.add(voice_session)
     db_session.commit()
     db_session.refresh(voice_session)
@@ -80,7 +97,7 @@ def _get_or_create_customer(db_session: Session, customer_phone: str, customer_n
         customer = models.Customer(
             id=generate_id("cust"), tenant_id="demo-tenant",
             name=customer_name or f"Customer {customer_phone}",
-            phone=customer_phone, created_at=datetime.utcnow()
+            phone=customer_phone, created_at=datetime.now(timezone.utc)
         )
         db_session.add(customer)
         db_session.flush() # Ensure customer has an ID
@@ -110,7 +127,7 @@ def _create_booking_from_conversation(db_session: Session, voice_session: models
             property_code=project or "PROP-DEFAULT", start_date=appointment_dt,
             source=models.ChannelEnum.voice, created_by=models.AIOrHumanEnum.AI,
             project=project or "Voice Booking", preferred_datetime=appointment_dt,
-            status=models.BookingStatusEnum.pending, created_at=datetime.utcnow()
+            status=models.BookingStatusEnum.pending, created_at=datetime.now(timezone.utc)
         )
         db_session.add(booking)
         return True
@@ -140,7 +157,7 @@ def _create_ticket_from_conversation(db_session: Session, voice_session: models.
             issue=voice_session.summary or "No summary provided", project=project or "N/A",
             category=data_collection.get("category", {}).get("value", "General"),
             priority=models.TicketPriorityEnum.med, status=models.TicketStatusEnum.open,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db_session.add(ticket)
         return True
@@ -186,7 +203,7 @@ def _create_conversation_from_voice_session(db_session: Session, voice_session: 
             sentiment="neutral",  # Default sentiment
             ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
             created_at=voice_session.created_at,
-            ended_at=voice_session.ended_at or datetime.utcnow(),
+            ended_at=voice_session.ended_at or datetime.now(timezone.utc),
             recording_url=voice_session.conversation_id,  # Use conversation ID for reference
             retention_expires_at=None
         )
@@ -226,11 +243,22 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     voice_session.customer_phone = customer_phone
                     voice_session.status = models.VoiceSessionStatus.COMPLETED
                 else:
+                    # Create a proper customer record first instead of using an invalid ID
+                    temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
+                    temp_customer = models.Customer(
+                        id=temp_customer_id,
+                        tenant_id="demo-tenant",  # Would use tenant_id parameter in full implementation
+                        name="System Generated Customer",
+                        phone=customer_phone or "N/A",
+                        created_at=datetime.now(timezone.utc)
+                    )
+                    db_session.add(temp_customer)
+
                     voice_session = models.VoiceSession(
-                        id=generate_id("vs"), tenant_id="demo-tenant", customer_id=f"customer_{conversation_id}",
+                        id=generate_id("vs"), tenant_id="demo-tenant", customer_id=temp_customer_id,
                         conversation_id=conversation_id, agent_id=data.get("agent_id", ""),
                         customer_phone=customer_phone, summary=call_summary, extracted_intent=intent,
-                        status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.utcnow()
+                        status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.now(timezone.utc)
                     )
                     db_session.add(voice_session)
                 db_session.flush()
@@ -396,11 +424,22 @@ async def handle_elevenlabs_webhook(request: Request):
                         voice_session.customer_phone = customer_phone
                         voice_session.status = models.VoiceSessionStatus.COMPLETED
                     else:
+                        # Create a proper customer record first instead of using an invalid ID
+                        temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
+                        temp_customer = models.Customer(
+                            id=temp_customer_id,
+                            tenant_id="demo-tenant",  # Would use tenant_id parameter in full implementation
+                            name="System Generated Customer",
+                            phone=customer_phone or "N/A",
+                            created_at=datetime.now(timezone.utc)
+                        )
+                        db_session.add(temp_customer)
+
                         voice_session = models.VoiceSession(
-                            id=generate_id("vs"), tenant_id="demo-tenant", customer_id=f"customer_{conversation_id}",
+                            id=generate_id("vs"), tenant_id="demo-tenant", customer_id=temp_customer_id,
                             conversation_id=conversation_id, agent_id=data.get("agent_id", ""),
                             customer_phone=customer_phone, summary=call_summary, extracted_intent=intent,
-                            status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.utcnow()
+                            status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.now(timezone.utc)
                         )
                         db_session.add(voice_session)
                     db_session.flush()

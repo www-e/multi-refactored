@@ -5,7 +5,7 @@ from typing import List, Optional
 from app import models
 from app.api import deps
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -29,6 +29,8 @@ class BookingUpdateRequest(BaseModel):
     price: Optional[float] = None
     assignee: Optional[str] = None
 
+from datetime import datetime, timezone
+
 def format_booking(b: models.Booking):
     weekday_map = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
     day_name = weekday_map[b.preferred_datetime.weekday()] if b.preferred_datetime else ""
@@ -50,14 +52,14 @@ def format_booking(b: models.Booking):
     }
 
 @router.post("/bookings", status_code=201)
-def create_booking(booking_in: BookingCreateRequest, db_session: Session = Depends(deps.get_session), _=Depends(deps.get_current_user)):
+def create_booking(booking_in: BookingCreateRequest, tenant_id: str = Depends(deps.get_current_tenant_id), db_session: Session = Depends(deps.get_session), _=Depends(deps.get_current_user)):
     customer = db_session.query(models.Customer).filter(models.Customer.id == booking_in.customerId).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
-    
+
     db_booking = models.Booking(
         id=generate_id(),
-        tenant_id="demo-tenant",
+        tenant_id=tenant_id,
         customer_id=customer.id,
         customer_name=customer.name,
         phone=customer.phone,
@@ -69,7 +71,7 @@ def create_booking(booking_in: BookingCreateRequest, db_session: Session = Depen
         source=booking_in.source,
         status=models.BookingStatusEnum.pending,
         created_by=models.AIOrHumanEnum.Human, # Manual creation is by a Human
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db_session.add(db_booking)
     db_session.commit()
@@ -77,18 +79,18 @@ def create_booking(booking_in: BookingCreateRequest, db_session: Session = Depen
     return format_booking(db_booking)
 
 @router.get("/bookings", response_model=List[dict])
-def get_bookings(_=Depends(deps.get_current_user), limit: int = 50, db_session: Session = Depends(deps.get_session)):
-    bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(limit).all()
+def get_bookings(tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), limit: int = 50, db_session: Session = Depends(deps.get_session)):
+    bookings = db_session.query(models.Booking).filter(models.Booking.tenant_id == tenant_id).order_by(models.Booking.created_at.desc()).limit(limit).all()
     return [format_booking(b) for b in bookings]
 
 @router.get("/bookings/recent", response_model=List[dict])
-def get_recent_bookings(_=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
-    bookings = db_session.query(models.Booking).order_by(models.Booking.created_at.desc()).limit(10).all()
+def get_recent_bookings(tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+    bookings = db_session.query(models.Booking).filter(models.Booking.tenant_id == tenant_id).order_by(models.Booking.created_at.desc()).limit(10).all()
     return [format_booking(b) for b in bookings]
 
 @router.patch("/bookings/{booking_id}")
-def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
-    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
+def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id, models.Booking.tenant_id == tenant_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     booking.status = body.status
@@ -100,16 +102,17 @@ def update_booking_status(booking_id: str, body: BookingStatusUpdateRequest, _=D
 def update_booking_general(
     booking_id: str,
     booking_in: BookingUpdateRequest,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
     """
     Update booking general information (excluding status which has its own endpoint).
     """
-    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id, models.Booking.tenant_id == tenant_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     # Update only provided fields
     update_data = booking_in.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -121,7 +124,7 @@ def update_booking_general(
             booking.preferred_datetime = value  # Also update preferred datetime
         elif hasattr(booking, field):
             setattr(booking, field, value)
-    
+
     db_session.commit()
     db_session.refresh(booking)
     return format_booking(booking)
@@ -129,28 +132,29 @@ def update_booking_general(
 @router.delete("/bookings/{booking_id}")
 def delete_booking(
     booking_id: str,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
     """
     Delete a booking.
     """
-    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    booking = db_session.query(models.Booking).filter(models.Booking.id == booking_id, models.Booking.tenant_id == tenant_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     # Check if booking has related approvals
     has_approvals = db_session.query(models.Approval).filter(
         models.Approval.entity_type == "booking",
         models.Approval.entity_id == booking_id
     ).first()
-    
+
     if has_approvals:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete booking with existing approvals. Consider canceling instead.",
         )
-    
+
     db_session.delete(booking)
     db_session.commit()
     return {"message": "Booking deleted successfully"}

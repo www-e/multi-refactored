@@ -5,7 +5,7 @@ from typing import List, Optional
 from app import models
 from app.api import deps
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -32,24 +32,24 @@ class TicketUpdateRequest(BaseModel):
 
 def format_ticket(t: models.Ticket):
     return {
-        "id": t.id, "customerId": t.customer_id, "category": t.category, 
+        "id": t.id, "customerId": t.customer_id, "category": t.category,
         "customer_name": t.customer_name, "phone": t.phone,
-        "issue": t.issue, "project": t.project, 
+        "issue": t.issue, "project": t.project,
         "priority": t.priority.value if t.priority else "med",
-        "status": t.status.value if t.status else "open", 
+        "status": t.status.value if t.status else "open",
         "createdAt": t.created_at.isoformat(),
-        "assignee": t.assignee, "propertyId": t.property_id
+        "assignee": t.assignee, "propertyId": t.project
     }
 
 @router.post("/tickets", status_code=201)
-def create_ticket(ticket_in: TicketCreateRequest, db_session: Session = Depends(deps.get_session), _=Depends(deps.get_current_user)):
+def create_ticket(ticket_in: TicketCreateRequest, tenant_id: str = Depends(deps.get_current_tenant_id), db_session: Session = Depends(deps.get_session), _=Depends(deps.get_current_user)):
     customer = db_session.query(models.Customer).filter(models.Customer.id == ticket_in.customerId).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     db_ticket = models.Ticket(
         id=generate_id(),
-        tenant_id="demo-tenant",
+        tenant_id=tenant_id,
         customer_id=customer.id,
         customer_name=customer.name,
         phone=customer.phone,
@@ -58,7 +58,7 @@ def create_ticket(ticket_in: TicketCreateRequest, db_session: Session = Depends(
         status=models.TicketStatusEnum.open,
         issue=ticket_in.issue,
         project=ticket_in.project,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db_session.add(db_ticket)
     db_session.commit()
@@ -66,18 +66,18 @@ def create_ticket(ticket_in: TicketCreateRequest, db_session: Session = Depends(
     return format_ticket(db_ticket)
 
 @router.get("/tickets", response_model=List[dict])
-def get_tickets(_=Depends(deps.get_current_user), limit: int = 50, db_session: Session = Depends(deps.get_session)):
-    tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(limit).all()
+def get_tickets(tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), limit: int = 50, db_session: Session = Depends(deps.get_session)):
+    tickets = db_session.query(models.Ticket).filter(models.Ticket.tenant_id == tenant_id).order_by(models.Ticket.created_at.desc()).limit(limit).all()
     return [format_ticket(t) for t in tickets]
 
 @router.get("/tickets/recent", response_model=List[dict])
-def get_recent_tickets(_=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
-    tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(10).all()
+def get_recent_tickets(tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+    tickets = db_session.query(models.Ticket).filter(models.Ticket.tenant_id == tenant_id).order_by(models.Ticket.created_at.desc()).limit(10).all()
     return [format_ticket(t) for t in tickets]
 
 @router.patch("/tickets/{ticket_id}")
-def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
-    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id, models.Ticket.tenant_id == tenant_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     ticket.status = body.status
@@ -89,22 +89,23 @@ def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, _=Depe
 def update_ticket_general(
     ticket_id: str,
     ticket_in: TicketUpdateRequest,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
     """
     Update ticket general information (excluding status which has its own endpoint).
     """
-    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id, models.Ticket.tenant_id == tenant_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    
+
     # Update only provided fields
     update_data = ticket_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(ticket, field):
             setattr(ticket, field, value)
-    
+
     db_session.commit()
     db_session.refresh(ticket)
     return format_ticket(ticket)
@@ -112,28 +113,29 @@ def update_ticket_general(
 @router.delete("/tickets/{ticket_id}")
 def delete_ticket(
     ticket_id: str,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
     """
     Delete a ticket.
     """
-    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id, models.Ticket.tenant_id == tenant_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    
+
     # Check if ticket has related approvals
     has_approvals = db_session.query(models.Approval).filter(
         models.Approval.entity_type == "ticket",
         models.Approval.entity_id == ticket_id
     ).first()
-    
+
     if has_approvals:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete ticket with existing approvals. Consider closing instead.",
         )
-    
+
     db_session.delete(ticket)
     db_session.commit()
     return {"message": "Ticket deleted successfully"}

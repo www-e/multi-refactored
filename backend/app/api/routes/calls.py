@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 import asyncio
 
@@ -36,15 +36,17 @@ class CallResponse(BaseModel):
 @router.post("/calls", response_model=CallResponse)
 async def create_call(
     call_in: CallCreateRequest,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     db_session: Session = Depends(deps.get_session),
     _=Depends(deps.get_current_user)
 ):
     """
     Create a new call record. This endpoint initiates an outbound call.
     """
-    # Verify customer exists
+    # Verify customer exists and belongs to tenant
     customer = db_session.query(models.Customer).filter(
-        models.Customer.id == call_in.customer_id
+        models.Customer.id == call_in.customer_id,
+        models.Customer.tenant_id == tenant_id
     ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -53,13 +55,13 @@ async def create_call(
     # We'll create a conversation first, then link the call to it
     conversation = models.Conversation(
         id=generate_id("conv"),
-        tenant_id="demo-tenant",
+        tenant_id=tenant_id,
         channel=models.ChannelEnum.voice,
         customer_id=call_in.customer_id,
         summary=f"Outbound call to {call_in.phone}",
         sentiment="neutral",
         ai_or_human=models.AIOrHumanEnum.Human if call_in.agent_type == "human" else models.AIOrHumanEnum.AI,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
     db_session.add(conversation)
     db_session.flush()  # Get the ID without committing
@@ -70,7 +72,7 @@ async def create_call(
         conversation_id=conversation.id,  # Link to conversation
         direction=call_in.direction,
         status="initiated",  # Initial status
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         handle_sec=None,
         outcome=None,
         ai_or_human=models.AIOrHumanEnum.Human if call_in.agent_type == "human" else models.AIOrHumanEnum.AI
@@ -112,6 +114,7 @@ async def create_call(
 
 @router.get("/calls", response_model=List[CallResponse])
 def get_calls(
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     skip: int = 0,
     limit: int = 100,
     db_session: Session = Depends(deps.get_session),
@@ -120,9 +123,11 @@ def get_calls(
     """
     Retrieve a list of calls.
     """
-    # Join Call with Conversation to get customer_id efficiently
+    # Join Call with Conversation to get customer_id efficiently, with tenant filtering
     call_data = db_session.query(models.Call, models.Conversation.customer_id).join(
         models.Conversation, models.Call.conversation_id == models.Conversation.id
+    ).filter(
+        models.Conversation.tenant_id == tenant_id  # Filter by tenant via conversation
     ).offset(skip).limit(limit).all()
 
     # Convert to response format
@@ -141,19 +146,26 @@ def get_calls(
 @router.get("/calls/{call_id}", response_model=CallResponse)
 def get_call(
     call_id: str,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     db_session: Session = Depends(deps.get_session),
     _=Depends(deps.get_current_user)
 ):
     """
     Retrieve a specific call by ID.
     """
-    call = db_session.query(models.Call).filter(models.Call.id == call_id).first()
+    call = db_session.query(models.Call).join(
+        models.Conversation, models.Call.conversation_id == models.Conversation.id
+    ).filter(
+        models.Call.id == call_id,
+        models.Conversation.tenant_id == tenant_id  # Filter by tenant through conversation
+    ).first()
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
 
     # Get customer_id from the linked conversation
     conversation = db_session.query(models.Conversation).filter(
-        models.Conversation.id == call.conversation_id
+        models.Conversation.id == call.conversation_id,
+        models.Conversation.tenant_id == tenant_id  # Ensure conversation belongs to tenant
     ).first()
     customer_id = conversation.customer_id if conversation else None
 
@@ -196,7 +208,7 @@ async def create_bulk_calls(
             summary=f"Outbound call to {customer.phone}",
             sentiment="neutral",
             ai_or_human=models.AIOrHumanEnum.Human,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         db_session.add(conversation)
         db_session.flush()  # Get the ID without committing
@@ -207,7 +219,7 @@ async def create_bulk_calls(
             conversation_id=conversation.id,
             direction="outbound",
             status="initiated",
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             handle_sec=None,
             outcome=None,
             ai_or_human=models.AIOrHumanEnum.Human
