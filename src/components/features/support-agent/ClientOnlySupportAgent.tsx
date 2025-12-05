@@ -70,59 +70,10 @@ export default function ClientOnlySupportAgent() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>طلبات العملاء الجديدة</CardTitle>
-            <Button onClick={fetchBackendData} variant="outline" size="sm" disabled={isLoadingData}>
-              {isLoadingData ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <RefreshCw className="w-4 h-4 ml-2" />} تحديث
-            </Button>
+            <CardTitle>المساعد الصوتي</CardTitle>
           </CardHeader>
-          <div className="p-6 space-y-8">
-            {isLoadingData && !backendBookings.length && !backendTickets.length ? (
-                <div className="text-center py-8 text-slate-500">جاري تحميل الطلبات...</div>
-            ) : (
-              <>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Calendar /> طلبات المواعيد ({backendBookings.length})</h3>
-                  {backendBookings.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {backendBookings.map(b => (
-                        <Card key={b.id} className="p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-semibold">{b.project}</h4>
-                            <StatusBadge status={b.status === 'pending' ? 'معلق' : 'مؤكد'} />
-                          </div>
-                          <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                            <p><User size={14} className="inline ml-1" />{b.customer_name}</p>
-                            <p><Phone size={14} className="inline ml-1" />{b.phone}</p>
-                            <p><Clock size={14} className="inline ml-1" />{b.day_name} {b.appointment_date} - {b.appointment_time}</p>
-                          </div>
-                           {b.status === 'pending' && <div className="flex gap-2 pt-4 mt-4 border-t dark:border-slate-700"><Button onClick={() => handleBookingAction(b.id, 'approve')} size="sm" className="flex-1 bg-green-600"><Check size={16} /> موافقة</Button><Button onClick={() => handleBookingAction(b.id, 'deny')} size="sm" variant="outline" className="flex-1"><X size={16} /> رفض</Button></div>}
-                        </Card>
-                      ))}
-                    </div>
-                  ) : <p className="text-sm text-slate-500">لا توجد طلبات مواعيد جديدة.</p>}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Ticket /> تذاكر الدعم ({backendTickets.length})</h3>
-                  {backendTickets.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {backendTickets.map(t => (
-                        <Card key={t.id} className="p-4">
-                           <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-semibold">{t.project}</h4>
-                            <StatusBadge status={t.priority === 'high' ? 'عالٍ' : 'متوسط'} />
-                          </div>
-                           <p className="text-sm bg-slate-50 dark:bg-slate-700 p-2 rounded-md mb-2">{t.issue}</p>
-                          <div className="space-y-1 text-sm text-slate-600 dark:text-slate-400">
-                            <p><User size={14} className="inline ml-1" />{t.customer_name}</p>
-                          </div>
-                          {t.status === 'open' && <div className="flex gap-2 pt-4 mt-4 border-t dark:border-slate-700"><Button onClick={() => handleTicketAction(t.id, 'approve')} size="sm" className="flex-1 bg-green-600"><Check size={16} /> قبول</Button><Button onClick={() => handleTicketAction(t.id, 'deny')} size="sm" variant="outline" className="flex-1"><X size={16} /> رفض</Button></div>}
-                        </Card>
-                      ))}
-                    </div>
-                  ) : <p className="text-sm text-slate-500">لا توجد تذاكر دعم جديدة.</p>}
-                </div>
-              </>
-            )}
+          <div className="p-6 text-center">
+            <p className="text-sm text-slate-500">جاري محادثة المساعد الصوتي...</p>
           </div>
         </Card>
       </div>

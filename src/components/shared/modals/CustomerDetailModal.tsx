@@ -1,6 +1,7 @@
 'use client';
 import { Customer, EnhancedTicket, EnhancedBooking, EnhancedCampaign } from '@/app/(shared)/types';
 import { Modal } from '../ui/Modal';
+import { formatDate } from '@/lib/utils';
 
 interface CustomerDetailModalProps {
   isOpen: boolean;
@@ -138,7 +139,7 @@ export default function CustomerDetailModal({
             </div>
             <div>
               <p className="text-sm text-slate-500">التاريخ</p>
-              <p className="font-medium">{new Date(customer.createdAt).toLocaleDateString('ar-EG')}</p>
+              <p className="font-medium">{formatDate(customer.createdAt)}</p>
             </div>
           </div>
         </div>
@@ -191,7 +192,7 @@ export default function CustomerDetailModal({
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                    {new Date(booking.startDate).toLocaleDateString('ar-EG')} - {booking.price} ر.س
+                    {formatDate(booking.startDate)} - {booking.price} ر.س
                   </p>
                 </div>
               ))}

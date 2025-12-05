@@ -13,6 +13,7 @@ import { DashboardStatsGrid } from '@/components/features/dashboard/DashboardSta
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ErrorBoundary from '@/components/shared/ui/ErrorBoundary';
 import { mapBookingStatusToArabic, mapTicketStatusToArabic, mapCampaignStatusToArabic } from '@/lib/statusMapper';
+import { formatDate, formatSAR, formatTime } from '@/lib/utils';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -216,7 +217,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2 text-xs text-slate-500">
                         <span>{call.direction}</span>
                         <span>•</span>
-                        <span>{new Date(call.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{formatTime(call.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -280,14 +281,14 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.monthlyTarget ? dashboardKPIs.monthlyTarget.toLocaleString() : '-'} ر.س</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.monthlyTarget ? formatSAR(dashboardKPIs.monthlyTarget) : '-'}</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                 <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${dashboardKPIs.monthlyTarget ? Math.min(100, Math.round((dashboardKPIs.revenue / dashboardKPIs.monthlyTarget) * 100)) : 0}%` }}></div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.revenue.toLocaleString()} ر.س</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">{formatSAR(dashboardKPIs.revenue)}</span>
               </div>
               <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                 <div className="text-2xl font-bold text-emerald-600">{dashboardKPIs.monthlyTarget ? Math.round((dashboardKPIs.revenue / dashboardKPIs.monthlyTarget) * 100) : 0}%</div>

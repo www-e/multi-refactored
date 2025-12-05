@@ -15,6 +15,7 @@ import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal';
 import { useModalState } from '@/hooks/useModalState';
 import { Customer, EnhancedTicket, EnhancedBooking } from '@/app/(shared)/types';
+import { formatDate } from '@/lib/utils';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -331,7 +332,7 @@ export default function CustomersPage() {
                                     <td className="p-4 text-center font-bold">{stats.tickets}</td>
                                     <td className="p-4 text-center font-bold">{stats.bookings}</td>
                                     <td className="p-4 text-sm text-slate-500">
-                                        {new Date(customer.createdAt).toLocaleDateString('ar-EG')}
+                                        {formatDate(customer.createdAt)}
                                     </td>
                                     <td className="p-4">
                                         <div className="flex gap-1">

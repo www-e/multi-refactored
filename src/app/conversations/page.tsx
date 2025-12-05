@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
+import { formatDate } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 
@@ -116,7 +117,7 @@ export default function ConversationsPage() {
                                         <p className="text-xs text-slate-500 line-clamp-1">{conv.summary}</p>
                                     </div>
                                 </div>
-                                <span className="text-xs text-slate-400">{new Date(conv.createdAt).toLocaleDateString('ar-EG')}</span>
+                                <span className="text-xs text-slate-400">{formatDate(conv.createdAt)}</span>
                             </div>
                         </Card>
                     ))}

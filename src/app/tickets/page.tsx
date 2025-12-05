@@ -13,6 +13,7 @@ import TicketModal from '@/components/shared/modals/TicketModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import { mapTicketStatusToArabic } from '@/lib/statusMapper';
+import { formatDate } from '@/lib/utils';
 
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,12 +77,18 @@ export default function TicketsPage() {
     return false;
   };
 
+  const getNextStatus = (currentStatus: string): string => {
+    if (matchesStatus(currentStatus, 'open')) return 'قيد المعالجة';
+    if (matchesStatus(currentStatus, 'in_progress')) return 'محلولة';
+    return 'مغلقة'; // fallback
+  };
+
   const handleNextStatus = async (id: string, currentStatus: string) => {
     // Simple flow: open -> in_progress -> resolved
     let nextStatus: 'in_progress' | 'resolved' | null = null;
     if (matchesStatus(currentStatus, 'open')) nextStatus = 'in_progress';
     else if (matchesStatus(currentStatus, 'in_progress')) nextStatus = 'resolved';
-    
+
     if (nextStatus) {
         try {
             await updateTicketStatus(id, nextStatus);
@@ -170,7 +177,7 @@ export default function TicketsPage() {
                                         <div className="flex justify-between items-start mb-2">
                                             <StatusBadge status={ticket.priority} />
                                             <div className="flex gap-1">
-                                                <button onClick={(e) => { e.stopPropagation(); handleNextStatus(ticket.id, ticket.status); }} className="p-1 hover:bg-slate-100 rounded" title="نقل للحالة التالية">
+                                                <button onClick={(e) => { e.stopPropagation(); handleNextStatus(ticket.id, ticket.status); }} className="p-1 hover:bg-slate-100 rounded" title={`الانتقال إلى الحالة: ${getNextStatus(ticket.status)}`}>
                                                     <Clock size={14} className="text-slate-400 hover:text-primary" />
                                                 </button>
                                                 <button onClick={(e) => { e.stopPropagation(); setTicketToDelete(ticket); setIsDeleteModalOpen(true); }} className="p-1 hover:bg-red-50 rounded">
@@ -186,7 +193,7 @@ export default function TicketsPage() {
                                         
                                         <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-700">
                                             <span className="flex items-center gap-1"><User size={12} /> {ticket.category}</span>
-                                            <span>{new Date(ticket.createdAt).toLocaleDateString('ar-EG')}</span>
+                                            <span>{formatDate(ticket.createdAt)}</span>
                                         </div>
                                     </Card>
                                 );

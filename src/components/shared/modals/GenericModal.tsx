@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFormHandler } from '@/hooks/useFormHandler';
 import ModalFormLayout from './ModalFormLayout';
 
@@ -71,11 +71,11 @@ export default function GenericModal<T extends Record<string, any>>({
   });
 
   // Update form data when initialData changes
-  useState(() => {
+  useEffect(() => {
     if (initialData) {
       setFormData(initializeFormData());
     }
-  });
+  }, [initialData, initializeFormData]);
 
   const handleSubmit = () => {
     handleFormSubmit(formData);

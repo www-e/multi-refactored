@@ -6,6 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
+import { formatDate } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
@@ -133,7 +134,7 @@ export default function CallsPage() {
                     <div className="text-right">
                       <StatusBadge status={call.status as any || 'unknown' as any} />
                       <p className="text-xs text-slate-400 mt-1">
-                        {new Date(call.createdAt).toLocaleDateString('ar-EG')}
+                        {formatDate(call.createdAt)}
                       </p>
                     </div>
                   </div>

@@ -17,6 +17,7 @@ import BookingModal from '@/components/shared/modals/BookingModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import { mapBookingStatusToArabic } from '@/lib/statusMapper';
+import { formatDate, formatSAR } from '@/lib/utils';
 
 export default function BookingsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
@@ -192,12 +193,12 @@ export default function BookingsPage() {
                   <Card key={booking.id} className="p-4">
                     <div className="flex justify-between mb-3">
                         <StatusBadge status={booking.createdBy} />
-                        <span className="text-xs text-slate-500">{new Date(booking.createdAt).toLocaleDateString('ar-EG')}</span>
+                        <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
                     </div>
                     <div className="space-y-2 mb-4">
                         <h4 className="font-semibold">{customer?.name || 'عميل غير معروف'}</h4>
                         <p className="text-sm text-slate-600">{property?.code || booking.propertyId || '...'}</p>
-                        <p className="text-lg font-bold text-primary">{(booking.price || 0).toLocaleString()} ر.س</p>
+                        <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
                     </div>
                     <div className="flex gap-2">
                         <button onClick={() => handleAction(booking.id, 'confirmed')} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
@@ -248,8 +249,8 @@ export default function BookingsPage() {
                                             <p className="font-medium">{property?.code || '...'}</p>
                                             <p className="text-xs text-slate-500">{property?.neighborhood}</p>
                                         </td>
-                                        <td className="p-4 text-sm">{new Date(booking.startDate).toLocaleDateString('ar-EG')}</td>
-                                        <td className="p-4 font-semibold text-primary">{(booking.price || 0).toLocaleString()} ر.س</td>
+                                        <td className="p-4 text-sm">{formatDate(booking.startDate)}</td>
+                                        <td className="p-4 font-semibold text-primary">{formatSAR(booking.price || 0)}</td>
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>
                                         <td className="p-4">
