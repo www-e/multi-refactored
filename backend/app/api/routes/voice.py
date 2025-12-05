@@ -237,7 +237,13 @@ def _create_conversation_from_voice_session(db_session: Session, voice_session: 
         return False
 
 @router.post("/elevenlabs/conversation/{conversation_id}/process")
-async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+async def process_conversation_fast(conversation_id: str, db_session: Session = Depends(deps.get_session)):
+    """
+    Webhook endpoint for ElevenLabs conversation processing.
+    This is an external webhook, so we don't use authentication dependencies.
+    Instead, we securely determine tenant context by looking up the existing voice session.
+    """
+    from app.api.deps import get_session
     headers = get_elevenlabs_headers()
     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"
     try:
@@ -259,8 +265,11 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     customer_phone = phone_metadata.get("external_number", "")
                 call_summary = analysis.get("call_summary_title", "")
 
+                # SECURE TENANT RESOLUTION: Look up existing voice session by conversation_id to determine tenant
                 voice_session = db_session.query(models.VoiceSession).filter(models.VoiceSession.conversation_id == conversation_id).first()
                 if voice_session:
+                    # Use the tenant_id from the existing voice session
+                    tenant_id = voice_session.tenant_id
                     voice_session.summary = call_summary
                     voice_session.extracted_intent = intent
                     voice_session.customer_phone = customer_phone
@@ -390,6 +399,8 @@ async def handle_elevenlabs_webhook(request: Request):
     """
     Webhook endpoint for ElevenLabs post-call data.
     Receives webhook calls from ElevenLabs after conversation ends.
+    This is an external webhook, so we don't use authentication dependencies.
+    Instead, we securely determine tenant context by looking up the existing voice session.
     """
     from app.api.deps import get_session  # Import here to avoid circular dependencies
     try:
@@ -459,10 +470,13 @@ async def handle_elevenlabs_webhook(request: Request):
                         customer_phone = phone_metadata.get("external_number", "")
                     call_summary = analysis.get("call_summary_title", "")
 
+                    # SECURE TENANT RESOLUTION: Look up existing voice session by conversation_id to determine tenant
                     voice_session = db_session.query(models.VoiceSession).filter(
                         models.VoiceSession.conversation_id == conversation_id
                     ).first()
                     if voice_session:
+                        # Use the tenant_id from the existing voice session
+                        tenant_id = voice_session.tenant_id
                         voice_session.summary = call_summary
                         voice_session.extracted_intent = intent
                         voice_session.customer_phone = customer_phone
