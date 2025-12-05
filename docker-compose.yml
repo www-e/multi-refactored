@@ -23,13 +23,15 @@ services:
     # Explicitly load the unified .env file
     env_file:
       - .env
+    ports:
+      - "8000:8000"
     depends_on:
       - postgres
     restart: unless-stopped
     networks:
       - navaia_net
 
-  # 3. Next.js Frontend (New!)
+  # 3. Next.js Frontend
   frontend:
     build:
       context: .
