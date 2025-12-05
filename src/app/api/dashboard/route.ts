@@ -9,7 +9,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // @ts-ignore
   const accessToken = session?.accessToken;
 
-  // 3. SECUTIRY: If no token, reject the request.
+  // 3. SECURITY: If no token, reject the request.
   if (!accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

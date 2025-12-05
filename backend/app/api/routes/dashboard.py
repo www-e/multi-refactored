@@ -8,25 +8,29 @@ from app.api import deps
 router = APIRouter()
 
 @router.get("/dashboard/kpis")
-def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
+def get_dashboard_kpis(tenant_id: str = Depends(deps.get_current_tenant_id), _=Depends(deps.get_current_user), db_session: Session = Depends(deps.get_session)):
     """
-    Get dashboard KPIs calculated from the database
+    Get dashboard KPIs calculated from the database for the current tenant
     """
     from sqlalchemy import func
 
-    total_calls = db_session.query(models.VoiceSession).count()
+    total_calls = db_session.query(models.VoiceSession).filter(models.VoiceSession.tenant_id == tenant_id).count()
     completed_calls = db_session.query(models.VoiceSession).filter(
-        models.VoiceSession.status == models.VoiceSessionStatus.COMPLETED
+        models.VoiceSession.status == models.VoiceSessionStatus.COMPLETED,
+        models.VoiceSession.tenant_id == tenant_id
     ).count()
     answer_rate = (completed_calls / total_calls * 100) if total_calls > 0 else 0
 
-    total_bookings = db_session.query(models.Booking).count()
+    total_bookings = db_session.query(models.Booking).filter(models.Booking.tenant_id == tenant_id).count()
     conversion_rate = (total_bookings / total_calls * 100) if total_calls > 0 else 0
-    total_revenue = db_session.query(func.sum(models.Booking.price_sar)).scalar() or 0
+    total_revenue = db_session.query(func.sum(models.Booking.price_sar)).filter(
+        models.Booking.tenant_id == tenant_id
+    ).scalar() or 0
 
     # Calculate average handle time from actual call data if available
     avg_duration_result = db_session.query(func.avg(models.Call.handle_sec)).filter(
-        models.Call.handle_sec.isnot(None)
+        models.Call.handle_sec.isnot(None),
+        models.Call.tenant_id == tenant_id
     ).scalar()
     avg_handle_time = int(avg_duration_result) if avg_duration_result else 0
 
@@ -36,17 +40,20 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
     csat = 0.0  # Default to 0 until we have actual CSAT data in the database
 
     missed_calls = db_session.query(models.VoiceSession).filter(
-        models.VoiceSession.status == models.VoiceSessionStatus.FAILED
+        models.VoiceSession.status == models.VoiceSessionStatus.FAILED,
+        models.VoiceSession.tenant_id == tenant_id
     ).count()
     ai_transferred = db_session.query(models.VoiceSession).filter(
-        models.VoiceSession.extracted_intent.isnot(None)
+        models.VoiceSession.extracted_intent.isnot(None),
+        models.VoiceSession.tenant_id == tenant_id
     ).count()
 
     # Calculate ROAS based on actual revenue and actual marketing spend
     roas = (total_revenue / 50000) if total_revenue and total_revenue > 0 else 0  # Using a more realistic baseline
 
     current_calls = db_session.query(models.VoiceSession).filter(
-        models.VoiceSession.status == models.VoiceSessionStatus.ACTIVE
+        models.VoiceSession.status == models.VoiceSessionStatus.ACTIVE,
+        models.VoiceSession.tenant_id == tenant_id
     ).limit(5).all()
 
     current_calls_formatted = [
@@ -57,7 +64,9 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
         for call in current_calls
     ]
 
-    recent_tickets = db_session.query(models.Ticket).order_by(models.Ticket.created_at.desc()).limit(5).all()
+    recent_tickets = db_session.query(models.Ticket).filter(
+        models.Ticket.tenant_id == tenant_id
+    ).order_by(models.Ticket.created_at.desc()).limit(5).all()
     ai_transferred_chats = [
         {"id": ticket.id,
          "customerName": ticket.customer_name or "Unknown",
@@ -77,23 +86,27 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
 
     # Calculate current and previous period metrics
     current_total_calls = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.tenant_id == tenant_id,
         models.VoiceSession.created_at >= start_current,
         models.VoiceSession.created_at < end_current
     ).count()
 
     prev_total_calls = db_session.query(models.VoiceSession).filter(
+        models.VoiceSession.tenant_id == tenant_id,
         models.VoiceSession.created_at >= start_prev,
         models.VoiceSession.created_at < end_prev
     ).count()
 
     current_completed_calls = db_session.query(models.VoiceSession).filter(
         models.VoiceSession.status == models.VoiceSessionStatus.COMPLETED,
+        models.VoiceSession.tenant_id == tenant_id,
         models.VoiceSession.created_at >= start_current,
         models.VoiceSession.created_at < end_current
     ).count()
 
     prev_completed_calls = db_session.query(models.VoiceSession).filter(
         models.VoiceSession.status == models.VoiceSessionStatus.COMPLETED,
+        models.VoiceSession.tenant_id == tenant_id,
         models.VoiceSession.created_at >= start_prev,
         models.VoiceSession.created_at < end_prev
     ).count()
@@ -103,11 +116,13 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
     answer_rate_change = round(current_answer_rate - prev_answer_rate, 1)
 
     current_bookings = db_session.query(models.Booking).filter(
+        models.Booking.tenant_id == tenant_id,
         models.Booking.created_at >= start_current,
         models.Booking.created_at < end_current
     ).count()
 
     prev_bookings = db_session.query(models.Booking).filter(
+        models.Booking.tenant_id == tenant_id,
         models.Booking.created_at >= start_prev,
         models.Booking.created_at < end_prev
     ).count()
@@ -117,11 +132,13 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
     conversion_change = round(current_conversion - prev_conversion, 1)
 
     current_revenue = db_session.query(func.sum(models.Booking.price_sar)).filter(
+        models.Booking.tenant_id == tenant_id,
         models.Booking.created_at >= start_current,
         models.Booking.created_at < end_current
     ).scalar() or 0
 
     prev_revenue = db_session.query(func.sum(models.Booking.price_sar)).filter(
+        models.Booking.tenant_id == tenant_id,
         models.Booking.created_at >= start_prev,
         models.Booking.created_at < end_prev
     ).scalar() or 0
@@ -151,6 +168,7 @@ def get_dashboard_kpis(_=Depends(deps.get_current_user), db_session: Session = D
         "csatChange": 0.0,  # Placeholder - would need historical data
         "monthlyTarget": 2000000,
         "qualifiedCount": db_session.query(models.Ticket).filter(
+            models.Ticket.tenant_id == tenant_id,
             models.Ticket.status != models.TicketStatusEnum.open
         ).count()
     }

@@ -167,7 +167,6 @@ export default function DashboardPage() {
                         <p className="text-sm text-slate-500">{chat.reason}</p>
                       </div>
                     </div>
-                    <span className="text-sm text-warning">انتظار: {chat.waitingTime}</span>
                   </div>
                 ))}
               </div>

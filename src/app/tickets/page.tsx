@@ -16,6 +16,7 @@ import { mapTicketStatusToArabic } from '@/lib/statusMapper';
 
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all'); // Added status filter
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -60,9 +61,10 @@ export default function TicketsPage() {
     { id: 'resolved', label: 'محلولة', color: 'bg-green-500' },
   ];
 
-  const filteredTickets = tickets.filter(t => 
-    t.issue.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    getCustomerName(t.customerId).toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTickets = tickets.filter(t =>
+    (t.issue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    getCustomerName(t.customerId).toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (statusFilter === 'all' || t.status === statusFilter)
   );
 
   const matchesStatus = (ticketStatus: string, colId: string) => {
@@ -111,7 +113,41 @@ export default function TicketsPage() {
             </div>
         </PageHeader>
 
-        <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث بالعميل أو المشكلة..." onFilterClick={() => {}} />
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث بالعميل أو المشكلة..." onFilterClick={() => {}} />
+          <div className="flex gap-2">
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'all' ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              الكل
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'open' ? 'bg-blue-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('open')}
+            >
+              مفتوحة
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'in_progress' ? 'bg-yellow-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('in_progress')}
+            >
+              قيد المعالجة
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'pending_approval' ? 'bg-orange-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('pending_approval')}
+            >
+              بانتظار الموافقة
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'resolved' ? 'bg-green-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('resolved')}
+            >
+              محلولة
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
             {columns.map(col => {

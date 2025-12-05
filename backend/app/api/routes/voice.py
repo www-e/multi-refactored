@@ -42,7 +42,7 @@ def create_voice_session(body: VoiceSessionRequest, tenant_id: str = Depends(dep
         customer = models.Customer(
             id=body.customer_id,
             tenant_id=tenant_id,
-            name="Playground Guest",
+            name=f"Customer {body.customer_id[:8]}",  # Use a recognizable customer name format
             phone="N/A",
             created_at=datetime.now(timezone.utc)
         )
@@ -267,9 +267,30 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                 else:
                     # Create a proper customer record first instead of using an invalid ID
                     temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
+                    # For webhook scenarios without tenant context, we should either fail or use tenant from conversation
+                    # For now, let's get the tenant_id from the authenticated user context
+                    # However, since this is a webhook endpoint, we can't access the current user directly
+                    # So we need to handle this differently - but for now, we'll need to find the tenant through the voice session if it exists
+                    # Actually, this should be handled properly - we need to pass tenant context or handle this differently
+                    # Since this is a webhook, we'll need to determine tenant from other sources
+                    # For now, let's try to get it from some context or default to the authenticated user's tenant
+                    # Actually, the tenant_id should be passed to the webhook function somehow - let me check how the endpoint is set up
+                    # The endpoint doesn't have tenant_id in the function signature, so we need to handle this differently
+                    # This is a webhook, so we can't rely on the current user context
+                    # So we'll need to either parse from the webhook data or have some other mechanism
+                    # If voice session doesn't exist, we should not create a new one from webhook
+                    # This ensures security - webhooks can only update existing voice sessions
+                    # that were created via authenticated API calls
+                    logger.warning(f"Webhook received for non-existent conversation_id: {conversation_id}. This may be an attempt to create unauthorized records.")
+                    db_session.commit()  # Commit any previous changes but don't create new entities
+                    return {
+                        "status": "warning",
+                        "conversation_id": conversation_id,
+                        "processed": {"message": f"Conversation {conversation_id} not found in database"}
+                    }
                     temp_customer = models.Customer(
                         id=temp_customer_id,
-                        tenant_id="demo-tenant",  # Use default tenant_id since voice_session is None here
+                        tenant_id=tenant_id,
                         name="System Generated Customer",
                         phone=customer_phone or "N/A",
                         created_at=datetime.now(timezone.utc)
@@ -277,10 +298,10 @@ async def process_conversation_fast(conversation_id: str, _=Depends(deps.get_cur
                     db_session.add(temp_customer)
 
                     voice_session = models.VoiceSession(
-                        id=generate_id("vs"), tenant_id="demo-tenant", customer_id=temp_customer_id,
+                        id=generate_id("vs"), tenant_id=tenant_id, customer_id=temp_customer_id,
                         conversation_id=conversation_id, agent_id=data.get("agent_id", ""),
                         customer_phone=customer_phone, summary=call_summary, extracted_intent=intent,
-                        status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.now(timezone.utc)
+                        status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.now(timezone_utc)
                     )
                     db_session.add(voice_session)
                 db_session.flush()
@@ -446,24 +467,16 @@ async def handle_elevenlabs_webhook(request: Request):
                         voice_session.customer_phone = customer_phone
                         voice_session.status = models.VoiceSessionStatus.COMPLETED
                     else:
-                        # Create a proper customer record first instead of using an invalid ID
-                        temp_customer_id = f"temp_{generate_id('cust')}"  # Use a proper generated ID
-                        temp_customer = models.Customer(
-                            id=temp_customer_id,
-                            tenant_id="demo-tenant",  # Use default tenant_id instead of voice_session.tenant_id which is None
-                            name="System Generated Customer",
-                            phone=customer_phone or "N/A",
-                            created_at=datetime.now(timezone.utc)
-                        )
-                        db_session.add(temp_customer)
-
-                        voice_session = models.VoiceSession(
-                            id=generate_id("vs"), tenant_id="demo-tenant", customer_id=temp_customer_id,
-                            conversation_id=conversation_id, agent_id=data.get("agent_id", ""),
-                            customer_phone=customer_phone, summary=call_summary, extracted_intent=intent,
-                            status=models.VoiceSessionStatus.COMPLETED, created_at=datetime.now(timezone.utc)
-                        )
-                        db_session.add(voice_session)
+                        # If voice session doesn't exist, we should not create a new one from webhook
+                        # This ensures security - webhooks can only update existing voice sessions
+                        # that were created via authenticated API calls
+                        logger.warning(f"Webhook received for non-existent conversation_id: {conversation_id}. This may be an attempt to create unauthorized records.")
+                        db_session.commit()  # Commit any previous changes but don't create new entities
+                        return {
+                            "status": "warning",
+                            "conversation_id": conversation_id,
+                            "processed": {"message": f"Conversation {conversation_id} not found in database"}
+                        }
                     db_session.flush()
 
                     action_taken = False

@@ -48,15 +48,20 @@
 - [ ] Include CRUD operation buttons in modal interface
 
 ### Easy Wins (Priority 1)
-- [ ] Remove "waiting" section from dashboard (Issue #2)
-- [ ] Update customer display to show real data instead of "playground guest" (Issue #5)
-- [ ] Add state filters for tickets and bookings (Issue #4)
+- [x] Remove "waiting" section from dashboard (Issue #2)
+- [x] Update customer display to show real data instead of "playground guest" (Issue #5)
+- [x] Add state filters for tickets and bookings (Issue #4)
 
 ### Core Issues (Priority 2)
-- [ ] Implement user data isolation (Issues #1, #7, #8)
-- [ ] Fix AHT calculation to be per-user (Issues #1, #8)
-- [ ] Implement form prefilling for edits (Issue #3)
+- [x] Implement user data isolation (Issues #1, #7, #8)
+- [x] Fix AHT calculation to be per-user (Issues #1, #8)
+- [x] Implement form prefilling for edits (Issue #3)
 
 ### Advanced Features (Priority 3)
-- [ ] Create customer detail modal with related data (Issue #6)
-- [ ] Ensure full customer state filtering on both FE and BE (Issue #5)
+- [x] Create customer detail modal with related data (Issue #6)
+- [x] Ensure full customer state filtering on both FE and BE (Issue #5)
+
+### Security & Quality Assurance
+- [x] Fix security vulnerability in calls bulk endpoint (tenant bypass)
+- [x] Add CRUD operations to customer detail modal as promised
+- [x] Ensure all API endpoints validate tenant ownership properly

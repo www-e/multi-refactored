@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2 } from 'lucide-react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -12,7 +12,9 @@ import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
 import CustomerChatModal from '@/components/shared/modals/CustomerChatModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
+import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal';
 import { useModalState } from '@/hooks/useModalState';
+import { Customer, EnhancedTicket, EnhancedBooking } from '@/app/(shared)/types';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,14 +22,16 @@ export default function CustomersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
   const [customerToEdit, setCustomerToEdit] = useState<any>(null);
+  const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<Customer | null>(null);
 
-  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, conversations, addCustomer, removeCustomer, updateCustomer: updateCustomerInStore } = useAppStore();
-  const { getCustomers, getTickets, getBookings, createCustomer, updateCustomer, deleteCustomer, makeCall, makeBulkCalls, sendCustomerMessage, isAuthenticated } = useAuthApi();
+  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, campaigns, setCampaigns, conversations, addCustomer, addTicket, addBooking, removeCustomer, updateCustomer: updateCustomerInStore } = useAppStore();
+  const { getCustomers, getTickets, getBookings, getCampaigns, createCustomer, updateCustomer: apiUpdateCustomer, deleteCustomer: apiDeleteCustomer, createTicket, createBooking, makeCall, makeBulkCalls, sendCustomerMessage, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   // CRITICAL: Fetch ALL data to ensure stats are correct on this page
@@ -40,6 +44,7 @@ export default function CustomersPage() {
             getCustomers().then(setCustomers),
             getTickets().then(setTickets),
             getBookings().then(setBookings),
+            getCampaigns().then(setCampaigns),
             // Note: Conversations are usually fetched via a different endpoint if needed,
             // here we assume they might be pre-loaded or we accept 0 if not.
           ]);
@@ -51,7 +56,7 @@ export default function CustomersPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getCustomers, setCustomers, getTickets, setTickets, getBookings, setBookings, setCustomersLoading]);
+  }, [isAuthenticated, getCustomers, setCustomers, getTickets, setTickets, getBookings, setBookings, getCampaigns, setCampaigns, setCustomersLoading]);
 
   const getCustomerStats = (customerId: string) => {
     return {
@@ -144,7 +149,7 @@ export default function CustomersPage() {
     if (!customerToDelete) return;
 
     try {
-      await deleteCustomer(customerToDelete.id);
+      await apiDeleteCustomer(customerToDelete.id);
       // Update the store to remove the customer
       removeCustomer(customerToDelete.id);
       setIsDeleteModalOpen(false);
@@ -153,6 +158,11 @@ export default function CustomersPage() {
       console.error('Error deleting customer:', error);
       alert('فشل حذف العميل. يرجى المحاولة مرة أخرى.');
     }
+  };
+
+  const showCustomerDetails = (customer: Customer) => {
+    setSelectedCustomerDetail(customer);
+    setIsDetailModalOpen(true);
   };
 
   return (
@@ -341,6 +351,13 @@ export default function CustomersPage() {
                                             </button>
                                             <button
                                                 className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
+                                                onClick={() => showCustomerDetails(customer)}
+                                                aria-label={`عرض تفاصيل ${customer.name}`}
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+                                            <button
+                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
                                                 onClick={() => {
                                                   setCustomerToEdit(customer);
                                                   setIsEditModalOpen(true);
@@ -393,7 +410,7 @@ export default function CustomersPage() {
             onSubmit={async (data) => {
                 if (!customerToEdit) return;
                 await handleModalSubmit(async () => {
-                    const res = await updateCustomer(customerToEdit.id, data);
+                    const res = await apiUpdateCustomer(customerToEdit.id, data);
                     // Update the customer in the store
                     updateCustomerInStore(customerToEdit.id, res);
                     setIsEditModalOpen(false);
@@ -418,6 +435,24 @@ export default function CustomersPage() {
             isOpen={isChatModalOpen}
             onClose={() => setIsChatModalOpen(false)}
             customer={selectedCustomer}
+          />
+        )}
+
+        {selectedCustomerDetail && (
+          <CustomerDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={() => setIsDetailModalOpen(false)}
+            customer={selectedCustomerDetail}
+            tickets={tickets}
+            bookings={bookings}
+            createTicket={createTicket}
+            createBooking={createBooking}
+            updateCustomer={apiUpdateCustomer}
+            deleteCustomer={apiDeleteCustomer}
+            addTicket={addTicket}
+            addBooking={addBooking}
+            updateCustomerInStore={updateCustomerInStore}
+            removeCustomerFromStore={removeCustomer}
           />
         )}
       </div>

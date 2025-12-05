@@ -194,6 +194,7 @@ def get_call(
 @router.post("/calls/bulk")
 async def create_bulk_calls(
     customer_ids: List[str],
+    tenant_id: str = Depends(deps.get_current_tenant_id),
     db_session: Session = Depends(deps.get_session),
     _=Depends(deps.get_current_user)
 ):
@@ -204,18 +205,19 @@ async def create_bulk_calls(
     errors = []
 
     for customer_id in customer_ids:
-        # Verify customer exists
+        # Verify customer exists AND belongs to the current tenant
         customer = db_session.query(models.Customer).filter(
-            models.Customer.id == customer_id
+            models.Customer.id == customer_id,
+            models.Customer.tenant_id == tenant_id
         ).first()
         if not customer:
-            errors.append(f"Customer {customer_id} not found")
+            errors.append(f"Customer {customer_id} not found in tenant or doesn't exist")
             continue
 
         # Create conversation first
         conversation = models.Conversation(
             id=generate_id("conv"),
-            tenant_id="demo-tenant",
+            tenant_id=tenant_id,  # Use the actual tenant_id instead of hardcoded "demo-tenant"
             channel=models.ChannelEnum.voice,
             customer_id=customer_id,
             summary=f"Outbound call to {customer.phone}",
@@ -243,9 +245,13 @@ async def create_bulk_calls(
     db_session.commit()
 
     # Now initiate the actual calls via telephony service
-    phone_numbers = [db_session.query(models.Customer).filter(models.Customer.id == cid).first().phone
-                     for cid in customer_ids
-                     if db_session.query(models.Customer).filter(models.Customer.id == cid).first()]
+    phone_numbers = [db_session.query(models.Customer).filter(
+        models.Customer.id == cid,
+        models.Customer.tenant_id == tenant_id
+    ).first().phone for cid in customer_ids if db_session.query(models.Customer).filter(
+        models.Customer.id == cid,
+        models.Customer.tenant_id == tenant_id
+    ).first()]
 
     try:
         bulk_result = await telephony_service.make_bulk_calls(

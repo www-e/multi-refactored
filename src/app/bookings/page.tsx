@@ -21,6 +21,7 @@ import { mapBookingStatusToArabic } from '@/lib/statusMapper';
 export default function BookingsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all'); // Added status filter
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -79,21 +80,25 @@ export default function BookingsPage() {
   const getProperty = (id: string) => properties.find(p => p.id === id);
 
   const filteredBookings = bookings.filter(booking => {
-    if (!searchQuery) return true;
     const customer = getCustomer(booking.customerId);
     const property = getProperty(booking.propertyId);
     const query = searchQuery.toLowerCase();
-    return (
+
+    const matchesSearch = !searchQuery || (
       customer?.name.toLowerCase().includes(query) ||
       customer?.phone.includes(query) ||
       property?.code.toLowerCase().includes(query)
     );
+
+    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   // Robust Status Check (Arabic + English)
   const isPending = (status: string) => ['pending', 'معلق'].includes(status.toLowerCase());
 
-  const pendingBookings = filteredBookings.filter(b => isPending(b.status));
+  const pendingBookings = filteredBookings.filter(b => isPending(b.status) && (statusFilter === 'all' || b.status === statusFilter));
 
   const handleAction = async (id: string, action: 'confirmed' | 'canceled') => {
     const arabicStatus = action === 'confirmed' ? 'مؤكد' : 'ملغي';
@@ -139,7 +144,41 @@ export default function BookingsPage() {
           </div>
         </div>
 
-        <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="البحث في الحجوزات..." onFilterClick={() => {}} />
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="البحث في الحجوزات..." onFilterClick={() => {}} />
+          <div className="flex gap-2">
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'all' ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              الكل
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'معلق' ? 'bg-yellow-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('معلق')}
+            >
+              معلق
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'مؤكد' ? 'bg-green-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('مؤكد')}
+            >
+              مؤكد
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'ملغي' ? 'bg-red-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('ملغي')}
+            >
+              ملغي
+            </button>
+            <button
+              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'مكتمل' ? 'bg-blue-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+              onClick={() => setStatusFilter('مكتمل')}
+            >
+              مكتمل
+            </button>
+          </div>
+        </div>
 
         {/* Pending Requests (Only show if they exist) */}
         {pendingBookings.length > 0 && (
