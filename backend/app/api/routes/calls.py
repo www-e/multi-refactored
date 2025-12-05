@@ -73,6 +73,7 @@ async def create_call(
     # Create call record linked to the conversation
     db_call = models.Call(
         id=generate_id(),
+        tenant_id=tenant_id,  # Include tenant_id for proper isolation
         conversation_id=conversation.id,  # Link to conversation
         direction=call_in.direction,
         status="initiated",  # Initial status
@@ -231,6 +232,7 @@ async def create_bulk_calls(
         # Create call record
         db_call = models.Call(
             id=generate_id(),
+            tenant_id=tenant_id,  # Include tenant_id for proper isolation
             conversation_id=conversation.id,
             direction="outbound",
             status="initiated",

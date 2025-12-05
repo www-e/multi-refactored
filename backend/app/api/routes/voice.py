@@ -186,6 +186,7 @@ def _create_call_from_voice_session(db_session: Session, voice_session: models.V
         # Create call record (Call model doesn't have customer_id, only conversation_id)
         call = models.Call(
             id=generate_id("call"),
+            tenant_id=voice_session.tenant_id,  # Include tenant_id for proper isolation
             conversation_id=voice_session.conversation_id,
             direction=direction,
             status=models.CallStatusEnum.connected,   # Use valid CallStatusEnum value
@@ -194,7 +195,7 @@ def _create_call_from_voice_session(db_session: Session, voice_session: models.V
             ai_or_human=models.AIOrHumanEnum.AI,  # From voice AI agent
             recording_url=None,   # Will be populated later if recording exists
             retention_expires_at=None
-            # Note: Call model doesn't have customer_id field - it links to conversation which has customer_id
+            # Note: Call model now has tenant_id field for proper isolation
         )
         db_session.add(call)
         db_session.commit()  # Commit to ensure the call record is saved

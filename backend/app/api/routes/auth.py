@@ -50,11 +50,11 @@ async def login_for_access_token(form_data: TokenRequest, db_session: Session = 
     db_session.commit()
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "email": user.email, "role": user.role.value},
+        data={"sub": user.id, "email": user.email, "role": user.role.value, "tenant_id": user.tenant_id},
         expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(
-        data={"sub": user.id, "email": user.email, "role": user.role.value}
+        data={"sub": user.id, "email": user.email, "role": user.role.value, "tenant_id": user.tenant_id}
     )
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
@@ -91,7 +91,7 @@ async def refresh_access_token(refresh_token_data: RefreshTokenRequest, db_sessi
 
         # Create a new refresh token to replace the old one
         new_refresh_token = create_refresh_token(
-            data={"sub": user.id, "email": user.email, "role": user.role.value}
+            data={"sub": user.id, "email": user.email, "role": user.role.value, "tenant_id": user.tenant_id}
         )
 
         return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
@@ -113,7 +113,7 @@ async def register_user(user_data: UserCreateRequest, db_session: Session = Depe
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email already exists"
         )
-    
+
     is_valid, error_msg = validate_password_strength(user_data.password)
     if not is_valid:
         raise HTTPException(
@@ -123,11 +123,18 @@ async def register_user(user_data: UserCreateRequest, db_session: Session = Depe
 
     user_id = generate_id("usr")
     hashed_password = hash_password(user_data.password)
+
+    # For now, assign a default tenant ID based on user ID
+    # In a real system, you would either accept tenant_id as a parameter
+    # or assign the user to an existing organization
+    tenant_id = f"tenant-{user_id}"
+
     db_user = models.User(
         id=user_id,
         email=user_data.email,
         password_hash=hashed_password,
-        name=user_data.name
+        name=user_data.name,
+        tenant_id=tenant_id
     )
     db_session.add(db_user)
     db_session.commit()

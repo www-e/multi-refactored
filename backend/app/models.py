@@ -101,6 +101,7 @@ class Message(Base):
 class Call(Base):
     __tablename__ = "calls"
     id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)
     conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), index=True)
     direction: Mapped[CallDirectionEnum] = mapped_column(Enum(CallDirectionEnum), index=True)
     status: Mapped[CallStatusEnum] = mapped_column(Enum(CallStatusEnum), index=True)
@@ -168,6 +169,7 @@ class CampaignMetrics(Base):
     __tablename__ = "campaign_metrics"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     campaign_id: Mapped[str] = mapped_column(String, ForeignKey("campaigns.id"), index=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)  # Add tenant isolation
     ts: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     reached: Mapped[int] = mapped_column(Integer, default=0)
     engaged: Mapped[int] = mapped_column(Integer, default=0)
@@ -180,6 +182,7 @@ class CampaignMetrics(Base):
 class Handoff(Base):
     __tablename__ = "handoffs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)  # Add tenant isolation
     conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"))
     from_tier: Mapped[str] = mapped_column(String)
     to_tier: Mapped[str] = mapped_column(String)
@@ -190,6 +193,7 @@ class Handoff(Base):
 class Approval(Base):
     __tablename__ = "approvals"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)  # Add tenant isolation
     entity_type: Mapped[str] = mapped_column(String)
     entity_id: Mapped[str] = mapped_column(String)
     approver: Mapped[str] = mapped_column(String)
@@ -224,6 +228,14 @@ class VoiceSession(Base):
     extracted_intent: Mapped[str] = mapped_column(String, nullable=True)
 
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
 class UserRoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
@@ -237,5 +249,6 @@ class User(Base):
     name: Mapped[str] = mapped_column(String)
     role: Mapped[UserRoleEnum] = mapped_column(Enum(UserRoleEnum), default=UserRoleEnum.user)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True)  # Add tenant_id for user isolation
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
