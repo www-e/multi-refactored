@@ -1,22 +1,26 @@
-import { promises as fs } from 'fs'
-import path from 'path'
+import { promises as fs } from 'fs';
+import path from 'path';
 
-type LogLevel = 'info' | 'warn' | 'error'
+type LogLevel = 'info' | 'warn' | 'error';
 
 interface LogEntry {
-  timestamp: string
-  source: string
-  level: LogLevel
-  message: string
-  meta?: any
+  timestamp: string;
+  source: string;
+  level: LogLevel;
+  message: string;
+  meta?: any;
 }
 
-const logDir = path.join(process.cwd(), 'logs')
-const logFile = path.join(logDir, 'elevenlabs.log')
+// In containerized environments, writing to local files is unreliable and can cause crashes (ENOENT).
+// We default to console logging which Docker captures automatically.
+const ENABLE_FILE_LOGGING = process.env.ENABLE_FILE_LOGGING === 'true';
+const logDir = path.join(process.cwd(), 'logs');
+const logFile = path.join(logDir, 'elevenlabs.log');
 
 async function ensureLogDir() {
+  if (!ENABLE_FILE_LOGGING) return;
   try {
-    await fs.mkdir(logDir, { recursive: true })
+    await fs.mkdir(logDir, { recursive: true });
   } catch {
     // ignore
   }
@@ -29,16 +33,25 @@ export async function logEvent(source: string, level: LogLevel, message: string,
     level,
     message,
     meta,
-  }
-  try {
-    await ensureLogDir()
-    await fs.appendFile(logFile, JSON.stringify(entry) + '\n', 'utf8')
-  } catch (err) {
-    // As a fallback, log to console to avoid swallowing errors silently
-    console.error('[logger-fallback]', entry, err)
+  };
+
+  // 1. Always log to Console (Standard Output for Docker)
+  const logFn = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+  // Use a compact format for console to keep logs readable
+  logFn(`[${level.toUpperCase()}] [${source}]: ${message}`, meta ? JSON.stringify(meta) : '');
+
+  // 2. Optional: Log to file if explicitly enabled
+  if (ENABLE_FILE_LOGGING) {
+    try {
+      await ensureLogDir();
+      await fs.appendFile(logFile, JSON.stringify(entry) + '\n', 'utf8');
+    } catch (err) {
+      // Silently fail on file write to prevent app crashes
+      console.warn('[Logger] Failed to write to log file, but ignoring to maintain stability.', err);
+    }
   }
 }
 
 export function getLogFilePath() {
-  return logFile
+  return logFile;
 }

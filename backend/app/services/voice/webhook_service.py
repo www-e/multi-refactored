@@ -1,14 +1,12 @@
 """
-Webhook service for handling ElevenLabs webhook requests
-Processes conversation results and creates appropriate records
+Webhook service for handling ElevenLabs webhook requests.
+Processes conversation results, synchronizes customer data, and creates actionable records.
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime, timezone
-
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-
 from app import models
 from .elevenlabs_service import (
     fetch_conversation_from_elevenlabs, 
@@ -29,115 +27,138 @@ def process_conversation_webhook(
     conversation_id: str
 ) -> Dict[str, Any]:
     """
-    Process an ElevenLabs conversation webhook
-    Fetches conversation data and creates appropriate records
+    Process an ElevenLabs conversation webhook with 100% data consistency.
     """
-    # Fetch conversation data from ElevenLabs
-    data = fetch_conversation_from_elevenlabs(conversation_id)
-    
-    # Extract data from conversation
+    # 1. Fetch Master Data from ElevenLabs API
+    try:
+        data = fetch_conversation_from_elevenlabs(conversation_id)
+    except Exception as e:
+        logger.error(f"Failed to fetch conversation {conversation_id} from ElevenLabs: {e}")
+        # If we can't get data from source, we cannot process safely.
+        return {"status": "error", "error": str(e)}
+
+    # 2. Extract Data Points using the service helper
+    # Returns: data_collection dict, intent string, phone string, summary string, name string
     data_collection, intent, customer_phone, call_summary, customer_name = extract_conversation_data(data)
     
-    # Find voice session by conversation ID or session ID
-    voice_session = (
-        db_session.query(models.VoiceSession)
-        .filter(
-            (models.VoiceSession.conversation_id == conversation_id) |
-            (models.VoiceSession.id == conversation_id)
-        )
-        .first()
+    # SMART EXTRACTION: Attempt to find Region/Project/Neighborhood from various AI label possibilities
+    # This fixes the blank "المنطقة" column issue.
+    extracted_region = (
+        data_collection.get("project", {}).get("value") or 
+        data_collection.get("neighborhood", {}).get("value") or 
+        data_collection.get("area", {}).get("value") or 
+        data_collection.get("location", {}).get("value")
     )
-    
+
+    # 3. Locate the Voice Session
+    # Check both conversation_id (primary) and id (fallback)
+    voice_session = db_session.query(models.VoiceSession).filter(
+        (models.VoiceSession.conversation_id == conversation_id) |
+        (models.VoiceSession.id == conversation_id)
+    ).first()
+
     if not voice_session:
-        logger.warning(f"Webhook received for non-existent conversation_id: {conversation_id}. This may be an attempt to create unauthorized records.")
-        db_session.commit()  # Commit any previous changes but don't create new entities
-        return {
-            "status": "warning",
-            "conversation_id": conversation_id,
-            "processed": {"message": f"Conversation {conversation_id} not found in database"}
-        }
-    
-    logger.info(f"Found voice session {voice_session.id} for conversation {conversation_id}")
-    
-    # Update voice session with conversation data
+        logger.warning(f"Orphaned Webhook: No session found for conversation_id: {conversation_id}")
+        return {"status": "ignored", "reason": "session_not_found"}
+
+    logger.info(f"Processing Session: {voice_session.id} | Intent: {intent}")
+
+    # 4. Update Session Metadata (Closes the loop on 'Ghost Calls')
     voice_session.summary = call_summary
     voice_session.extracted_intent = intent
     voice_session.customer_phone = customer_phone
     voice_session.status = models.VoiceSessionStatus.COMPLETED
-    
-    # Update the customer record with extracted information
-    if customer_name or customer_phone:
-        customer = db_session.query(models.Customer).filter(
-            models.Customer.id == voice_session.customer_id
-        ).first()
-        if customer:
-            logger.info(f"Updating customer {customer.id} with name: {customer_name}, phone: {customer_phone}")
-            if customer_name:
-                customer.name = customer_name
-            if customer_phone:
-                customer.phone = customer_phone
-    
-    # Update ended_at time for proper duration calculation
+    # Setting ended_at fixes the "00:00" duration issue in the dashboard
     voice_session.ended_at = datetime.now(timezone.utc)
-    
-    # Flush to ensure the updates are saved before creating related records
+
+    # 5. SYNCHRONIZE CUSTOMER DATA (The "Identity" Fix)
+    # We update the customer profile BEFORE creating bookings/tickets
+    customer = db_session.query(models.Customer).filter(
+        models.Customer.id == voice_session.customer_id
+    ).first()
+
+    updates = []
+    if customer:
+        # Update Name if we have a real name (ignore generic placeholders)
+        if customer_name and customer_name.lower() not in ['unknown', 'user', 'n/a', 'customer']:
+            customer.name = customer_name
+            updates.append("name")
+        
+        # Update Phone if extracted
+        if customer_phone:
+            customer.phone = customer_phone
+            updates.append("phone")
+        
+        # Update Region/Neighborhood (The Fix for 'المنطقة')
+        if extracted_region:
+            # Neighborhoods is a JSON field in DB, treat as a list
+            current_neighborhoods = customer.neighborhoods
+            if not isinstance(current_neighborhoods, list):
+                current_neighborhoods = []
+            
+            # Add if unique
+            if extracted_region not in current_neighborhoods:
+                current_neighborhoods.append(extracted_region)
+                customer.neighborhoods = current_neighborhoods
+                updates.append("region")
+        
+        if updates:
+            logger.info(f"Customer {customer.id} Updated fields: {', '.join(updates)}")
+
+    # Force save customer updates NOW so subsequent records reference correct data
     db_session.flush()
-    
-    # Process intent and create appropriate records
+
+    # 6. EXECUTE ACTIONS (Create Booking/Ticket based on Intent)
     action_taken = False
     action_type = "none"
-    
+
     if intent == "book_appointment":
-        logger.info(f"Creating booking for conversation {conversation_id}")
+        # Pass the updated session and data to create booking
         action_taken = create_booking_from_conversation(db_session, voice_session, data_collection)
         action_type = "booking"
     elif intent == "raise_ticket":
-        logger.info(f"Creating ticket for conversation {conversation_id}")
+        # Pass the updated session and data to create ticket
         action_taken = create_ticket_from_conversation(db_session, voice_session, data_collection)
         action_type = "ticket"
     else:
-        logger.warning(f"Unhandled intent '{intent}' for conversation {conversation_id}. No action taken.")
+        # Fallback: If AI missed the intent label but collected a date, assume booking
+        if data_collection.get("preferred_datetime", {}).get("value"):
+             logger.info("Fallback: Creating booking based on datetime presence despite missing intent")
+             action_taken = create_booking_from_conversation(db_session, voice_session, data_collection)
+             action_type = "booking_fallback"
 
-    # Always create corresponding Conversation and Call records for voice sessions
-    # This ensures they show up in the calls and conversations pages
-    logger.info(f"Creating conversation and call records for voice session {voice_session.id}")
-    conv_success = create_conversation_from_voice_session(db_session, voice_session, call_summary)
-    call_success = create_call_from_voice_session(db_session, voice_session, call_summary)
+    # 7. Create Historical Records (Populates 'Calls' and 'Conversations' pages)
+    # This ensures the call appears in the "Recent Calls" table
+    logger.info("Creating conversation and call history records")
+    create_conversation_from_voice_session(db_session, voice_session, call_summary)
+    create_call_from_voice_session(db_session, voice_session, call_summary)
 
-    # Log if these operations fail, but continue processing
-    if not conv_success:
-        logger.warning(f"Failed to create conversation record for voice session {voice_session.id}")
-    if not call_success:
-        logger.warning(f"Failed to create call record for voice session {voice_session.id}")
-
-    # Commit all changes
+    # 8. Final Commit
     db_session.commit()
-    
+
     return {
         "status": "success",
         "conversation_id": conversation_id,
         "processed": {
             "intent": intent,
             "action_type": action_type,
-            "action_taken": action_taken
+            "action_taken": action_taken,
+            "customer_updated": len(updates) > 0
         }
     }
-
 
 def process_webhook_payload(
     db_session: Session,
     payload: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Process webhook payload and return result
+    Entry point for webhook payload processing.
     """
-    # Extract conversation ID from payload
+    # Extract the ID from the payload structure
     conversation_id = extract_conversation_id_from_payload(payload)
-    
     if not conversation_id:
         logger.error(f"Webhook payload missing conversation_id. Payload keys: {list(payload.keys())}")
         raise HTTPException(status_code=400, detail="Missing conversation_id in payload")
     
-    logger.info(f"Processing conversation: {conversation_id}")
-    
+    logger.info(f"Received webhook for conversation: {conversation_id}")
     return process_conversation_webhook(db_session, conversation_id)

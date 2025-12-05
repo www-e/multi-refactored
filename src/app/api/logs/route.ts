@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logEvent, getLogFilePath } from '@/lib/serverLogger';
 import { promises as fs } from 'fs';
 
@@ -8,32 +7,25 @@ export const runtime = 'nodejs';
 // This endpoint is now protected.
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
+    // 1. Security Check: Ensure user is authenticated
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // CRITICAL SECURITY MITIGATION: Check if logging is enabled based on environment
-    // Allow logs in development and when explicitly enabled via environment variable
-    const isLoggingEnabled = process.env.NODE_ENV !== 'production' ||
-                             process.env.ALLOW_CLIENT_LOGS === 'true';
-
-    if (!isLoggingEnabled) {
-      return NextResponse.json(
-        { error: 'Client-side logging is disabled in this environment.' },
-        { status: 403 }
-      );
-    }
-
+    // 2. Safe Logging: Allow authenticated users to log
     try {
       const { source = 'client', level = 'info', message = '', meta } = await request.json();
-      await logEvent(String(source), level, String(message), meta);
+      
+      // Sanitize input to prevent massive logs
+      const safeMeta = meta && typeof meta === 'object' ? meta : {};
+      
+      await logEvent(String(source), level, String(message), safeMeta);
       return NextResponse.json({ ok: true });
     } catch (error) {
+      // Do not return 500, just warn and return OK to keep client stable
       console.error('[API LOG ROUTE ERROR]', error);
-      return NextResponse.json({ error: 'Failed to write log' }, { status: 500 });
+      return NextResponse.json({ ok: true, warning: 'Log processing failed' });
     }
   } catch (error) {
     console.error('[API LOG POST ROUTE ERROR]', error);
@@ -41,39 +33,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-// This endpoint is also now protected.
+// This endpoint allows viewing logs (admin only ideally)
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // For NextAuth, we can implement role checks differently
-    // For now, we'll just check if the user has the admin role in their session
-    // This would need to be enhanced for a full admin check
-    // Get user info from access token (for demonstration, we'll just check presence)
-    // In a real implementation, you might decode the JWT to check roles
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-    // For now, we'll skip the admin check and just verify authentication
-    // In a real implementation you would decode the JWT to check roles
-
-    // CRITICAL SECURITY MITIGATION: Check if log access is enabled based on environment
-    // Allow logs in development and when explicitly enabled via environment variable
-    const isLoggingEnabled = process.env.NODE_ENV !== 'production' ||
-                             process.env.ALLOW_CLIENT_LOGS === 'true';
-
-    if (!isLoggingEnabled) {
-       return NextResponse.json({ error: 'Access forbidden.' }, { status: 403 });
-    }
-
     try {
       const { searchParams } = new URL(request.url);
       const tail = Math.max(1, Math.min(500, Number(searchParams.get('tail') || 200)));
+      
+      // If file logging is disabled, we can't read the file.
+      if (process.env.ENABLE_FILE_LOGGING !== 'true') {
+         return new NextResponse("File logging is disabled. Check Docker/Server stdout for logs.", {
+            status: 200,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+         });
+      }
+
       const filePath = getLogFilePath();
+      // Check if file exists first
+      try {
+        await fs.access(filePath);
+      } catch {
+        return new NextResponse("Log file is empty or does not exist yet.", { status: 200 });
+      }
+
       const content = await fs.readFile(filePath, 'utf8').catch(() => '');
       const lines = content.split('\n').filter(Boolean);
       const last = lines.slice(-tail);

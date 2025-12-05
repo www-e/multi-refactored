@@ -24,24 +24,31 @@ async function fetchWithRetry(url: string, init: RequestInit, retries = 2, timeo
   throw lastErr;
 }
 
+// Helper to safely log without throwing
+async function safeLog(source: string, level: 'info'|'warn'|'error', message: string, meta?: any) {
+    try {
+        await logEvent(source, level, message, meta);
+    } catch (e) {
+        console.error(`[SafeLog Fail] ${message}`, e);
+    }
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get the authorization header from the incoming request
-    // This will be set by the calling client component with NextAuth session token
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-
+    const accessToken = authHeader.substring(7);
     const { agent_type, customer_id } = await request.json();
-    await logEvent('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id });
+
+    await safeLog('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id });
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
       console.error('CRITICAL: BACKEND_URL environment variable is not set.');
-      await logEvent('voice:sessions:POST', 'error', 'Server configuration error: BACKEND_URL is not set.');
+      await safeLog('voice:sessions:POST', 'error', 'Server configuration error: BACKEND_URL is not set.');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
 
@@ -59,16 +66,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!backendResponse.ok) {
       const errorText = await backendResponse.text();
-      await logEvent('voice:sessions:POST', 'error', 'Backend session creation failed', { status: backendResponse.status, error: errorText });
+      await safeLog('voice:sessions:POST', 'error', 'Backend session creation failed', { status: backendResponse.status, error: errorText });
       return NextResponse.json({ error: `Backend session creation failed: ${errorText}` }, { status: backendResponse.status });
     }
 
     const backendSession = await backendResponse.json();
-    await logEvent('voice:sessions:POST', 'info', 'Backend session created successfully', { session_id: backendSession.session_id });
+    await safeLog('voice:sessions:POST', 'info', 'Backend session created successfully', { session_id: backendSession.session_id });
+    
     return NextResponse.json(backendSession);
+
   } catch (error: any) {
     console.error('Voice session creation error:', error);
-    await logEvent('voice:sessions:POST', 'error', 'Voice session creation failed', { error: error.message, stack: error.stack });
+    await safeLog('voice:sessions:POST', 'error', 'Voice session creation failed', { error: error.message });
     return NextResponse.json({ error: `Voice session creation failed: ${error.message}` }, { status: 500 });
   }
 }
