@@ -46,12 +46,12 @@ export function useVoiceAgent(
     },
   });
 
-  const startVoiceSession = useCallback(async (agentType: 'support' | 'sales') => {
+  const startVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string) => {
     try {
       options.onStatusChange?.('connecting');
-      postLog('info', 'startVoiceSession with ElevenLabs SDK', { agentType }).catch(() => {});
-      
-      const backendSession = await createVoiceSession(agentType);
+      postLog('info', 'startVoiceSession with ElevenLabs SDK', { agentType, customerId }).catch(() => {});
+
+      const backendSession = await createVoiceSession(agentType, undefined, customerId);
       
       const agentId = agentType === 'support' 
         ? process.env.NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID 

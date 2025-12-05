@@ -148,11 +148,15 @@ export const updateTicketStatus = (
 
 export const createVoiceSession = (
   agentType: 'support' | 'sales',
-  token: string
+  token: string,
+  customerId?: string
 ): Promise<{ session_id: string; websocket_url: string }> => {
   return clientFetch('/voice/sessions', token, {
     method: 'POST',
-    body: JSON.stringify({ agent_type: agentType }),
+    body: JSON.stringify({
+      agent_type: agentType,
+      customer_id: customerId
+    }),
   });
 };
 

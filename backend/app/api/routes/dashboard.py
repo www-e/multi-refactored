@@ -1,5 +1,9 @@
 # backend/app/api/routes/dashboard.py
+from datetime import datetime
+import math
+
 from fastapi import APIRouter, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models
@@ -56,13 +60,23 @@ def get_dashboard_kpis(tenant_id: str = Depends(deps.get_current_tenant_id), _=D
         models.VoiceSession.tenant_id == tenant_id
     ).limit(5).all()
 
-    current_calls_formatted = [
-        {"id": call.id,
-         "customerName": getattr(call, 'customer_name', call.customer_id),
-         "duration": "00:00",  # VoiceSession doesn't have duration field, using placeholder
-         "status": getattr(call, 'direction', "وارد")}
-        for call in current_calls
-    ]
+    current_calls_formatted = []
+    for call in current_calls:
+        # Calculate duration for active calls from creation to now
+        if call.created_at:
+            duration_seconds = (datetime.utcnow() - call.created_at.replace(tzinfo=None)).total_seconds()
+            duration_minutes = math.floor(duration_seconds / 60)
+            duration_seconds = int(duration_seconds % 60)
+            duration_str = f"{int(duration_minutes):02d}:{duration_seconds:02d}"
+        else:
+            duration_str = "00:00"
+
+        current_calls_formatted.append({
+            "id": call.id,
+            "customerName": getattr(call, 'customer_name', call.customer_id),
+            "duration": duration_str,
+            "status": getattr(call, 'direction', "وارد")
+        })
 
     recent_tickets = db_session.query(models.Ticket).filter(
         models.Ticket.tenant_id == tenant_id
