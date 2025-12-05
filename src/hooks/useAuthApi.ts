@@ -9,7 +9,7 @@ import { mapBookingStatusToEnglish } from '@/lib/statusMapper';
  */
 export const useAuthApi = () => {
   const { data: session, status } = useSession();
-  const accessToken = (session as any)?.accessToken as string;
+  const accessToken = session?.accessToken as string;
 
   // Loading states for different operations
   const [loadingStates, setLoadingStates] = useState({

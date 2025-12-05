@@ -34,7 +34,6 @@ export default function LoginPage() {
       } else {
         // Successful login - redirect to dashboard
         router.push('/dashboard');
-        router.refresh(); // Refresh to update UI based on new session
       }
     } catch (error) {
       setError('An unexpected error occurred');

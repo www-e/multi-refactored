@@ -85,7 +85,7 @@ async def refresh_access_token(refresh_token_data: RefreshTokenRequest, db_sessi
         # Create new access token with the same user data
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id, "email": user.email, "role": user.role.value},
+            data={"sub": user.id, "email": user.email, "role": user.role.value, "tenant_id": user.tenant_id},
             expires_delta=access_token_expires
         )
 

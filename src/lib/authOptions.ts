@@ -58,6 +58,7 @@ export const authOptions: NextAuthOptions = {
               email: user.email,
               name: user.name,
               role: user.role,
+              tenant_id: user.tenant_id,  // Add tenant_id to user object
               accessToken: tokenData.access_token,
               refreshToken: tokenData.refresh_token
             };
