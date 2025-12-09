@@ -1,3 +1,6 @@
+# File: backend/app/services/voice/webhook_service.py
+# Action: OVERWRITE COMPLETE FILE
+
 import logging
 from typing import Dict, Any
 from sqlalchemy.orm import Session
@@ -25,7 +28,7 @@ async def process_webhook_payload(db_session: Session, payload: Dict[str, Any]) 
 async def process_conversation_webhook(db_session: Session, conversation_id: str) -> Dict[str, Any]:
     logger.info(f"🔄 PROCESSING WEBHOOK: {conversation_id}")
     
-    # 1. Fetch Real Data from ElevenLabs
+    # 1. Fetch Real Data
     try:
         data = await fetch_conversation_from_elevenlabs(conversation_id)
     except Exception as e:
@@ -33,6 +36,7 @@ async def process_conversation_webhook(db_session: Session, conversation_id: str
         return {"status": "error", "error": str(e)}
 
     # 2. Extract Specific Fields (Phone, Name, Issue, Date)
+    # CRITICAL: This must match the return signature of elevenlabs_service.py (5 values)
     data_collection, intent, phone, summary, name = extract_conversation_data(data)
     
     logger.info(f"📊 EXTRACTED: Name={name}, Phone={phone}, Intent={intent}")
@@ -45,8 +49,6 @@ async def process_conversation_webhook(db_session: Session, conversation_id: str
     
     if not session:
         logger.warning(f"⚠️ Session not found for {conversation_id}")
-        # Proceed anyway? No, we need tenant_id from session.
-        # Ideally we might have a fallback tenant, but let's return ignored for now to be safe.
         return {"status": "ignored", "reason": "session_not_found"}
 
     # 4. Update Session Metadata
@@ -54,16 +56,10 @@ async def process_conversation_webhook(db_session: Session, conversation_id: str
     session.extracted_intent = intent
     session.status = models.VoiceSessionStatus.COMPLETED
     
-    # If AI found a phone, update the session record too
     if phone:
         session.customer_phone = phone
 
     # 5. RESOLVE REAL CUSTOMER (The "Ali" Step)
-    # We pass the AI-extracted phone and name.
-    # The service will look up the phone. If found, it updates the name to "Ali".
-    # If not found, it creates "Ali".
-    # Only if phone is MISSING do we get a placeholder.
-    
     effective_phone = phone or session.customer_phone or "0000000000"
     effective_name = name or session.agent_name or "Voice User"
 
@@ -78,7 +74,7 @@ async def process_conversation_webhook(db_session: Session, conversation_id: str
     session.customer_id = customer.id
     db_session.flush()
 
-    # 6. CREATE ARTIFACTS
+    # 6. CREATE ARTIFACTS (Create Everything)
     logger.info(f"🚀 Creating Tickets & Bookings for {customer.name}")
     
     create_ticket_from_conversation(db_session, session, data_collection)
