@@ -23,18 +23,47 @@ jobs:
             PROJECT_DIR="/var/www/voice_agent"
             MAX_RETRIES=12
             LOCK_FILE="/tmp/navaia_deploy.lock"
+            LOCK_INFO_FILE="/tmp/navaia_deploy.info"
             DEPLOYMENT_SUCCESS=false
-            
-            # Deployment Lock
+
+            # Function to get current timestamp
+            get_timestamp() {
+                date +%s
+            }
+
+            # Deployment Lock with stale check
             if [ -f "$LOCK_FILE" ]; then
-                echo "⚠️  Another deployment is in progress. Exiting..."
-                exit 1
+                # Check if the process still exists
+                PID=$(cat $LOCK_FILE 2>/dev/null)
+                if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+                    # Also check if lock is stale (older than 30 minutes)
+                    if [ -f "$LOCK_INFO_FILE" ]; then
+                        lock_time=$(cat "$LOCK_INFO_FILE")
+                        current_time=$(get_timestamp)
+                        age=$((current_time - lock_time))
+                        if [ $age -gt 1800 ]; then  # 30 minutes = 1800 seconds
+                            echo "⚠️  Found stale lock (age: $((age/60)) minutes, PID: $PID). Removing..."
+                            rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
+                        else
+                            echo "⚠️  Another deployment process (PID: $PID) is in progress. Exiting..."
+                            exit 1
+                        fi
+                    else
+                        echo "⚠️  Another deployment process (PID: $PID) is in progress. Exiting..."
+                        exit 1
+                    fi
+                else
+                    # Lock file exists but process is gone - stale lock, remove it
+                    echo "⚠️  Found stale lock file (PID: $PID no longer exists), removing..."
+                    rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
+                fi
             fi
             echo $$ > "$LOCK_FILE"
+            echo $(get_timestamp) > "$LOCK_INFO_FILE"
             
             # Cleanup and notification on exit
             cleanup() {
-                rm -f "$LOCK_FILE"
+                rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                 if [ "$DEPLOYMENT_SUCCESS" = false ]; then
                     echo "❌ Deployment failed!"
                     curl -X POST "$DISCORD_WEBHOOK" \
