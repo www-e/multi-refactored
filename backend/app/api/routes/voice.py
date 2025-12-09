@@ -181,6 +181,7 @@ async def end_voice_session(
     """
     Mark a voice session as ended immediately when the client disconnects.
     This prevents ghost calls that remain in ACTIVE status.
+    ALSO: Proactively fetches and processes conversation data from ElevenLabs.
     """
     from datetime import datetime, timezone
     
@@ -199,12 +200,36 @@ async def end_voice_session(
             if not voice_session.ended_at:
                 voice_session.ended_at = datetime.now(timezone.utc)
             db_session.commit()
-            logger.info(f"Voice session {session_id} marked as ended")
+            logger.info(f"✅ Voice session {session_id} marked as ended")
         
-        return {"status": "success", "session_id": session_id}
+        # CRITICAL FIX: Immediately fetch and process conversation data
+        # Don't wait for webhook - it may never come!
+        logger.info(f"🔄 Proactively fetching conversation data for {session_id}")
+        
+        try:
+            # Give ElevenLabs a moment to finalize the conversation
+            import asyncio
+            await asyncio.sleep(2)
+            
+            # Process the conversation data
+            result = await process_conversation_webhook(db_session, session_id)
+            logger.info(f"✅ Conversation data processed: {result}")
+            
+        except Exception as e:
+            # Don't fail the endpoint if processing fails
+            # The webhook can still retry later
+            logger.error(f"⚠️ Failed to process conversation data immediately: {e}", exc_info=True)
+            logger.info("💡 Webhook will retry later if configured")
+        
+        return {
+            "status": "success", 
+            "session_id": session_id,
+            "message": "Session ended and data processing initiated"
+        }
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error ending voice session {session_id}: {e}", exc_info=True)
+        logger.error(f"❌ Error ending voice session {session_id}: {e}", exc_info=True)
         db_session.rollback()
         raise HTTPException(status_code=500, detail=str(e))

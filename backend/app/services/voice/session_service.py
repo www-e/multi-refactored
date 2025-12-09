@@ -21,22 +21,13 @@ def generate_id(prefix: str = "id") -> str:
 
 def create_voice_session(db_session: Session, agent_type: str, customer_id: Optional[str], tenant_id: str, customer_phone: Optional[str] = None) -> models.VoiceSession:
     """
-    Create a new voice session with associated customer
+    Create a new voice session.
+    Customer will be created/updated later when webhook processes the conversation data.
     """
-    # 1. Handle Customer - Use customer_service for proper customer creation
     from .customer_service import get_or_create_customer
 
-    # If no specific customer_id is provided, create a temporary placeholder
-    if not customer_id:
-        # Create a temporary customer - will be updated by webhook with real data
-        customer = get_or_create_customer(
-            db_session=db_session,
-            customer_phone=customer_phone,
-            customer_name=None,  # Don't set a placeholder name, let webhook fill it
-            tenant_id=tenant_id
-        )
-    else:
-        # Use the provided customer_id to get or create the customer
+    # Only create/get customer if explicitly provided
+    if customer_id:
         customer = get_or_create_customer(
             db_session=db_session,
             customer_id=customer_id,
@@ -44,12 +35,17 @@ def create_voice_session(db_session: Session, agent_type: str, customer_id: Opti
             customer_name=None,
             tenant_id=tenant_id
         )
+        actual_customer_id = customer.id
+    else:
+        # Don't create customer yet - wait for webhook to provide real data
+        # Generate a temporary customer ID that will be replaced by webhook
+        actual_customer_id = generate_id("cust")
 
     # 2. Create Voice Session
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
         tenant_id=tenant_id,
-        customer_id=customer.id,
+        customer_id=actual_customer_id,
         direction="inbound",
         status=models.VoiceSessionStatus.ACTIVE,
         customer_phone=customer_phone,  # Store phone number in voice session as well
