@@ -1,27 +1,42 @@
-# syntax=docker/dockerfile:1
+# File: backend/Dockerfile
+
+# 1. Base Image
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
-
-# System deps for psycopg2 and build
+# 2. System Dependencies
+# libpq-dev is required for psycopg2 (Postgres driver)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc \
     libpq-dev \
-    curl \
-  && rm -rf /var/lib/apt/lists/*
+    gcc \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# 3. Environment Config
+# Prevents Python from writing pyc files
+ENV PYTHONDONTWRITEBYTECODE=1
+# Keeps Python from buffering stdout/stderr (Instant logs)
+ENV PYTHONUNBUFFERED=1
+# Add app to path to avoid import errors
+ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
+# 4. Install Python Dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app /app/app
-COPY alembic /app/alembic        
-COPY alembic.ini /app/alembic.ini 
+# 5. Copy Application Code
+# Copy alembic config and migrations
+COPY alembic.ini .
+COPY alembic ./alembic
+# Copy the app source code
+COPY app ./app
 
+# 6. Runtime
+# Expose the port uvicorn runs on
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"] 
+# Start command
+# We use --host 0.0.0.0 so Docker can map the port
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]

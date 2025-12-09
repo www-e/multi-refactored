@@ -1,57 +1,76 @@
 version: "3.9"
+
 services:
-  # 1. Database
-  postgres:
+  # renamed to avoid conflict with other postgres instances
+  agentic_db:
     image: postgres:15-alpine
-    container_name: navaia_db
+    container_name: agentic_portal_db
     environment:
       POSTGRES_DB: navaia
       POSTGRES_USER: navaia
       POSTGRES_PASSWORD: navaia
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
+      - agentic_pgdata:/var/lib/postgresql/data
+    restart: always
     networks:
-      - navaia_net
+      - agentic_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U navaia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  # 2. Python Backend
-  backend:
+  agentic_backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: navaia_backend
-    # Explicitly load the unified .env file
+    container_name: agentic_portal_backend
     env_file:
       - .env
+    environment:
+      # Internal Docker URL to talk to DB
+      - DB_URL=postgresql://navaia:navaia@agentic_portal_db:5432/navaia
+      # Explicitly set host/port
+      - HOST=0.0.0.0
+      - PORT=8000
     ports:
+      # Map host 8000 to container 8000. 
+      # IF 8000 IS TAKEN BY OTHER PROJECTS, CHANGE THE LEFT SIDE (e.g., "8001:8000")
       - "8000:8000"
     depends_on:
-      - postgres
-    restart: unless-stopped
+      agentic_db:
+        condition: service_healthy
+    restart: always
     networks:
-      - navaia_net
+      - agentic_net
 
-  # 3. Next.js Frontend
-  frontend:
+  agentic_frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-    container_name: navaia_frontend
+      args:
+        NEXT_PUBLIC_BACKEND_URL: https://agentic.navaia.sa
+    container_name: agentic_portal_frontend
     env_file:
       - .env
+    environment:
+      # Server-Side (Docker-to-Docker): Uses the specific container name
+      - BACKEND_URL=http://agentic_portal_backend:8000
+      # Client-Side (Browser-to-Server): Uses the public HTTPS URL
+      - NEXT_PUBLIC_BACKEND_URL=https://agentic.navaia.sa
+      - PORT=3001
     ports:
-      # Map container port 3000 to host port 3001
+      # Map host 3001 to container 3001
       - "3001:3001"
     depends_on:
-      - backend
-    restart: unless-stopped
+      - agentic_backend
+    restart: always
     networks:
-      - navaia_net
+      - agentic_net
 
-# Define a custom network so they can talk internally
 networks:
-  navaia_net:
+  agentic_net:
     driver: bridge
 
 volumes:
-  pgdata:
+  agentic_pgdata:

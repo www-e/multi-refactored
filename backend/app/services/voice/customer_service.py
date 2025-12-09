@@ -1,47 +1,49 @@
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 from sqlalchemy.orm import Session
 from app import models
+import secrets
 
 logger = logging.getLogger(__name__)
 
-def generate_id(prefix: str = "id") -> str:
-    import secrets
-    return f"{prefix}_{secrets.token_hex(8)}"
+def generate_id() -> str:
+    return f"cust_{secrets.token_hex(8)}"
 
 def get_or_create_customer(
     db_session: Session,
-    customer_phone: Optional[str] = None,
-    customer_name: Optional[str] = None,
+    customer_phone: str,
+    customer_name: str = None,
     tenant_id: str = "demo-tenant"
 ) -> models.Customer:
     
-    clean_phone = customer_phone.strip() if customer_phone else ""
-    if not clean_phone:
-        clean_phone = "0000000000"
+    # STRICT VALIDATION: If no phone, we cannot create a valid customer record.
+    # However, to prevent DB crashes on foreign keys, we might need a fallback,
+    # but let's make it obvious it's missing.
+    if not customer_phone or not customer_phone.strip():
+        customer_phone = "UNKNOWN_PHONE"
 
-    # Search by phone
+    # Search
     customer = db_session.query(models.Customer).filter(
-        models.Customer.phone == clean_phone,
+        models.Customer.phone == customer_phone,
         models.Customer.tenant_id == tenant_id
     ).first()
 
     if customer:
-        logger.info(f"✅ Found customer: {customer.name}")
-        # Update name if we found a better one
-        if customer_name and customer_name.strip() and customer_name != "Voice User":
+        # Update name ONLY if we have a real one
+        if customer_name and customer_name.strip():
             if customer.name != customer_name:
-                logger.info(f"🔄 Updating name: {customer.name} -> {customer_name}")
                 customer.name = customer_name
                 db_session.add(customer)
     else:
-        logger.info(f"🆕 Creating customer: {customer_name}")
+        # Create
+        # If no name provided, use Phone as name (Clean, no "Guest" strings)
+        final_name = customer_name if (customer_name and customer_name.strip()) else customer_phone
+        
         customer = models.Customer(
-            id=generate_id("cust"),
+            id=generate_id(),
             tenant_id=tenant_id,
-            name=customer_name if customer_name else "Voice User",
-            phone=clean_phone,
+            name=final_name,
+            phone=customer_phone,
             created_at=datetime.now(timezone.utc)
         )
         db_session.add(customer)

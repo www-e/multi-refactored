@@ -159,3 +159,22 @@ alembic upgrade head
 check logs
 docker logs -f navaia_backend --tail 100 & docker logs -f navaia_frontend --tail 100
 docker ps -a | grep navaia
+
+
+
+
+
+
+
+docker exec -it navaia_db psql -U navaia -d navaia -c "TRUNCATE TABLE bookings, voice_sessions, customers RESTART IDENTITY CASCADE;"
+
+
+
+# Check customers table is empty
+docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM customers;"
+
+# Check voice_sessions table is empty  
+docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
+
+# Check bookings table is empty
+docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"

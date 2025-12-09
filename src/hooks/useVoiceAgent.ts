@@ -23,6 +23,7 @@ export function useVoiceAgent(
   const conversation = useConversation({
     onConnect: () => options.onStatusChange?.('connected'),
     onDisconnect: () => {
+      console.log('Voice Agent Disconnected Normally');
       options.onStatusChange?.('idle');
       setCurrentSession(null);
     },
@@ -34,23 +35,24 @@ export function useVoiceAgent(
       }
     },
     onError: (error) => {
-      // 🟢 CRITICAL FIX: Ignore WebSocket closing errors
-      // These happen naturally when the AI hangs up. We treat them as a normal disconnect.
       const errorStr = typeof error === 'string' ? error : JSON.stringify(error);
-      
+      console.log('Voice Agent Socket Event:', errorStr);
+
+      // 🟢 THE FIX: If the socket is closing, it means the call is over. 
+      // Do NOT treat it as an error. Reset the UI.
       if (
         errorStr.includes('CLOSING') || 
         errorStr.includes('CLOSED') || 
-        errorStr.includes('1000') || // Normal closure code
-        errorStr.includes('1005')    // No status code
+        errorStr.includes('1000') ||
+        errorStr.includes('1005')
       ) {
-        console.log('Call ended naturally (WebSocket closed)');
+        console.log('Socket closed intentionally - resetting UI');
         options.onStatusChange?.('idle');
         setCurrentSession(null);
         return; 
       }
 
-      console.error('ElevenLabs conversation error:', error);
+      console.error('Real Voice Error:', error);
       options.onError?.(errorStr);
       options.onStatusChange?.('error');
     },
@@ -59,31 +61,25 @@ export function useVoiceAgent(
   const startVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string, customerPhone?: string) => {
     try {
       options.onStatusChange?.('connecting');
-      await postLog('info', 'startVoiceSession initiated', { agentType, customerId });
       
-      // 1. Create Backend Session (Get ID from DB)
+      // 1. Create Backend Session
       const backendSession = await createVoiceSession(agentType, customerId, customerPhone);
       
-      // 2. Get Agent ID from Env
+      // 2. Get Agent ID
       const agentId = agentType === 'support'
         ? process.env.NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID
         : process.env.NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID;
 
       if (!agentId) throw new Error(`Agent ID not configured for ${agentType}`);
 
-      // 3. Request Microphone Access
+      // 3. Start Session (Websocket)
       await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // 4. Start ElevenLabs Session
-      // FIX: Added 'connectionType' to satisfy TypeScript requirement
       await conversation.startSession({
         agentId: agentId,
-        // @ts-ignore - 'websocket' is valid but sometimes types mismatch in older SDK versions
+        // @ts-ignore
         connectionType: 'websocket', 
       });
 
-      // 5. Store Session Data
-      // Note: We map the backend session ID here so we know which DB row to update later if needed
       const session = {
         backend_session: backendSession,
         elevenlabs_conversation: {
@@ -94,29 +90,24 @@ export function useVoiceAgent(
       };
       
       setCurrentSession(session);
-      await postLog('info', 'voice_session_connected', { session_id: backendSession.session_id });
 
     } catch (error: any) {
-      console.error('Voice session start failed:', error);
-      const errorMessage = error.message || 'Failed to start voice session';
-      
-      options.onError?.(errorMessage);
+      console.error('Start failed:', error);
+      options.onError?.(error.message || 'Failed to start');
       options.onStatusChange?.('error');
-      
-      await postLog('error', 'voice_session_start_failed', { error: errorMessage });
     }
-  }, [options, conversation, createVoiceSession, postLog]);
+  }, [options, conversation, createVoiceSession]);
 
   const stopVoiceSession = useCallback(async () => {
     try {
       await conversation.endSession();
-      await postLog('info', 'voice_session_stopped_manually', {});
     } catch (error: any) {
-      console.warn('Stop voice session warning:', error);
+      // Force UI reset even if SDK errors on stop
+      console.warn('Force stopping UI:', error);
       options.onStatusChange?.('idle');
       setCurrentSession(null);
     }
-  }, [conversation, currentSession, options, postLog]);
+  }, [conversation, options]);
 
   return {
     startVoiceSession,

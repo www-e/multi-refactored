@@ -1,4 +1,4 @@
-name: Perfect Auto-Deploy
+name: Agentic Auto-Deploy
 
 on:
   push:
@@ -16,15 +16,20 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop: true  # ✅ FIXED: Changed from script_stop_on_error
+          script_stop: true
           envs: POSTGRES_PASSWORD,DISCORD_WEBHOOK
           script: |
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
             MAX_RETRIES=12
-            LOCK_FILE="/tmp/navaia_deploy.lock"
-            LOCK_INFO_FILE="/tmp/navaia_deploy.info"
+            LOCK_FILE="/tmp/agentic_navaia_deploy.lock"
+            LOCK_INFO_FILE="/tmp/agentic_navaia_deploy.info"
             DEPLOYMENT_SUCCESS=false
+            
+            # CRITICAL: New Container Names
+            DB_CONTAINER="agentic_portal_db"
+            BACKEND_CONTAINER="agentic_portal_backend"
+            FRONTEND_CONTAINER="agentic_portal_frontend"
 
             # Function to get current timestamp
             get_timestamp() {
@@ -33,99 +38,88 @@ jobs:
 
             # Deployment Lock with stale check
             if [ -f "$LOCK_FILE" ]; then
-                # Check if the process still exists
                 PID=$(cat $LOCK_FILE 2>/dev/null)
                 if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-                    # Also check if lock is stale (older than 30 minutes)
                     if [ -f "$LOCK_INFO_FILE" ]; then
                         lock_time=$(cat "$LOCK_INFO_FILE")
                         current_time=$(get_timestamp)
                         age=$((current_time - lock_time))
-                        if [ $age -gt 1800 ]; then  # 30 minutes = 1800 seconds
-                            echo "⚠️  Found stale lock (age: $((age/60)) minutes, PID: $PID). Removing..."
+                        if [ $age -gt 1800 ]; then
+                            echo "⚠️  Found stale lock (age: $((age/60)) minutes). Removing..."
                             rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                         else
-                            echo "⚠️  Another deployment process (PID: $PID) is in progress. Exiting..."
+                            echo "⚠️  Another deployment is in progress. Exiting..."
                             exit 1
                         fi
                     else
-                        echo "⚠️  Another deployment process (PID: $PID) is in progress. Exiting..."
+                        echo "⚠️  Another deployment is in progress. Exiting..."
                         exit 1
                     fi
                 else
-                    # Lock file exists but process is gone - stale lock, remove it
-                    echo "⚠️  Found stale lock file (PID: $PID no longer exists), removing..."
+                    echo "⚠️  Found stale lock file, removing..."
                     rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                 fi
             fi
             echo $$ > "$LOCK_FILE"
             echo $(get_timestamp) > "$LOCK_INFO_FILE"
             
-            # Cleanup and notification on exit
             cleanup() {
                 rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                 if [ "$DEPLOYMENT_SUCCESS" = false ]; then
                     echo "❌ Deployment failed!"
                     curl -X POST "$DISCORD_WEBHOOK" \
                       -H 'Content-Type: application/json' \
-                      -d "{\"content\":\"❌ Deployment failed for Navaia!\"}" 2>/dev/null || true
+                      -d "{\"content\":\"❌ Agentic Navaia Deployment Failed!\"}" 2>/dev/null || true
                 fi
             }
             trap cleanup EXIT
             
-            # 0. PRE-DEPLOYMENT CLEANUP (FREE DISK SPACE)
             echo "🧹 Pre-deployment cleanup..."
             docker system prune -f --volumes 2>/dev/null || true
-            docker builder prune -f 2>/dev/null || true
             
             # Check disk space
             AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')
             echo "💾 Available disk space: $(df -h / | tail -1 | awk '{print $4}')"
-            
-            if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then  # Less than 1GB
-                echo "⚠️  WARNING: Low disk space! Aggressive cleanup..."
+            if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then
+                echo "⚠️  WARNING: Low disk space! Pruning images..."
                 docker image prune -a -f
-                docker container prune -f
             fi
             
             # 1. Navigate to Project
             cd $PROJECT_DIR
             echo "📁 Changed directory to $PROJECT_DIR"
             
-            # 2. Store current commit for rollback
             PREVIOUS_COMMIT=$(git rev-parse HEAD)
             
-            # 3. Sync Code
+            # 2. Sync Code
             echo "📥 Pulling latest code..."
             git fetch --all
             git reset --hard origin/main
             CURRENT_COMMIT=$(git rev-parse HEAD)
-            
             echo "📊 Deploying: $PREVIOUS_COMMIT → $CURRENT_COMMIT"
             
-            # 4. Backup Database
+            # 3. Backup Database
             echo "💾 Creating database backup..."
-            BACKUP_FILE="backups/navaia_$(date +%Y%m%d_%H%M%S).sql"
+            BACKUP_FILE="backups/agentic_$(date +%Y%m%d_%H%M%S).sql"
             mkdir -p backups
-            docker exec navaia_db pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
-            
-            # Keep only last 3 backups (reduced from 5 to save space)
+            # Fix: Use new container name
+            docker exec $DB_CONTAINER pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
             ls -t backups/*.sql 2>/dev/null | tail -n +4 | xargs -r rm
             
-            # 5. Rebuild and Restart
+            # 4. Rebuild and Restart
             echo "🏗️ Building and Starting Docker Containers..."
-            
-            if ! docker-compose up -d --build --remove-orphans; then
+            # Force recreate to ensure new names/networks apply
+            if ! docker-compose up -d --build --force-recreate --remove-orphans; then
                 echo "❌ Docker build failed! Rolling back..."
                 git reset --hard $PREVIOUS_COMMIT
                 docker-compose up -d
                 exit 1
             fi
             
-            # 6. Wait for PostgreSQL
+            # 5. Wait for PostgreSQL
             echo "⏳ Waiting for PostgreSQL..."
             for i in {1..30}; do
-                if docker exec navaia_db pg_isready -U navaia > /dev/null 2>&1; then
+                if docker exec $DB_CONTAINER pg_isready -U navaia > /dev/null 2>&1; then
                     echo "✅ PostgreSQL is ready!"
                     break
                 fi
@@ -133,64 +127,31 @@ jobs:
                 sleep 1
             done
             
-            # 7. Smart Migration Handler
+            # 6. Database Migrations
             echo "🔄 Running Database Migrations..."
             
-            DB_REVISION=$(docker exec navaia_db psql -U navaia -d navaia -t -c "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | xargs)
-            LATEST_REVISION=$(docker exec navaia_backend alembic heads 2>/dev/null | grep -oP '^[a-f0-9]+' | head -n1)
-            
-            echo "📊 Database revision: ${DB_REVISION:-none}"
-            echo "📊 Latest migration: ${LATEST_REVISION:-none}"
-            
-            if [ -n "$DB_REVISION" ] && [ "$DB_REVISION" != "None" ]; then
-                if ! docker exec navaia_backend alembic show "$DB_REVISION" > /dev/null 2>&1; then
-                    echo "⚠️  Database revision '$DB_REVISION' not found in migration files!"
-                    echo "🔧 Force clearing bad revision and stamping to: $LATEST_REVISION"
-                    
-                    docker exec navaia_db psql -U navaia -d navaia -c "DELETE FROM alembic_version WHERE version_num = '$DB_REVISION';" > /dev/null 2>&1
-                    
-                    if ! docker exec navaia_backend alembic stamp head; then
-                        echo "❌ Failed to stamp database!"
-                        docker logs navaia_backend --tail 50
-                        exit 1
-                    fi
-                    echo "✅ Database stamped successfully!"
-                fi
-            fi
-            
-            if ! docker exec navaia_backend alembic upgrade head; then
+            # Fix: Use new container names
+            if ! docker exec $BACKEND_CONTAINER alembic upgrade head; then
                 echo "❌ Migration Failed!"
-                docker logs navaia_backend --tail 50
-                
-                if [ -f "$BACKUP_FILE" ]; then
-                    echo "🔄 Restoring from backup..."
-                    docker exec -i navaia_db psql -U navaia navaia < "$BACKUP_FILE"
-                fi
-                
-                git reset --hard $PREVIOUS_COMMIT
-                docker-compose up -d --build
+                docker logs $BACKEND_CONTAINER --tail 50
+                # Optional rollback strategy could go here
                 exit 1
             fi
-            
             echo "✅ Migrations completed successfully!"
             
-            # 8. POST-DEPLOYMENT CLEANUP
-            echo "🧹 Post-deployment cleanup..."
+            # 7. Post-Cleanup
             docker image prune -f
-            docker builder prune -f
             
-            # 9. Health Check Function
+            # 8. Health Checks
             check_health() {
                 local url=$1
                 local name=$2
                 local retries=0
-                
                 echo "🏥 Checking $name at $url..."
-                
                 until curl -f -s -o /dev/null "$url"; do
                     retries=$((retries+1))
                     if [ $retries -gt $MAX_RETRIES ]; then
-                        echo "❌ $name failed to start after $((MAX_RETRIES*5)) seconds."
+                        echo "❌ $name failed to start."
                         return 1
                     fi
                     echo "⏳ $name not ready yet... waiting 5s ($retries/$MAX_RETRIES)"
@@ -200,29 +161,27 @@ jobs:
                 return 0
             }
             
-            # 10. Execute Health Checks
+            # Check Backend (Port 8000)
             if ! check_health "http://127.0.0.1:8000/healthz" "Backend"; then
                 echo "🔍 DUMPING BACKEND LOGS:"
-                docker logs navaia_backend --tail 50
+                docker logs $BACKEND_CONTAINER --tail 50
                 exit 1
             fi
             
+            # Check Frontend (Port 3001)
             if ! check_health "http://127.0.0.1:3001" "Frontend"; then
                 echo "🔍 DUMPING FRONTEND LOGS:"
-                docker logs navaia_frontend --tail 50
+                docker logs $FRONTEND_CONTAINER --tail 50
                 exit 1
             fi
             
-            # 11. Success!
             DEPLOYMENT_SUCCESS=true
-            echo "🚀 Deployment Complete & Verified Successfully!"
-            echo "📦 Backup saved: $BACKUP_FILE"
-            echo "📊 Commit: $CURRENT_COMMIT"
-            echo "💾 Disk space: $(df -h / | tail -1 | awk '{print $4}') available"
+            echo "🚀 Deployment Complete!"
+            echo "📦 Backup: $BACKUP_FILE"
             
             curl -X POST "$DISCORD_WEBHOOK" \
               -H 'Content-Type: application/json' \
-              -d "{\"content\":\"✅ Navaia deployed successfully! (\`${CURRENT_COMMIT:0:7}\`)\"}" 2>/dev/null || true
+              -d "{\"content\":\"✅ Agentic Navaia Deployed! (\`${CURRENT_COMMIT:0:7}\`)\"}" 2>/dev/null || true
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
