@@ -225,7 +225,7 @@ class VoiceSession(Base):
     
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"))
+    customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     direction: Mapped[str | None] = mapped_column(String, nullable=True, default="inbound")
     locale: Mapped[str] = mapped_column(String, default="ar-SA")
     status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)

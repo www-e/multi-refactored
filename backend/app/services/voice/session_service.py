@@ -21,35 +21,14 @@ def generate_id(prefix: str = "id") -> str:
 
 def create_voice_session(db_session: Session, agent_type: str, customer_id: Optional[str], tenant_id: str, customer_phone: Optional[str] = None) -> models.VoiceSession:
     """
-    Create a new voice session.
-    Creates a placeholder customer that will be updated with real data when webhook processes the conversation.
+    Create a new voice session WITHOUT a customer.
+    Customer will be created later when webhook processes the conversation with real data.
     """
-    from .customer_service import get_or_create_customer
-
-    # Always create/get customer to satisfy foreign key constraint
-    # But use empty strings for name/phone - webhook will update with real data
-    if customer_id:
-        customer = get_or_create_customer(
-            db_session=db_session,
-            customer_id=customer_id,
-            customer_phone=customer_phone,
-            customer_name=None,  # Will be updated by webhook
-            tenant_id=tenant_id
-        )
-    else:
-        # Create placeholder customer - webhook will update with real data
-        customer = get_or_create_customer(
-            db_session=db_session,
-            customer_phone=customer_phone,
-            customer_name=None,  # Empty - webhook will fill this
-            tenant_id=tenant_id
-        )
-
-    # 2. Create Voice Session
+    # Create Voice Session with NO customer (customer_id = None)
     voice_session = models.VoiceSession(
         id=generate_id("vs"),
         tenant_id=tenant_id,
-        customer_id=customer.id,  # Use the actual customer ID from database
+        customer_id=None,  # Will be set by webhook after data extraction
         direction="inbound",
         status=models.VoiceSessionStatus.ACTIVE,
         customer_phone=customer_phone,

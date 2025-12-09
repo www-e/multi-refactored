@@ -78,69 +78,32 @@ async def process_conversation_webhook(
     voice_session.extracted_intent = intent
     voice_session.customer_phone = customer_phone
 
-    # 5. UPDATE CUSTOMER DATA with extracted information
-    # Customer was created as placeholder during session creation
-    # Now we update it with real data from the conversation
-    customer = db_session.query(models.Customer).filter(
-        models.Customer.id == voice_session.customer_id
-    ).first()
+    # 5. CREATE CUSTOMER with real extracted data
+    # No more placeholders - we create the customer ONLY when we have real data
+    from .customer_service import get_or_create_customer
     
-    if not customer:
-        # This shouldn't happen, but create customer if missing
-        logger.warning(f"⚠️ Customer {voice_session.customer_id} not found, creating new one")
-        from .customer_service import get_or_create_customer
-        customer = get_or_create_customer(
-            db_session=db_session,
-            customer_id=voice_session.customer_id,
-            customer_phone=customer_phone,
-            customer_name=customer_name,
-            tenant_id=voice_session.tenant_id
-        )
+    logger.info(f"📝 Creating customer with extracted data: name={customer_name}, phone={customer_phone}")
     
-    # Update customer with extracted data
-    updates = []
+    customer = get_or_create_customer(
+        db_session=db_session,
+        customer_phone=customer_phone if customer_phone else None,
+        customer_name=customer_name if customer_name else None,
+        tenant_id=voice_session.tenant_id
+    )
     
-    # Update Name if we have a real name (not a placeholder)
-    if customer_name and customer_name.strip():
-        customer_name_clean = customer_name.strip()
-        # Skip only if it's an obvious English placeholder
-        customer_name_lower = customer_name_clean.lower()
-        is_placeholder = (
-            customer_name_lower in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', 'temp'] or
-            customer_name_lower.startswith('customer ') or
-            customer_name_lower.startswith('temp ')
-        )
-        
-        if not is_placeholder:
-            # Always update if we have a real name
-            if not customer.name or customer.name.strip() == '' or customer.name != customer_name_clean:
-                customer.name = customer_name_clean
-                updates.append("name")
-                logger.info(f"✅ Updated customer name to '{customer_name_clean}'")
-
-    # Update Phone if extracted
-    if customer_phone and customer_phone.strip():
-        customer_phone_clean = customer_phone.strip()
-        if not customer.phone or customer.phone.strip() == '' or customer.phone != customer_phone_clean:
-            customer.phone = customer_phone_clean
-            updates.append("phone")
-            logger.info(f"✅ Updated customer phone to '{customer_phone_clean}'")
-
-        # Update Region/Neighborhood (The Fix for 'المنطقة')
-        if extracted_region:
-            # Neighborhoods is a JSON field in DB, treat as a list
-            current_neighborhoods = customer.neighborhoods
-            if not isinstance(current_neighborhoods, list):
-                current_neighborhoods = []
-
-            # Add if unique
-            if extracted_region not in current_neighborhoods:
-                current_neighborhoods.append(extracted_region)
-                customer.neighborhoods = current_neighborhoods
-                updates.append("region")
-
-        if updates:
-            logger.info(f"Customer {customer.id} Updated fields: {', '.join(updates)}")
+    # Link customer to voice session
+    voice_session.customer_id = customer.id
+    logger.info(f"✅ Customer created: {customer.id} | Name: {customer.name} | Phone: {customer.phone}")
+    
+    # Update Region/Neighborhood
+    if extracted_region:
+        current_neighborhoods = customer.neighborhoods
+        if not isinstance(current_neighborhoods, list):
+            current_neighborhoods = []
+        if extracted_region not in current_neighborhoods:
+            current_neighborhoods.append(extracted_region)
+            customer.neighborhoods = current_neighborhoods
+            logger.info(f"✅ Added region: {extracted_region}")
 
     # Force save customer updates NOW so subsequent records reference correct data
     db_session.flush()
