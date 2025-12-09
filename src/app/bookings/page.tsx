@@ -30,7 +30,7 @@ export default function BookingsPage() {
   const [bookingToEdit, setBookingToEdit] = useState<any>(null);
 
   const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking, removeBooking } = useAppStore();
-  const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
+  const { getBookings, updateBookingStatus, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   useEffect(() => {
@@ -75,7 +75,6 @@ export default function BookingsPage() {
 
   const getCustomer = (id: string) => customers.find(c => c.id === id);
   
-  // Safe Customer Name Resolution
   const getCustomerName = (booking: any) => {
       if (booking.customerName && booking.customerName !== 'Unknown') return booking.customerName;
       const c = getCustomer(booking.customerId);
@@ -83,13 +82,21 @@ export default function BookingsPage() {
   };
 
   const getPropertyDisplay = (booking: any) => {
-      // Prioritize the extracted "project" name (e.g., Saqeefa 28)
       if (booking.project && booking.project !== 'GENERAL-INQUIRY') return booking.project;
-      
       const p = properties.find(p => p.id === booking.propertyId);
       if (p) return p.code;
-      
       return booking.propertyId || 'General';
+  };
+
+  // Status Matching Helper
+  const matchesStatus = (bookingStatus: string, filter: string) => {
+    const s = (bookingStatus || '').toLowerCase();
+    if (filter === 'all') return true;
+    if (filter === 'معلق') return s === 'pending' || s === 'معلق';
+    if (filter === 'مؤكد') return s === 'confirmed' || s === 'مؤكد';
+    if (filter === 'ملغي') return s === 'canceled' || s === 'cancelled' || s === 'ملغي';
+    if (filter === 'مكتمل') return s === 'completed' || s === 'مكتمل';
+    return s === filter;
   };
 
   const filteredBookings = bookings.filter(booking => {
@@ -101,17 +108,24 @@ export default function BookingsPage() {
       custName.includes(query) ||
       propName.includes(query)
     );
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    const isStatusMatch = matchesStatus(booking.status, statusFilter);
+
+    return matchesSearch && isStatusMatch;
   });
 
   const isPending = (status: string) => ['pending', 'معلق'].includes(status.toLowerCase());
-  const pendingBookings = filteredBookings.filter(b => isPending(b.status) && (statusFilter === 'all' || b.status === statusFilter));
+  
+  // Also fix pending filter for the "Needs Approval" cards
+  const pendingBookings = bookings.filter(b => 
+    isPending(b.status) && 
+    (statusFilter === 'all' || matchesStatus(b.status, statusFilter))
+  );
 
   const handleAction = async (id: string, action: 'confirmed' | 'canceled') => {
     const arabicStatus = action === 'confirmed' ? 'مؤكد' : 'ملغي';
     await updateBookingStatus(id, action);
-    updateBookingInStore(id, { status: arabicStatus });
+    updateBookingInStore(id, { status: arabicStatus }); // Optimistic update
   };
 
   return (
