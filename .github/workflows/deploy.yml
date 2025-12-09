@@ -4,6 +4,11 @@ on:
   push:
     branches: [ "main" ]
 
+# ✅ SAFETY: Prevents multiple deployments from running at the same time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy_and_verify:
     name: Build, Deploy & Health Check
@@ -17,16 +22,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: POSTGRES_PASSWORD,DISCORD_WEBHOOK
           script: |
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
             MAX_RETRIES=12
             LOCK_FILE="/tmp/agentic_navaia_deploy.lock"
             LOCK_INFO_FILE="/tmp/agentic_navaia_deploy.info"
-            DEPLOYMENT_SUCCESS=false
             
-            # CRITICAL: New Container Names
+            # Container Names
             DB_CONTAINER="agentic_portal_db"
             BACKEND_CONTAINER="agentic_portal_backend"
             FRONTEND_CONTAINER="agentic_portal_frontend"
@@ -36,50 +39,50 @@ jobs:
                 date +%s
             }
 
-            # Deployment Lock with stale check
+            # --- ROBUST LOCK MANAGEMENT ---
+            # 1. Check if lock exists
             if [ -f "$LOCK_FILE" ]; then
+                # 2. Check if the process ID in the lock file is actually running
                 PID=$(cat $LOCK_FILE 2>/dev/null)
                 if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+                    # Process is running. Check if it's "stale" (older than 20 mins)
                     if [ -f "$LOCK_INFO_FILE" ]; then
                         lock_time=$(cat "$LOCK_INFO_FILE")
                         current_time=$(get_timestamp)
                         age=$((current_time - lock_time))
-                        if [ $age -gt 1800 ]; then
-                            echo "⚠️  Found stale lock (age: $((age/60)) minutes). Removing..."
+                        if [ $age -gt 1200 ]; then
+                            echo "⚠️  Found stale lock (age: $((age/60)) minutes). Force removing..."
                             rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                         else
-                            echo "⚠️  Another deployment is in progress. Exiting..."
+                            echo "⛔ Another deployment is currently active. Exiting to prevent conflicts."
                             exit 1
                         fi
-                    else
-                        echo "⚠️  Another deployment is in progress. Exiting..."
-                        exit 1
                     fi
                 else
-                    echo "⚠️  Found stale lock file, removing..."
+                    # Process is DEAD. The lock is a "ghost". Remove it.
+                    echo "🧹 Found orphaned lock file (Process $PID is dead). Cleaning up..."
                     rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
                 fi
             fi
+
+            # 3. Create new lock
             echo $$ > "$LOCK_FILE"
             echo $(get_timestamp) > "$LOCK_INFO_FILE"
             
+            # 4. Define cleanup trap
             cleanup() {
                 rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
-                if [ "$DEPLOYMENT_SUCCESS" = false ]; then
-                    echo "❌ Deployment failed!"
-                    curl -X POST "$DISCORD_WEBHOOK" \
-                      -H 'Content-Type: application/json' \
-                      -d "{\"content\":\"❌ Agentic Navaia Deployment Failed!\"}" 2>/dev/null || true
-                fi
+                echo "🔓 Deployment lock released."
             }
             trap cleanup EXIT
+            
+            # --- DEPLOYMENT LOGIC ---
             
             echo "🧹 Pre-deployment cleanup..."
             docker system prune -f --volumes 2>/dev/null || true
             
             # Check disk space
             AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')
-            echo "💾 Available disk space: $(df -h / | tail -1 | awk '{print $4}')"
             if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then
                 echo "⚠️  WARNING: Low disk space! Pruning images..."
                 docker image prune -a -f
@@ -102,7 +105,6 @@ jobs:
             echo "💾 Creating database backup..."
             BACKUP_FILE="backups/agentic_$(date +%Y%m%d_%H%M%S).sql"
             mkdir -p backups
-            # Fix: Use new container name
             docker exec $DB_CONTAINER pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
             ls -t backups/*.sql 2>/dev/null | tail -n +4 | xargs -r rm
             
@@ -129,12 +131,9 @@ jobs:
             
             # 6. Database Migrations
             echo "🔄 Running Database Migrations..."
-            
-            # Fix: Use new container names
             if ! docker exec $BACKEND_CONTAINER alembic upgrade head; then
                 echo "❌ Migration Failed!"
                 docker logs $BACKEND_CONTAINER --tail 50
-                # Optional rollback strategy could go here
                 exit 1
             fi
             echo "✅ Migrations completed successfully!"
@@ -175,13 +174,5 @@ jobs:
                 exit 1
             fi
             
-            DEPLOYMENT_SUCCESS=true
             echo "🚀 Deployment Complete!"
             echo "📦 Backup: $BACKUP_FILE"
-            
-            curl -X POST "$DISCORD_WEBHOOK" \
-              -H 'Content-Type: application/json' \
-              -d "{\"content\":\"✅ Agentic Navaia Deployed! (\`${CURRENT_COMMIT:0:7}\`)\"}" 2>/dev/null || true
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
