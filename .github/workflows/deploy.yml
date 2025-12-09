@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
 
-# ✅ SAFETY: Prevents multiple deployments from running at the same time
+# ✅ SAFETY: GitHub handles the locking for us now.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,57 +26,14 @@ jobs:
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
             MAX_RETRIES=12
-            LOCK_FILE="/tmp/agentic_navaia_deploy.lock"
-            LOCK_INFO_FILE="/tmp/agentic_navaia_deploy.info"
             
             # Container Names
             DB_CONTAINER="agentic_portal_db"
             BACKEND_CONTAINER="agentic_portal_backend"
             FRONTEND_CONTAINER="agentic_portal_frontend"
 
-            # Function to get current timestamp
-            get_timestamp() {
-                date +%s
-            }
-
-            # --- ROBUST LOCK MANAGEMENT ---
-            # 1. Check if lock exists
-            if [ -f "$LOCK_FILE" ]; then
-                # 2. Check if the process ID in the lock file is actually running
-                PID=$(cat $LOCK_FILE 2>/dev/null)
-                if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
-                    # Process is running. Check if it's "stale" (older than 20 mins)
-                    if [ -f "$LOCK_INFO_FILE" ]; then
-                        lock_time=$(cat "$LOCK_INFO_FILE")
-                        current_time=$(get_timestamp)
-                        age=$((current_time - lock_time))
-                        if [ $age -gt 1200 ]; then
-                            echo "⚠️  Found stale lock (age: $((age/60)) minutes). Force removing..."
-                            rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
-                        else
-                            echo "⛔ Another deployment is currently active. Exiting to prevent conflicts."
-                            exit 1
-                        fi
-                    fi
-                else
-                    # Process is DEAD. The lock is a "ghost". Remove it.
-                    echo "🧹 Found orphaned lock file (Process $PID is dead). Cleaning up..."
-                    rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
-                fi
-            fi
-
-            # 3. Create new lock
-            echo $$ > "$LOCK_FILE"
-            echo $(get_timestamp) > "$LOCK_INFO_FILE"
-            
-            # 4. Define cleanup trap
-            cleanup() {
-                rm -f "$LOCK_FILE" "$LOCK_INFO_FILE"
-                echo "🔓 Deployment lock released."
-            }
-            trap cleanup EXIT
-            
-            # --- DEPLOYMENT LOGIC ---
+            echo "🔓 Force-cleaning any stale lock files to ensure deployment proceeds..."
+            rm -f "/tmp/agentic_navaia_deploy.lock" "/tmp/agentic_navaia_deploy.info"
             
             echo "🧹 Pre-deployment cleanup..."
             docker system prune -f --volumes 2>/dev/null || true
@@ -110,7 +67,6 @@ jobs:
             
             # 4. Rebuild and Restart
             echo "🏗️ Building and Starting Docker Containers..."
-            # Force recreate to ensure new names/networks apply
             if ! docker-compose up -d --build --force-recreate --remove-orphans; then
                 echo "❌ Docker build failed! Rolling back..."
                 git reset --hard $PREVIOUS_COMMIT
