@@ -62,6 +62,18 @@ def get_dashboard_kpis(tenant_id: str = Depends(deps.get_current_tenant_id), _=D
 
     current_calls_formatted = []
     for call in current_calls:
+        # Fetch the actual customer to get the real name
+        customer = db_session.query(models.Customer).filter(
+            models.Customer.id == call.customer_id
+        ).first()
+        
+        # Use customer name if available and not empty, otherwise use customer ID
+        customer_name = "عميل جديد"  # Default for new customers
+        if customer and customer.name and customer.name.strip():
+            customer_name = customer.name
+        elif customer and customer.phone and customer.phone.strip():
+            customer_name = customer.phone
+        
         # Calculate duration for active calls from creation to now
         if call.created_at:
             duration_seconds = (datetime.utcnow() - call.created_at.replace(tzinfo=None)).total_seconds()
@@ -73,7 +85,7 @@ def get_dashboard_kpis(tenant_id: str = Depends(deps.get_current_tenant_id), _=D
 
         current_calls_formatted.append({
             "id": call.id,
-            "customerName": getattr(call, 'customer_name', call.customer_id),
+            "customerName": customer_name,
             "duration": duration_str,
             "status": getattr(call, 'direction', "وارد")
         })

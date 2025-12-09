@@ -97,7 +97,7 @@ async def process_conversation_fast(
     Instead, we securely determine tenant context by looking up the existing voice session.
     """
     try:
-        result = process_conversation_webhook(db_session, conversation_id)
+        result = await process_conversation_webhook(db_session, conversation_id)
         return result
     except Exception as e:
         logger.error(f"Error processing conversation {conversation_id}: {e}", exc_info=True)
@@ -152,7 +152,7 @@ async def handle_elevenlabs_webhook(request: Request):
         # Process the webhook using service
         db_session = next(get_session())
         try:
-            result = process_webhook_payload(db_session, payload)
+            result = await process_webhook_payload(db_session, payload)
             return result
         except HTTPException:
             db_session.rollback()
@@ -169,3 +169,42 @@ async def handle_elevenlabs_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error processing ElevenLabs webhook: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error processing webhook")
+
+
+@router.post("/voice/sessions/{session_id}/end")
+async def end_voice_session(
+    session_id: str,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    _=Depends(deps.get_current_user),
+    db_session: Session = Depends(deps.get_session)
+):
+    """
+    Mark a voice session as ended immediately when the client disconnects.
+    This prevents ghost calls that remain in ACTIVE status.
+    """
+    from datetime import datetime, timezone
+    
+    try:
+        voice_session = db_session.query(models.VoiceSession).filter(
+            models.VoiceSession.id == session_id,
+            models.VoiceSession.tenant_id == tenant_id
+        ).first()
+        
+        if not voice_session:
+            raise HTTPException(status_code=404, detail="Voice session not found")
+        
+        # Only update if still active
+        if voice_session.status == models.VoiceSessionStatus.ACTIVE:
+            voice_session.status = models.VoiceSessionStatus.COMPLETED
+            if not voice_session.ended_at:
+                voice_session.ended_at = datetime.now(timezone.utc)
+            db_session.commit()
+            logger.info(f"Voice session {session_id} marked as ended")
+        
+        return {"status": "success", "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error ending voice session {session_id}: {e}", exc_info=True)
+        db_session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

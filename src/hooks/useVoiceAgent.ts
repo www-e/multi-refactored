@@ -91,12 +91,32 @@ export function useVoiceAgent(
   const stopVoiceSession = useCallback(async () => {
     try {
       await conversation.endSession();
+      
+      // Mark the session as ended in the backend
+      if (currentSession?.backend_session?.session_id) {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/voice/sessions/${currentSession.backend_session.session_id}/end`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to mark session as ended in backend');
+          }
+        } catch (error) {
+          console.error('Error marking session as ended:', error);
+        }
+      }
+      
       postLog('info', 'voice_session_stopped', {}).catch(() => {});
     } catch (error: any) {
       console.error('Stop voice session failed:', error);
       options.onError?.(error.message || 'Failed to stop voice session');
     }
-  }, [conversation, options, postLog]);
+  }, [conversation, currentSession, options, postLog]);
 
   return {
     startVoiceSession,

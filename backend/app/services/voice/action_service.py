@@ -62,8 +62,16 @@ def create_booking_from_conversation(
             models.Customer.id == voice_session.customer_id
         ).first()
 
-        customer_name = customer.name if customer else "Unknown Customer"
-        customer_phone = voice_session.customer_phone or (customer.phone if customer else "N/A")
+        # Use actual customer data or empty strings (no placeholders)
+        customer_name = ""
+        if customer and customer.name and customer.name.strip():
+            customer_name = customer.name
+        
+        customer_phone = ""
+        if voice_session.customer_phone and voice_session.customer_phone.strip():
+            customer_phone = voice_session.customer_phone
+        elif customer and customer.phone and customer.phone.strip():
+            customer_phone = customer.phone
 
         # 5. Create Booking Record
         booking = models.Booking(
@@ -115,8 +123,16 @@ def create_ticket_from_conversation(
             models.Customer.id == voice_session.customer_id
         ).first()
 
-        customer_name = customer.name if customer else "Unknown Customer"
-        customer_phone = voice_session.customer_phone or (customer.phone if customer else "N/A")
+        # Use actual customer data or empty strings (no placeholders)
+        customer_name = ""
+        if customer and customer.name and customer.name.strip():
+            customer_name = customer.name
+        
+        customer_phone = ""
+        if voice_session.customer_phone and voice_session.customer_phone.strip():
+            customer_phone = voice_session.customer_phone
+        elif customer and customer.phone and customer.phone.strip():
+            customer_phone = customer.phone
 
         # 4. Create Ticket Record
         ticket = models.Ticket(

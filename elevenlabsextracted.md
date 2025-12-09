@@ -1,64 +1,64 @@
 Summary
 
-Omar contacted support to schedule an electrician for سقيفة 28. The agent, Khaled, scheduled the appointment for Monday at 5 PM. Omar requested to save his phone number, but the agent stated that this was not possible. The agent provided the support number and ended the call.
+Ali contacted سقيفة customer service (Khaled) to schedule an electrician for سقيفة 28. The appointment was set for Tuesday at 2 PM, and the phone number 01154 688628 was provided. Ali confirmed the details and thanked Khaled. The call was then ended.
 
 Call status
 
 Successful
 User ID
 
-vs_a045374bdab2cecf
+vs_8ccae9a6836fca12
 
 Data collection
 
 preferred_datetime
 
 string
-2025-12-15T17:00:00+03:00
+2025-12-16T14:00:00+00:00
 
-The user requested an appointment on "يوم الاثنين الساعة 5 مساء", which translates to Monday at 5 PM. Normalizing this to ISO 8601 in Riyadh time, assuming the conversation is happening on 2025-12-09, the date would be 2025-12-15T17:00:00+03:00.
+The user requested an appointment on "يوم الثلاث الساعة 2 مساء", which translates to Tuesday at 2 PM. Assuming "الثلاث" refers to the next Tuesday from the start time of the conversation (2025-12-09T15:25:37+00:00), the date would be 2025-12-16. Therefore, the normalized ISO 8601 time is 2025-12-16T14:00:00+00:00.
 
 phone
 
 string
-966596387293
+01154688628
 
-The user provided their phone number as 'تسعة ستة ستة خمسة تسعة ستة ثلاثة ثمانية سبعة اثنين تسعة ثلاثة' which translates to 966596387293. I have extracted this number.
+The user provided the phone number 01154688628 in the conversation: "يوم الثلاث الساعة 2 مساء وعاوز حد ياخذ رقم 01154 688628."
 
 extracted_intent
 
 string
 book_appointment
 
-The user initially reported an electrical problem and requested someone to fix it. The agent then scheduled an appointment for maintenance. Therefore, the user's request falls under the 'book_appointment' category.
+The user is requesting to schedule an appointment for electrical maintenance, which falls under the 'book_appointment' category.
 
 customer_name
 
 string
-عمر
+علي
 
-The user states his name as 'عمر' in the second turn of the conversation: 'أهلاً بكم يا خالد. اسمي عمر وعندي مشكلة في الكهرباء في سقيفة 28 وعايز حد يجي يحلها لي.'
+The user states their name as 'علي' (Ali) in the conversation.
 
 issue
 
 string
-مشكلة في الكهرباء
+مشكلة الكهرباء
 
-المحادثة تدور حول مشكلة في الكهرباء وطلب حجز موعد للصيانة. بناء على ذلك، يمكن استخلاص وصف موجز للمشكلة وهو "مشكلة في الكهرباء".
+تم تحديد أن الغرض هو raise_ticket. بناءً على المحادثة، يمكن استخلاص مشكلة المستخدم كـ 'مشكلة الكهرباء'.
 
 priority
 
 string
 high
 
-The user reported a problem with electricity, which is considered urgent. Therefore, the priority should be high.
+The user is reporting a problem with electricity, which is urgent. Therefore, the priority should be high.
 
 project
 
 string
 سقيفة 28
 
-The user mentions "سقيفة 28" as the location where he has a problem with electricity. The agent also confirms this location.
+The user mentions "سقيفة 28" as the location where they need help with electricity. Therefore, I extract "سقيفة 28".
 
 
 

@@ -45,8 +45,8 @@ def get_or_create_customer(
         customer = models.Customer(
             id=customer_id or generate_id("cust"),
             tenant_id=tenant_id,
-            name=customer_name or "Unknown Customer",
-            phone=customer_phone or "N/A",
+            name=customer_name or "",  # Empty string instead of "Unknown Customer"
+            phone=customer_phone or "",  # Empty string instead of "N/A"
             created_at=datetime.now(timezone.utc)
         )
         db_session.add(customer)

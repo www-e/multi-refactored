@@ -28,11 +28,11 @@ def create_voice_session(db_session: Session, agent_type: str, customer_id: Opti
 
     # If no specific customer_id is provided, create a temporary placeholder
     if not customer_id:
-        # Create a temporary customer with phone number if available
+        # Create a temporary customer - will be updated by webhook with real data
         customer = get_or_create_customer(
             db_session=db_session,
             customer_phone=customer_phone,
-            customer_name="Unknown Customer" if not customer_phone else f"Customer {customer_phone}",  # More descriptive name if phone is available
+            customer_name=None,  # Don't set a placeholder name, let webhook fill it
             tenant_id=tenant_id
         )
     else:

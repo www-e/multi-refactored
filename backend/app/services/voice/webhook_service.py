@@ -22,7 +22,7 @@ from .action_service import (
 
 logger = logging.getLogger(__name__)
 
-def process_conversation_webhook(
+async def process_conversation_webhook(
     db_session: Session,
     conversation_id: str
 ) -> Dict[str, Any]:
@@ -31,7 +31,7 @@ def process_conversation_webhook(
     """
     # 1. Fetch Master Data from ElevenLabs API
     try:
-        data = fetch_conversation_from_elevenlabs(conversation_id)
+        data = await fetch_conversation_from_elevenlabs(conversation_id)
     except Exception as e:
         logger.error(f"Failed to fetch conversation {conversation_id} from ElevenLabs: {e}")
         # If we can't get data from source, we cannot process safely.
@@ -76,26 +76,39 @@ def process_conversation_webhook(
 
     updates = []
     if customer:
-        # Update Name if we have a real name (ignore generic placeholders)
-        if customer_name and customer_name.strip().lower() not in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', '']:
-            # Additional check for "customer" patterns like "Customer Unknown" or temporary names
-            customer_name_lower = customer_name.strip().lower()
-            # Check for common temporary name patterns to avoid overwriting legitimate names
-            is_temporary_name = (
-                customer_name_lower in ['customer unknown', 'unknown customer'] or
+        # Update Name if we have a real name
+        # Only skip if the name is clearly a placeholder or empty
+        if customer_name and customer_name.strip():
+            customer_name_clean = customer_name.strip()
+            # Skip only if it's an obvious placeholder (case-insensitive English check)
+            customer_name_lower = customer_name_clean.lower()
+            is_placeholder = (
+                customer_name_lower in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', 'temp'] or
                 customer_name_lower.startswith('customer ') or
-                customer_name_lower.startswith('temp customer') or
-                'unknown' in customer_name_lower
+                customer_name_lower.startswith('temp ')
             )
-
-            if not is_temporary_name:
-                customer.name = customer_name.strip()
+            
+            # Update if: (1) current name is empty/placeholder AND new name is not placeholder
+            # OR (2) new name is different and not a placeholder
+            should_update = (
+                (not customer.name or customer.name.strip() == '' or customer.name == 'Unknown Customer') and not is_placeholder
+            ) or (
+                customer.name != customer_name_clean and not is_placeholder
+            )
+            
+            if should_update:
+                customer.name = customer_name_clean
                 updates.append("name")
+                logger.info(f"Updated customer name from '{customer.name}' to '{customer_name_clean}'")
 
         # Update Phone if extracted and different from current phone
-        if customer_phone and customer.phone != customer_phone:
-            customer.phone = customer_phone
-            updates.append("phone")
+        if customer_phone and customer_phone.strip():
+            customer_phone_clean = customer_phone.strip()
+            # Update if current phone is empty or different
+            if not customer.phone or customer.phone.strip() == '' or customer.phone != customer_phone_clean:
+                customer.phone = customer_phone_clean
+                updates.append("phone")
+                logger.info(f"Updated customer phone to '{customer_phone_clean}'")
 
         # Update Region/Neighborhood (The Fix for 'المنطقة')
         if extracted_region:
@@ -160,7 +173,7 @@ def process_conversation_webhook(
         }
     }
 
-def process_webhook_payload(
+async def process_webhook_payload(
     db_session: Session,
     payload: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -174,4 +187,4 @@ def process_webhook_payload(
         raise HTTPException(status_code=400, detail="Missing conversation_id in payload")
     
     logger.info(f"Received webhook for conversation: {conversation_id}")
-    return process_conversation_webhook(db_session, conversation_id)
+    return await process_conversation_webhook(db_session, conversation_id)
