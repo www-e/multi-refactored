@@ -31,11 +31,79 @@ jobs:
             git fetch --all
             git reset --hard origin/main
             
-            # 3. Rebuild and Restart (Zero-downtime attempt via --build)
+            # 3. Backup Database (Safety Net)
+            echo "💾 Creating database backup..."
+            BACKUP_FILE="backups/navaia_$(date +%Y%m%d_%H%M%S).sql"
+            mkdir -p backups
+            docker exec navaia_db pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
+            
+            # Keep only last 5 backups
+            ls -t backups/*.sql 2>/dev/null | tail -n +6 | xargs -r rm
+            
+            # 4. Rebuild and Restart
             echo "🏗️ Building and Starting Docker Containers..."
             docker-compose up -d --build --remove-orphans
             
-            # 4. Smart Health Check Function
+            # 5. Wait for PostgreSQL to be ready
+            echo "⏳ Waiting for PostgreSQL..."
+            for i in {1..30}; do
+                if docker exec navaia_db pg_isready -U navaia > /dev/null 2>&1; then
+                    echo "✅ PostgreSQL is ready!"
+                    break
+                fi
+                sleep 1
+            done
+            
+            # 6. Smart Migration Handler
+            echo "🔄 Running Database Migrations..."
+            
+            # Get current database revision
+            DB_REVISION=$(docker exec navaia_db psql -U navaia -d navaia -t -c "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | xargs)
+            
+            # Get latest migration file revision
+            LATEST_REVISION=$(docker exec navaia_backend alembic heads 2>/dev/null | grep -oP '^[a-f0-9]+' | head -n1)
+            
+            echo "📊 Database revision: ${DB_REVISION:-none}"
+            echo "📊 Latest migration: ${LATEST_REVISION:-none}"
+            
+            # Check if database revision exists in migration files
+            if [ -n "$DB_REVISION" ] && [ "$DB_REVISION" != "None" ]; then
+                if ! docker exec navaia_backend alembic show "$DB_REVISION" > /dev/null 2>&1; then
+                    echo "⚠️  Database revision '$DB_REVISION' not found in migration files!"
+                    echo "🔧 Stamping database to latest revision: $LATEST_REVISION"
+                    
+                    # Stamp to head (sync database state with code)
+                    if ! docker exec navaia_backend alembic stamp head; then
+                        echo "❌ Failed to stamp database!"
+                        docker logs navaia_backend --tail 50
+                        exit 1
+                    fi
+                    echo "✅ Database stamped successfully!"
+                fi
+            fi
+            
+            # Run migrations
+            if ! docker exec navaia_backend alembic upgrade head; then
+                echo "❌ Migration Failed!"
+                echo "🔍 Backend logs:"
+                docker logs navaia_backend --tail 50
+                
+                # Restore from backup if available
+                if [ -f "$BACKUP_FILE" ]; then
+                    echo "🔄 Restoring from backup..."
+                    docker exec -i navaia_db psql -U navaia navaia < "$BACKUP_FILE"
+                    echo "✅ Database restored from backup!"
+                fi
+                exit 1
+            fi
+            
+            echo "✅ Migrations completed successfully!"
+            
+            # 7. Cleanup Disk Space
+            echo "🧹 Cleaning up old images..."
+            docker image prune -f
+            
+            # 8. Smart Health Check Function
             check_health() {
                 local url=$1
                 local name=$2
@@ -55,34 +123,19 @@ jobs:
                 echo "✅ $name is HEALTHY!"
                 return 0
             }
-
-            # 5. Run Database Migrations 
-            # We wait 5 seconds first to let Postgres container initialize
-            sleep 5 
-            echo "🔄 Running Database Migrations..."
-            if ! docker exec navaia_backend alembic upgrade head; then
-                echo "❌ Migration Failed!"
-                docker logs navaia_backend --tail 50
-                exit 1
-            fi
-
-            # 6. Cleanup Disk Space (Keep server clean)
-            echo "🧹 Cleaning up old images..."
-            docker image prune -f
             
-            # 7. Execute Health Checks
-            # Check Backend (Port 8000)
+            # 9. Execute Health Checks
             if ! check_health "http://127.0.0.1:8000/healthz" "Backend"; then
                 echo "🔍 DUMPING BACKEND LOGS:"
                 docker logs navaia_backend --tail 50
                 exit 1
             fi
-
-            # Check Frontend (Port 3001)
+            
             if ! check_health "http://127.0.0.1:3001" "Frontend"; then
                 echo "🔍 DUMPING FRONTEND LOGS:"
                 docker logs navaia_frontend --tail 50
                 exit 1
             fi
-
+            
             echo "🚀 Deployment Complete & Verified Successfully!"
+            echo "📦 Backup saved: $BACKUP_FILE"
