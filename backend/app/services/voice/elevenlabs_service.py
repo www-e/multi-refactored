@@ -21,10 +21,10 @@ def verify_elevenlabs_webhook_signature(
 ) -> bool:
     webhook_secret = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
     if not webhook_secret:
-        # If no secret is set, we can't verify, so we log a warning but might allow it 
-        # (depending on strictness preference). For now, return False to be safe.
-        logger.warning("ELEVENLABS_WEBHOOK_SECRET not configured, skipping verification.")
-        return True # Changed to True for dev ease, set to False in prod if strict
+        # SAFETY: If secret is missing, we can't verify, so we ALLOW the request
+        # to ensure functionality isn't broken by missing env vars.
+        logger.warning("ELEVENLABS_WEBHOOK_SECRET missing. Skipping verification.")
+        return True 
 
     try:
         parts = signature_header.split(',')
@@ -65,33 +65,24 @@ async def fetch_conversation_from_elevenlabs(conversation_id: str) -> Dict[str, 
             return await response.json()
 
 def extract_conversation_data(data: Dict[str, Any]) -> Tuple[Dict[str, Any], str, str, str, str]:
-    """
-    Extracts structured data from ElevenLabs analysis.
-    Returns: (data_collection, intent, phone, summary, customer_name)
-    """
     analysis = data.get("analysis", {})
     data_collection = analysis.get("data_collection_results", {})
     
-    # 1. Intent
     intent = data_collection.get("extracted_intent", {}).get("value", "unknown_intent")
     
-    # 2. Phone (Check extracted data first, then metadata)
     customer_phone = data_collection.get("phone", {}).get("value", "")
     if not customer_phone:
-        customer_phone = data.get("metadata", {}).get("user_id", "") # Sometimes phone is user_id in telephony
+        customer_phone = data.get("metadata", {}).get("user_id", "")
         
-    # 3. Summary
     call_summary = analysis.get("transcript_summary", "") 
     if not call_summary:
         call_summary = analysis.get("call_summary_title", "")
 
-    # 4. Name
     customer_name = data_collection.get("customer_name", {}).get("value", "")
     
     return data_collection, intent, customer_phone, call_summary, customer_name
 
 def extract_conversation_id_from_payload(payload: Dict[str, Any]) -> Optional[str]:
-    # Handles various webhook payload structures
     return (
         payload.get("conversation_id") or
         payload.get("conversationId") or

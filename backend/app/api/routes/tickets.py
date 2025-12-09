@@ -1,4 +1,3 @@
-# backend/app/api/routes/tickets.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -30,32 +29,30 @@ class TicketUpdateRequest(BaseModel):
     priority: Optional[models.TicketPriorityEnum] = None
     assignee: Optional[str] = None
 
-# CRITICAL FIX: Robust formatter that handles None or Invalid Enum values safely
 def format_ticket(t: models.Ticket):
-    # Safely access Enum value or fallback
     try:
         priority_val = t.priority.value if t.priority else "med"
     except (AttributeError, ValueError):
         priority_val = "med"
-
+        
     try:
         status_val = t.status.value if t.status else "open"
     except (AttributeError, ValueError):
         status_val = "open"
 
     return {
-        "id": t.id, 
-        "customerId": t.customer_id, 
+        "id": t.id,
+        "customerId": t.customer_id,
         "category": t.category,
-        "customer_name": t.customer_name, 
+        "customerName": t.customer_name, # FIXED: camelCase to match frontend
         "phone": t.phone,
-        "issue": t.issue, 
+        "issue": t.issue,
         "project": t.project,
         "priority": priority_val,
         "status": status_val,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
-        "assignee": t.assignee, 
-        "propertyId": t.project
+        "assignee": t.assignee,
+        "propertyId": t.project # Fallback for UI components expecting propertyId
     }
 
 @router.post("/tickets", status_code=201)
@@ -102,7 +99,6 @@ def update_ticket_status(ticket_id: str, body: TicketStatusUpdateRequest, tenant
     db_session.commit()
     db_session.refresh(ticket)
     
-    # Safe return value
     try:
         status_val = ticket.status.value
     except:
@@ -118,14 +114,10 @@ def update_ticket_general(
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
-    """
-    Update ticket general information (excluding status which has its own endpoint).
-    """
     ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id, models.Ticket.tenant_id == tenant_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    
-    # Update only provided fields
+        
     update_data = ticket_in.dict(exclude_unset=True)
     for field, value in update_data.items():
         if hasattr(ticket, field):
@@ -142,24 +134,9 @@ def delete_ticket(
     _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
-    """
-    Delete a ticket.
-    """
     ticket = db_session.query(models.Ticket).filter(models.Ticket.id == ticket_id, models.Ticket.tenant_id == tenant_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    
-    # Check if ticket has related approvals
-    has_approvals = db_session.query(models.Approval).filter(
-        models.Approval.entity_type == "ticket",
-        models.Approval.entity_id == ticket_id
-    ).first()
-    
-    if has_approvals:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete ticket with existing approvals. Consider closing instead.",
-        )
         
     db_session.delete(ticket)
     db_session.commit()

@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, MapPin, User, Clock, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -12,12 +11,11 @@ import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import TicketModal from '@/components/shared/modals/TicketModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
-import { mapTicketStatusToArabic } from '@/lib/statusMapper';
 import { formatDate } from '@/lib/utils';
 
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all'); // Added status filter
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -28,7 +26,6 @@ export default function TicketsPage() {
   const { getTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
-  // CRITICAL FIX: Fetch Customers AND Tickets
   useEffect(() => {
     if (isAuthenticated) {
       const fetchData = async () => {
@@ -48,7 +45,14 @@ export default function TicketsPage() {
     }
   }, [isAuthenticated, getTickets, setTickets, getCustomers, setCustomers, setTicketsLoading]);
 
-  const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || 'Unknown';
+  // Robust Name Resolution: Prefer snapshot name (AI extracted), fallback to lookup
+  // FIX: Added safety check for null/undefined ticket to prevent build crashes
+  const getCustomerName = (ticket: any) => {
+    if (!ticket) return 'Unknown';
+    if (ticket.customerName && ticket.customerName !== 'Unknown') return ticket.customerName;
+    const c = customers.find(c => c.id === ticket.customerId);
+    return c ? c.name : 'Unknown';
+  };
 
   const handleEditTicket = (ticket: any) => {
     setTicketToEdit(ticket);
@@ -62,9 +66,9 @@ export default function TicketsPage() {
     { id: 'resolved', label: 'محلولة', color: 'bg-green-500' },
   ];
 
-  const filteredTickets = tickets.filter(t =>
-    (t.issue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    getCustomerName(t.customerId).toLowerCase().includes(searchQuery.toLowerCase())) &&
+  const filteredTickets = tickets.filter(t => 
+    (t.issue.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    getCustomerName(t).toLowerCase().includes(searchQuery.toLowerCase())) &&
     (statusFilter === 'all' || t.status === statusFilter)
   );
 
@@ -80,15 +84,14 @@ export default function TicketsPage() {
   const getNextStatus = (currentStatus: string): string => {
     if (matchesStatus(currentStatus, 'open')) return 'قيد المعالجة';
     if (matchesStatus(currentStatus, 'in_progress')) return 'محلولة';
-    return 'مغلقة'; // fallback
+    return 'مغلقة';
   };
 
   const handleNextStatus = async (id: string, currentStatus: string) => {
-    // Simple flow: open -> in_progress -> resolved
     let nextStatus: 'in_progress' | 'resolved' | null = null;
     if (matchesStatus(currentStatus, 'open')) nextStatus = 'in_progress';
     else if (matchesStatus(currentStatus, 'in_progress')) nextStatus = 'resolved';
-
+    
     if (nextStatus) {
         try {
             await updateTicketStatus(id, nextStatus);
@@ -123,36 +126,18 @@ export default function TicketsPage() {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث بالعميل أو المشكلة..." onFilterClick={() => {}} />
           <div className="flex gap-2">
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'all' ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              الكل
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'open' ? 'bg-blue-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('open')}
-            >
-              مفتوحة
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'in_progress' ? 'bg-yellow-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('in_progress')}
-            >
-              قيد المعالجة
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'pending_approval' ? 'bg-orange-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('pending_approval')}
-            >
-              بانتظار الموافقة
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'resolved' ? 'bg-green-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('resolved')}
-            >
-              محلولة
-            </button>
+            {['all', 'open', 'in_progress', 'pending_approval', 'resolved'].map(status => (
+                <button
+                  key={status}
+                  className={`px-3 py-2 rounded-lg text-sm ${statusFilter === status ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+                  onClick={() => setStatusFilter(status)}
+                >
+                  {status === 'all' ? 'الكل' : 
+                   status === 'open' ? 'مفتوحة' : 
+                   status === 'in_progress' ? 'قيد المعالجة' : 
+                   status === 'pending_approval' ? 'بانتظار الموافقة' : 'محلولة'}
+                </button>
+            ))}
           </div>
         </div>
 
@@ -168,10 +153,9 @@ export default function TicketsPage() {
                             </div>
                             <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full text-xs">{colTickets.length}</span>
                         </div>
-                        
                         <div className="space-y-3">
                             {colTickets.map(ticket => {
-                                const customerName = getCustomerName(ticket.customerId) === 'Unknown' ? ticket.customerName || 'عميل' : getCustomerName(ticket.customerId);
+                                const customerName = getCustomerName(ticket);
                                 return (
                                     <Card key={ticket.id} className="p-4 hover:shadow-md cursor-pointer border-l-4" style={{ borderLeftColor: col.color.replace('bg-', '') }}>
                                         <div className="flex justify-between items-start mb-2">
@@ -190,7 +174,6 @@ export default function TicketsPage() {
                                         </div>
                                         <h4 className="font-semibold text-sm mb-1">{customerName}</h4>
                                         <p className="text-xs text-slate-500 mb-3 line-clamp-2">{ticket.issue}</p>
-                                        
                                         <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-700">
                                             <span className="flex items-center gap-1"><User size={12} /> {ticket.category}</span>
                                             <span>{formatDate(ticket.createdAt)}</span>
@@ -209,7 +192,7 @@ export default function TicketsPage() {
             })}
         </div>
 
-        <TicketModal 
+        <TicketModal
             isOpen={isAddModalOpen}
             onClose={() => setIsAddModalOpen(false)}
             title="إنشاء تذكرة"
@@ -237,7 +220,6 @@ export default function TicketsPage() {
                 if (!ticketToEdit) return;
                 await handleModalSubmit(async () => {
                     const res = await updateTicket(ticketToEdit.id, data);
-                    // Update the ticket in the store
                     updateTicketInStore(ticketToEdit.id, res);
                     setIsEditModalOpen(false);
                     setTicketToEdit(null);
@@ -251,10 +233,8 @@ export default function TicketsPage() {
             onClose={() => setIsDeleteModalOpen(false)}
             onConfirm={async () => {
               if (!ticketToDelete) return;
-
               try {
                 await deleteTicket(ticketToDelete.id);
-                // Update the store to remove the ticket
                 removeTicket(ticketToDelete.id);
                 setIsDeleteModalOpen(false);
                 setTicketToDelete(null);
@@ -264,8 +244,8 @@ export default function TicketsPage() {
               }
             }}
             title="حذف التذكرة"
-            message={`هل أنت متأكد من رغبتك في حذف التذكرة للعميل "${getCustomerName(ticketToDelete?.customerId) || ticketToDelete?.customerName || 'عميل'}"؟`}
-            itemName={getCustomerName(ticketToDelete?.customerId) || ticketToDelete?.customerName || 'تذكرة'}
+            message={`هل أنت متأكد من رغبتك في حذف التذكرة للعميل "${getCustomerName(ticketToDelete)}"؟`}
+            itemName={getCustomerName(ticketToDelete)}
             isSubmitting={isSubmitting}
         />
       </div>

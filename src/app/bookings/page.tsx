@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import {
   Calendar, Plus, CheckCircle, XCircle,
@@ -22,7 +21,7 @@ import { formatDate, formatSAR } from '@/lib/utils';
 export default function BookingsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all'); // Added status filter
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -63,10 +62,8 @@ export default function BookingsPage() {
 
   const confirmDeleteBooking = async () => {
     if (!bookingToDelete) return;
-
     try {
       await deleteBooking(bookingToDelete.id);
-      // Update the store to remove the booking
       removeBooking(bookingToDelete.id);
       setIsDeleteModalOpen(false);
       setBookingToDelete(null);
@@ -76,42 +73,45 @@ export default function BookingsPage() {
     }
   };
 
-  // Type-Safe Lookups
   const getCustomer = (id: string) => customers.find(c => c.id === id);
-  const getProperty = (id: string) => properties.find(p => p.id === id);
+  
+  // Safe Customer Name Resolution
+  const getCustomerName = (booking: any) => {
+      if (booking.customerName && booking.customerName !== 'Unknown') return booking.customerName;
+      const c = getCustomer(booking.customerId);
+      return c ? c.name : 'Unknown';
+  };
+
+  const getPropertyDisplay = (booking: any) => {
+      // Prioritize the extracted "project" name (e.g., Saqeefa 28)
+      if (booking.project && booking.project !== 'GENERAL-INQUIRY') return booking.project;
+      
+      const p = properties.find(p => p.id === booking.propertyId);
+      if (p) return p.code;
+      
+      return booking.propertyId || 'General';
+  };
 
   const filteredBookings = bookings.filter(booking => {
-    const customer = getCustomer(booking.customerId);
-    const property = getProperty(booking.propertyId);
+    const custName = getCustomerName(booking).toLowerCase();
+    const propName = getPropertyDisplay(booking).toLowerCase();
     const query = searchQuery.toLowerCase();
-
+    
     const matchesSearch = !searchQuery || (
-      customer?.name.toLowerCase().includes(query) ||
-      customer?.phone.includes(query) ||
-      property?.code.toLowerCase().includes(query)
+      custName.includes(query) ||
+      propName.includes(query)
     );
-
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
-  // Robust Status Check (Arabic + English)
   const isPending = (status: string) => ['pending', 'معلق'].includes(status.toLowerCase());
-
   const pendingBookings = filteredBookings.filter(b => isPending(b.status) && (statusFilter === 'all' || b.status === statusFilter));
 
   const handleAction = async (id: string, action: 'confirmed' | 'canceled') => {
     const arabicStatus = action === 'confirmed' ? 'مؤكد' : 'ملغي';
     await updateBookingStatus(id, action);
     updateBookingInStore(id, { status: arabicStatus });
-  };
-
-  const handleActionWithMapping = async (id: string, action: string) => {
-    const arabicStatus = mapBookingStatusToArabic(action);
-    await updateBookingStatusWithMapping(id, action);
-    // Need to cast to the correct type since mapper returns string
-    updateBookingInStore(id, { status: arabicStatus as 'معلق' | 'مؤكد' | 'ملغي' | 'مكتمل' });
   };
 
   return (
@@ -137,7 +137,6 @@ export default function BookingsPage() {
           </div>
         </PageHeader>
 
-        {/* Toggle View */}
         <div className="flex items-center gap-4 mb-6">
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-1 border border-white/20 dark:border-slate-700/20">
             <button onClick={() => setViewMode('table')} className={`px-4 py-2 rounded-lg font-medium transition-all ${viewMode === 'table' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400'}`}>جدول</button>
@@ -148,47 +147,25 @@ export default function BookingsPage() {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="البحث في الحجوزات..." onFilterClick={() => {}} />
           <div className="flex gap-2">
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'all' ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              الكل
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'معلق' ? 'bg-yellow-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('معلق')}
-            >
-              معلق
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'مؤكد' ? 'bg-green-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('مؤكد')}
-            >
-              مؤكد
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'ملغي' ? 'bg-red-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('ملغي')}
-            >
-              ملغي
-            </button>
-            <button
-              className={`px-3 py-2 rounded-lg text-sm ${statusFilter === 'مكتمل' ? 'bg-blue-500 text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-              onClick={() => setStatusFilter('مكتمل')}
-            >
-              مكتمل
-            </button>
+            {['all', 'معلق', 'مؤكد', 'ملغي', 'مكتمل'].map(status => (
+                <button
+                  key={status}
+                  className={`px-3 py-2 rounded-lg text-sm ${statusFilter === status ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+                  onClick={() => setStatusFilter(status)}
+                >
+                  {status === 'all' ? 'الكل' : status}
+                </button>
+            ))}
           </div>
         </div>
 
-        {/* Pending Requests (Only show if they exist) */}
         {pendingBookings.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">طلبات في انتظار الموافقة ({pendingBookings.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pendingBookings.map(booking => {
-                const customer = getCustomer(booking.customerId);
-                const property = getProperty(booking.propertyId);
+                const customerName = getCustomerName(booking);
+                const propDisplay = getPropertyDisplay(booking);
                 return (
                   <Card key={booking.id} className="p-4">
                     <div className="flex justify-between mb-3">
@@ -196,8 +173,8 @@ export default function BookingsPage() {
                         <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
                     </div>
                     <div className="space-y-2 mb-4">
-                        <h4 className="font-semibold">{customer?.name || 'عميل غير معروف'}</h4>
-                        <p className="text-sm text-slate-600">{property?.code || booking.propertyId || '...'}</p>
+                        <h4 className="font-semibold">{customerName}</h4>
+                        <p className="text-sm text-slate-600">{propDisplay}</p>
                         <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
                     </div>
                     <div className="flex gap-2">
@@ -211,7 +188,6 @@ export default function BookingsPage() {
           </div>
         )}
 
-        {/* Main Content */}
         {viewMode === 'table' ? (
             <Card className="p-0 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -219,7 +195,7 @@ export default function BookingsPage() {
                         <thead className="bg-slate-50 dark:bg-slate-800/50">
                             <tr>
                                 <th className="text-right p-4">العميل</th>
-                                <th className="text-right p-4">العقار</th>
+                                <th className="text-right p-4">العقار/المشروع</th>
                                 <th className="text-right p-4">التاريخ</th>
                                 <th className="text-right p-4">السعر</th>
                                 <th className="text-right p-4">المصدر</th>
@@ -232,22 +208,20 @@ export default function BookingsPage() {
                                 <tr><td colSpan={7} className="p-8 text-center text-slate-500">لا توجد حجوزات لعرضها</td></tr>
                             )}
                             {filteredBookings.map(booking => {
-                                const customer = getCustomer(booking.customerId);
-                                const property = getProperty(booking.propertyId);
+                                const customerName = getCustomerName(booking);
+                                const propDisplay = getPropertyDisplay(booking);
                                 return (
                                     <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary"><User size={16}/></div>
                                                 <div>
-                                                    <p className="font-medium">{customer?.name || '...'}</p>
-                                                    <p className="text-xs text-slate-500">{customer?.phone}</p>
+                                                    <p className="font-medium">{customerName}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4">
-                                            <p className="font-medium">{property?.code || '...'}</p>
-                                            <p className="text-xs text-slate-500">{property?.neighborhood}</p>
+                                            <p className="font-medium">{propDisplay}</p>
                                         </td>
                                         <td className="p-4 text-sm">{formatDate(booking.startDate)}</td>
                                         <td className="p-4 font-semibold text-primary">{formatSAR(booking.price || 0)}</td>
@@ -257,7 +231,7 @@ export default function BookingsPage() {
                                             <div className="flex gap-2">
                                                 <button onClick={() => setSelectedBooking(booking.id)} className="p-2 hover:bg-slate-100 rounded-lg"><Eye size={16}/></button>
                                                 <button onClick={() => handleEditBooking(booking)} className="p-2 hover:bg-slate-100 rounded-lg"><Edit size={16}/></button>
-                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customer?.name || 'عميل'})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
+                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customerName})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -303,7 +277,6 @@ export default function BookingsPage() {
                 if (!bookingToEdit) return;
                 await handleModalSubmit(async () => {
                     const res = await updateBooking(bookingToEdit.id, data);
-                    // Update the booking in the store
                     updateBookingInStore(bookingToEdit.id, res);
                     setIsEditModalOpen(false);
                     setBookingToEdit(null);

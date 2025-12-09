@@ -1,3 +1,5 @@
+// File: src/app/(shared)/types.ts
+
 export type Neighborhood =
   | 'حي الملقا'
   | 'حي التعاون'
@@ -9,15 +11,15 @@ export type Neighborhood =
 
 export interface Property {
   id: string;
-  code: string;            // مثال: "المجيدية - MG13"
+  code: string;
   city: 'الرياض';
   neighborhood: Neighborhood;
   rooms: number;
   bedrooms: number;
   bathrooms: number;
   furnished: boolean;
-  monthlyPriceSAR: number; // السعر الشهري (ر.س)
-  yearlyPriceSAR: number;  // السعر السنوي (ر.س)
+  monthlyPriceSAR: number;
+  yearlyPriceSAR: number;
   images: string[];
   availability: 'متاح' | 'محجوز' | 'مشغول';
 }
@@ -37,11 +39,11 @@ export type Intent =
   | 'ترحيب';
 
 export interface EntityBag {
-  city?: string;                 // الرياض
-  neighborhood?: Neighborhood;   // حي ...
-  budgetSAR?: number;            // الميزانية
-  bedrooms?: number;             // غرف النوم
-  moveInDate?: string;           // ISO
+  city?: string;
+  neighborhood?: Neighborhood;
+  budgetSAR?: number;
+  bedrooms?: number;
+  moveInDate?: string;
   contact?: { name?: string; phone?: string; email?: string };
 }
 
@@ -77,7 +79,7 @@ export interface CallRecord {
   outcome: 'متصل' | 'لم_يجب' | 'مؤهل' | 'حجز' | 'تذكرة' | 'متروك';
   handleTimeSec: number;
   sentiment: 'إيجابي' | 'محايد' | 'سلبي';
-  csat?: number; // 1-5
+  csat?: number;
   createdAt: string;
 }
 
@@ -106,7 +108,7 @@ export interface Ticket {
 
 export interface Campaign {
   id: string;
-  name: string; // اسم الحملة
+  name: string;
   objective: 'حجوزات' | 'تجديدات' | 'تحصيل_عملاء' | 'بيع_إضافي';
   status: 'نشطة' | 'موقوفة' | 'مكتملة';
   budgetSAR?: number;
@@ -147,7 +149,6 @@ export interface Contact {
   createdAt: string;
 }
 
-// New types for Agentic Navaia
 export interface Customer {
   id: string;
   name: string;
@@ -183,15 +184,15 @@ export interface Conversation {
 export interface EnhancedTicket {
   id: string;
   customerId: string;
-  customerName?: string; // CORRECTED: Use camelCase to match backend and UI
+  customerName?: string; // Added to match backend
   phone?: string;
   propertyId?: string;
-  project?: string;
-  priority: 'low' | 'med' | 'high' | 'urgent'; // Sticking to DB enum values
+  project?: string;      // Added to match backend
+  priority: 'low' | 'med' | 'high' | 'urgent';
   category: string;
   issue: string;
   assignee?: string;
-  status: 'open' | 'in_progress' | 'pending_approval' | 'resolved'; // Sticking to DB enum values
+  status: 'open' | 'in_progress' | 'pending_approval' | 'resolved';
   slaDueAt?: string;
   resolutionNote?: string;
   approvedBy?: string;
@@ -202,7 +203,10 @@ export interface EnhancedTicket {
 export interface EnhancedBooking {
   id: string;
   customerId: string;
+  customerName?: string; // Added
+  phone?: string;
   propertyId: string;
+  project?: string;      // Added
   startDate: string;
   endDate?: string;
   status: 'معلق' | 'مؤكد' | 'ملغي' | 'مكتمل';
@@ -211,6 +215,8 @@ export interface EnhancedBooking {
   createdBy: 'AI' | 'بشري';
   createdAt: string;
   updatedAt: string;
+  appointmentTime?: string; // from backend format
+  dayName?: string;         // from backend format
 }
 
 export interface EnhancedCampaign {
@@ -272,4 +278,4 @@ export interface LiveOps {
     reason: string;
     waitingTime: string;
   }>;
-} 
+}
