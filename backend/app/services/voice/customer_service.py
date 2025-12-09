@@ -17,9 +17,9 @@ def generate_id(prefix: str = "id") -> str:
     return f"{prefix}_{secrets.token_hex(8)}"
 
 def get_or_create_customer(
-    db_session: Session, 
-    customer_phone: Optional[str] = None, 
-    customer_name: Optional[str] = None, 
+    db_session: Session,
+    customer_phone: Optional[str] = None,
+    customer_name: Optional[str] = None,
     tenant_id: str = "demo-tenant",
     customer_id: Optional[str] = None
 ) -> models.Customer:
@@ -28,30 +28,30 @@ def get_or_create_customer(
     If customer_id is provided, tries to find by ID first.
     """
     customer = None
-    
+
     # Try to find by ID first if provided
     if customer_id:
         customer = db_session.query(models.Customer).filter(
             models.Customer.id == customer_id
         ).first()
-    
+
     # If no customer found by ID, try to find by phone
     if not customer and customer_phone:
         customer = db_session.query(models.Customer).filter(
             models.Customer.phone == customer_phone
         ).first()
-    
+
     if not customer:
         customer = models.Customer(
-            id=generate_id("cust"), 
+            id=customer_id or generate_id("cust"),
             tenant_id=tenant_id,
-            name=customer_name or f"Customer {customer_phone or 'Unknown'}",
-            phone=customer_phone or "N/A", 
+            name=customer_name or "Unknown Customer",
+            phone=customer_phone or "N/A",
             created_at=datetime.now(timezone.utc)
         )
         db_session.add(customer)
         db_session.flush()  # Ensure customer has an ID
-    
+
     return customer
 
 

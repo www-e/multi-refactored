@@ -141,3 +141,21 @@ alembic upgrade head
 - Set up proper SSL certificates for HTTPS
 
 **Your application is now fully configured and ready to run!** 🎉
+
+
+
+
+for migrations
+# Enter the backend container
+docker exec -it navaia_backend /bin/bash
+
+# Inside the container, run:
+alembic revision --autogenerate -m "Sync customer schema"
+alembic upgrade head
+
+
+
+
+check logs
+docker logs -f navaia_backend --tail 100 & docker logs -f navaia_frontend --tail 100
+docker ps -a | grep navaia

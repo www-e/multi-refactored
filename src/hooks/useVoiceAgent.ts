@@ -6,7 +6,7 @@ interface VoiceSession {
 }
 
 interface AuthenticatedApiFunctions {
-  createVoiceSession: (agentType: 'support' | 'sales') => Promise<any>;
+  createVoiceSession: (agentType: 'support' | 'sales', customerId?: string, customerPhone?: string) => Promise<any>;
   postLog: (level: 'info' | 'warn' | 'error', message: string, meta?: any) => Promise<null>;
 }
 
@@ -23,7 +23,7 @@ export function useVoiceAgent(
   options: UseVoiceAgentOptions = {}
 ) {
   const [currentSession, setCurrentSession] = useState<any | null>(null);
-  
+
   const { createVoiceSession, postLog } = api;
 
   const conversation = useConversation({
@@ -46,15 +46,15 @@ export function useVoiceAgent(
     },
   });
 
-  const startVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string) => {
+  const startVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string, customerPhone?: string) => {
     try {
       options.onStatusChange?.('connecting');
-      postLog('info', 'startVoiceSession with ElevenLabs SDK', { agentType, customerId }).catch(() => {});
+      postLog('info', 'startVoiceSession with ElevenLabs SDK', { agentType, customerId, customerPhone }).catch(() => {});
 
-      const backendSession = await createVoiceSession(agentType, undefined, customerId);
-      
-      const agentId = agentType === 'support' 
-        ? process.env.NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID 
+      const backendSession = await createVoiceSession(agentType, customerId, customerPhone);
+
+      const agentId = agentType === 'support'
+        ? process.env.NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID
         : process.env.NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID;
 
       if (!agentId) throw new Error(`Agent ID not configured for ${agentType}`);
@@ -75,10 +75,10 @@ export function useVoiceAgent(
         },
         agent_type: agentType,
       };
-      
+
       setCurrentSession(session);
       postLog('info', 'voice_session_started', { session_id: session.backend_session.session_id, agentType }).catch(() => {});
-      
+
     } catch (error: any) {
       console.error('Voice session start failed:', error);
       const errorMessage = error.message || 'Failed to start voice session';

@@ -80,28 +80,39 @@ def process_conversation_webhook(
     updates = []
     if customer:
         # Update Name if we have a real name (ignore generic placeholders)
-        if customer_name and customer_name.lower() not in ['unknown', 'user', 'n/a', 'customer']:
-            customer.name = customer_name
-            updates.append("name")
-        
-        # Update Phone if extracted
-        if customer_phone:
+        if customer_name and customer_name.strip().lower() not in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', '']:
+            # Additional check for "customer" patterns like "Customer Unknown" or temporary names
+            customer_name_lower = customer_name.strip().lower()
+            # Check for common temporary name patterns to avoid overwriting legitimate names
+            is_temporary_name = (
+                customer_name_lower in ['customer unknown', 'unknown customer'] or
+                customer_name_lower.startswith('customer ') or
+                customer_name_lower.startswith('temp customer') or
+                'unknown' in customer_name_lower
+            )
+
+            if not is_temporary_name:
+                customer.name = customer_name.strip()
+                updates.append("name")
+
+        # Update Phone if extracted and different from current phone
+        if customer_phone and customer.phone != customer_phone:
             customer.phone = customer_phone
             updates.append("phone")
-        
+
         # Update Region/Neighborhood (The Fix for 'المنطقة')
         if extracted_region:
             # Neighborhoods is a JSON field in DB, treat as a list
             current_neighborhoods = customer.neighborhoods
             if not isinstance(current_neighborhoods, list):
                 current_neighborhoods = []
-            
+
             # Add if unique
             if extracted_region not in current_neighborhoods:
                 current_neighborhoods.append(extracted_region)
                 customer.neighborhoods = current_neighborhoods
                 updates.append("region")
-        
+
         if updates:
             logger.info(f"Customer {customer.id} Updated fields: {', '.join(updates)}")
 

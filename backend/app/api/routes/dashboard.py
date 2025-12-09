@@ -90,7 +90,7 @@ def get_dashboard_kpis(tenant_id: str = Depends(deps.get_current_tenant_id), _=D
     ]
 
     # Calculate changes by comparing with previous period data (last 30 days vs previous 30 days)
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     # Define date ranges
     end_current = datetime.utcnow()

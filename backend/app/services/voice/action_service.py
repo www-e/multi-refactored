@@ -57,30 +57,33 @@ def create_booking_from_conversation(
             except Exception as e:
                 logger.warning(f"Unexpected date error: {e}, using default.")
 
-        # 4. Fetch latest customer name (it was just updated in webhook_service)
-        customer_name = db_session.query(models.Customer.name).filter(
+        # 4. Fetch latest customer info (they were just updated in webhook_service)
+        customer = db_session.query(models.Customer).filter(
             models.Customer.id == voice_session.customer_id
-        ).scalar() or "Unknown Customer"
+        ).first()
+
+        customer_name = customer.name if customer else "Unknown Customer"
+        customer_phone = voice_session.customer_phone or (customer.phone if customer else "N/A")
 
         # 5. Create Booking Record
         booking = models.Booking(
-            id=generate_id("bk"), 
-            tenant_id=voice_session.tenant_id, 
+            id=generate_id("bk"),
+            tenant_id=voice_session.tenant_id,
             customer_id=voice_session.customer_id,
-            session_id=voice_session.id, 
+            session_id=voice_session.id,
             customer_name=customer_name,
-            phone=voice_session.customer_phone,
+            phone=customer_phone,
             property_code=project_code,
             project=project_code,
             start_date=appointment_dt,
             preferred_datetime=appointment_dt,
-            source=models.ChannelEnum.voice, 
+            source=models.ChannelEnum.voice,
             created_by=models.AIOrHumanEnum.AI,
             status=models.BookingStatusEnum.pending,
             price_sar=0.0, # Default price
             created_at=datetime.now(timezone.utc)
         )
-        
+
         db_session.add(booking)
         db_session.flush()
         return True
@@ -107,27 +110,30 @@ def create_ticket_from_conversation(
         category = data_collection.get("category", {}).get("value", "General")
         project = data_collection.get("project", {}).get("value", "N/A")
         
-        # 3. Fetch latest customer name
-        customer_name = db_session.query(models.Customer.name).filter(
+        # 3. Fetch latest customer info
+        customer = db_session.query(models.Customer).filter(
             models.Customer.id == voice_session.customer_id
-        ).scalar() or "Unknown Customer"
+        ).first()
+
+        customer_name = customer.name if customer else "Unknown Customer"
+        customer_phone = voice_session.customer_phone or (customer.phone if customer else "N/A")
 
         # 4. Create Ticket Record
         ticket = models.Ticket(
-            id=generate_id("tkt"), 
-            tenant_id=voice_session.tenant_id, 
+            id=generate_id("tkt"),
+            tenant_id=voice_session.tenant_id,
             customer_id=voice_session.customer_id,
-            session_id=voice_session.id, 
+            session_id=voice_session.id,
             customer_name=customer_name,
-            phone=voice_session.customer_phone,
-            issue=issue_text, 
+            phone=customer_phone,
+            issue=issue_text,
             project=project,
             category=category,
-            priority=models.TicketPriorityEnum.med, 
+            priority=models.TicketPriorityEnum.med,
             status=models.TicketStatusEnum.open,
             created_at=datetime.now(timezone.utc)
         )
-        
+
         db_session.add(ticket)
         db_session.flush()
         return True
@@ -137,8 +143,8 @@ def create_ticket_from_conversation(
         return False
 
 def create_call_from_voice_session(
-    db_session: Session, 
-    voice_session: models.VoiceSession, 
+    db_session: Session,
+    voice_session: models.VoiceSession,
     call_summary: Optional[str] = None
 ) -> bool:
     """
@@ -146,10 +152,19 @@ def create_call_from_voice_session(
     Required for the 'Calls' page table.
     """
     try:
-        # Only create call if conversation_id exists
-        if not voice_session.conversation_id: 
+        # Prevent duplicate call creation for the same voice session
+        existing_call = db_session.query(models.Call).filter(
+            models.Call.conversation_id == voice_session.conversation_id
+        ).first()
+
+        if existing_call:
+            logger.info(f"Call history already exists for conversation {voice_session.conversation_id}")
             return False
-        
+
+        # Only create call if conversation_id exists
+        if not voice_session.conversation_id:
+            return False
+
         # Calculate duration
         duration = 0
         if voice_session.created_at and voice_session.ended_at:
@@ -167,7 +182,7 @@ def create_call_from_voice_session(
             ai_or_human=models.AIOrHumanEnum.AI,
             recording_url=None # ElevenLabs recording URL usually retrieved separately if needed
         )
-        
+
         db_session.add(call)
         db_session.flush()
         return True
@@ -176,8 +191,8 @@ def create_call_from_voice_session(
         return False
 
 def create_conversation_from_voice_session(
-    db_session: Session, 
-    voice_session: models.VoiceSession, 
+    db_session: Session,
+    voice_session: models.VoiceSession,
     call_summary: Optional[str] = None
 ) -> bool:
     """
@@ -185,6 +200,15 @@ def create_conversation_from_voice_session(
     Required for the 'Conversations' page.
     """
     try:
+        # Prevent duplicate conversation creation for the same voice session
+        existing_conversation = db_session.query(models.Conversation).filter(
+            models.Conversation.recording_url == voice_session.conversation_id  # Use conversation_id as recording_url
+        ).first()
+
+        if existing_conversation:
+            logger.info(f"Conversation already exists for voice session {voice_session.id}")
+            return False
+
         # Create Conversation Record
         conversation = models.Conversation(
             id=generate_id("conv"),
@@ -196,16 +220,16 @@ def create_conversation_from_voice_session(
             ai_or_human=models.AIOrHumanEnum.AI,
             created_at=voice_session.created_at,
             ended_at=voice_session.ended_at,
-            recording_url=voice_session.conversation_id 
+            recording_url=voice_session.conversation_id
         )
-        
+
         db_session.add(conversation)
         db_session.flush()
-        
-        # Ensure VoiceSession is linked to this Conversation ID
-        # (Though usually it matches, this enforces foreign key integrity)
-        voice_session.conversation_id = conversation.id
-        
+
+        # Only update conversation_id if not already set, to avoid overwriting the original
+        if not voice_session.conversation_id:
+            voice_session.conversation_id = conversation.id
+
         return True
     except Exception as e:
         logger.error(f"Conversation history creation failed: {e}")

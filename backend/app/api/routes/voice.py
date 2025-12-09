@@ -28,6 +28,7 @@ router = APIRouter()
 class VoiceSessionRequest(BaseModel):
     agent_type: str
     customer_id: str = None  # Make customer_id optional
+    customer_phone: str = None  # Phone number from telephony system
 
 
 class VoiceSessionResponse(BaseModel):
@@ -41,9 +42,9 @@ class VoiceSessionResponse(BaseModel):
 # --- Voice Session Endpoint ---
 @router.post("/voice/sessions", response_model=VoiceSessionResponse)
 def create_voice_session_endpoint(
-    body: VoiceSessionRequest, 
-    tenant_id: str = Depends(deps.get_current_tenant_id), 
-    _=Depends(deps.get_current_user), 
+    body: VoiceSessionRequest,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    _=Depends(deps.get_current_user),
     db_session: Session = Depends(deps.get_session)
 ):
     """
@@ -54,9 +55,10 @@ def create_voice_session_endpoint(
         db_session=db_session,
         agent_type=body.agent_type,
         customer_id=body.customer_id,
+        customer_phone=body.customer_phone,
         tenant_id=tenant_id
     )
-    
+
     return VoiceSessionResponse(
         session_id=voice_session.id,
         status=voice_session.status,

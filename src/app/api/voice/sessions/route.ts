@@ -41,9 +41,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const accessToken = authHeader.substring(7);
-    const { agent_type, customer_id } = await request.json();
+    const { agent_type, customer_id, customer_phone } = await request.json();
 
-    await safeLog('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id });
+    await safeLog('voice:sessions:POST', 'info', 'Creating backend voice session', { agent_type, customer_id, customer_phone });
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
@@ -60,7 +60,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
       body: JSON.stringify({
         agent_type: agent_type,
-        customer_id: customer_id || `customer_${Date.now()}`,
+        customer_id: customer_id,
+        customer_phone: customer_phone,
       }),
     });
 

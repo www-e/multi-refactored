@@ -19,35 +19,31 @@ def generate_id(prefix: str = "id") -> str:
     import secrets
     return f"{prefix}_{secrets.token_hex(8)}"
 
-def create_voice_session(db_session: Session, agent_type: str, customer_id: Optional[str], tenant_id: str) -> models.VoiceSession:
+def create_voice_session(db_session: Session, agent_type: str, customer_id: Optional[str], tenant_id: str, customer_phone: Optional[str] = None) -> models.VoiceSession:
     """
     Create a new voice session with associated customer
     """
-    # 1. Handle Customer
-    if customer_id:
-        customer = db_session.query(models.Customer).filter(models.Customer.id == customer_id).first()
-        if not customer:
-            customer = models.Customer(
-                id=customer_id,
-                tenant_id=tenant_id,
-                name=f"Customer {customer_id[:8]}",  # Use a recognizable customer name format
-                phone="N/A",
-                created_at=datetime.now(timezone.utc)
-            )
-            db_session.add(customer)
-            db_session.flush()
-    else:
-        # Create a temporary customer ID
-        customer_id = f"customer_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
-        customer = models.Customer(
-            id=customer_id,
-            tenant_id=tenant_id,
-            name=f"Customer {customer_id[:8]}",
-            phone="N/A",
-            created_at=datetime.now(timezone.utc)
+    # 1. Handle Customer - Use customer_service for proper customer creation
+    from .customer_service import get_or_create_customer
+
+    # If no specific customer_id is provided, create a temporary placeholder
+    if not customer_id:
+        # Create a temporary customer with phone number if available
+        customer = get_or_create_customer(
+            db_session=db_session,
+            customer_phone=customer_phone,
+            customer_name="Unknown Customer" if not customer_phone else f"Customer {customer_phone}",  # More descriptive name if phone is available
+            tenant_id=tenant_id
         )
-        db_session.add(customer)
-        db_session.flush()
+    else:
+        # Use the provided customer_id to get or create the customer
+        customer = get_or_create_customer(
+            db_session=db_session,
+            customer_id=customer_id,
+            customer_phone=customer_phone,
+            customer_name=None,
+            tenant_id=tenant_id
+        )
 
     # 2. Create Voice Session
     voice_session = models.VoiceSession(
@@ -56,6 +52,7 @@ def create_voice_session(db_session: Session, agent_type: str, customer_id: Opti
         customer_id=customer.id,
         direction="inbound",
         status=models.VoiceSessionStatus.ACTIVE,
+        customer_phone=customer_phone,  # Store phone number in voice session as well
         created_at=datetime.now(timezone.utc)
     )
 
@@ -64,7 +61,7 @@ def create_voice_session(db_session: Session, agent_type: str, customer_id: Opti
     db_session.add(voice_session)
     db_session.commit()
     db_session.refresh(voice_session)
-    
+
     return voice_session
 
 

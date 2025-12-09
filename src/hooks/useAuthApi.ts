@@ -158,11 +158,11 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
-  const createVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string) => {
+  const createVoiceSession = useCallback(async (agentType: 'support' | 'sales', customerId?: string, customerPhone?: string) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('createVoiceSession', true);
     try {
-      const result = await apiClient.createVoiceSession(agentType, accessToken, customerId);
+      const result = await apiClient.createVoiceSession(agentType, accessToken, customerId, customerPhone);
       return result;
     } finally {
       updateLoadingState('createVoiceSession', false);
