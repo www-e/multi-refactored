@@ -8,7 +8,6 @@ jobs:
   deploy_and_verify:
     name: Build, Deploy & Health Check
     runs-on: ubuntu-latest
-    environment: production
     
     steps:
       - name: Executing remote SSH commands
@@ -17,7 +16,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop_on_error: true
+          script_stop: true  # ✅ FIXED: Changed from script_stop_on_error
           envs: POSTGRES_PASSWORD,DISCORD_WEBHOOK
           script: |
             # --- CONFIGURATION ---
@@ -45,6 +44,21 @@ jobs:
             }
             trap cleanup EXIT
             
+            # 0. PRE-DEPLOYMENT CLEANUP (FREE DISK SPACE)
+            echo "🧹 Pre-deployment cleanup..."
+            docker system prune -f --volumes 2>/dev/null || true
+            docker builder prune -f 2>/dev/null || true
+            
+            # Check disk space
+            AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')
+            echo "💾 Available disk space: $(df -h / | tail -1 | awk '{print $4}')"
+            
+            if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then  # Less than 1GB
+                echo "⚠️  WARNING: Low disk space! Aggressive cleanup..."
+                docker image prune -a -f
+                docker container prune -f
+            fi
+            
             # 1. Navigate to Project
             cd $PROJECT_DIR
             echo "📁 Changed directory to $PROJECT_DIR"
@@ -66,8 +80,8 @@ jobs:
             mkdir -p backups
             docker exec navaia_db pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
             
-            # Keep only last 5 backups
-            ls -t backups/*.sql 2>/dev/null | tail -n +6 | xargs -r rm
+            # Keep only last 3 backups (reduced from 5 to save space)
+            ls -t backups/*.sql 2>/dev/null | tail -n +4 | xargs -r rm
             
             # 5. Rebuild and Restart
             echo "🏗️ Building and Starting Docker Containers..."
@@ -90,28 +104,22 @@ jobs:
                 sleep 1
             done
             
-            # 7. Smart Migration Handler (WITH FIX)
+            # 7. Smart Migration Handler
             echo "🔄 Running Database Migrations..."
             
-            # Get current database revision
             DB_REVISION=$(docker exec navaia_db psql -U navaia -d navaia -t -c "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | xargs)
-            
-            # Get latest migration file revision
             LATEST_REVISION=$(docker exec navaia_backend alembic heads 2>/dev/null | grep -oP '^[a-f0-9]+' | head -n1)
             
             echo "📊 Database revision: ${DB_REVISION:-none}"
             echo "📊 Latest migration: ${LATEST_REVISION:-none}"
             
-            # Check if database revision exists in migration files
             if [ -n "$DB_REVISION" ] && [ "$DB_REVISION" != "None" ]; then
                 if ! docker exec navaia_backend alembic show "$DB_REVISION" > /dev/null 2>&1; then
                     echo "⚠️  Database revision '$DB_REVISION' not found in migration files!"
                     echo "🔧 Force clearing bad revision and stamping to: $LATEST_REVISION"
                     
-                    # FORCE DELETE the bad revision from database
                     docker exec navaia_db psql -U navaia -d navaia -c "DELETE FROM alembic_version WHERE version_num = '$DB_REVISION';" > /dev/null 2>&1
                     
-                    # Now stamp to head (database is clean)
                     if ! docker exec navaia_backend alembic stamp head; then
                         echo "❌ Failed to stamp database!"
                         docker logs navaia_backend --tail 50
@@ -121,18 +129,15 @@ jobs:
                 fi
             fi
             
-            # Run migrations
             if ! docker exec navaia_backend alembic upgrade head; then
                 echo "❌ Migration Failed!"
                 docker logs navaia_backend --tail 50
                 
-                # Restore from backup
                 if [ -f "$BACKUP_FILE" ]; then
                     echo "🔄 Restoring from backup..."
                     docker exec -i navaia_db psql -U navaia navaia < "$BACKUP_FILE"
                 fi
                 
-                # Rollback code
                 git reset --hard $PREVIOUS_COMMIT
                 docker-compose up -d --build
                 exit 1
@@ -140,9 +145,10 @@ jobs:
             
             echo "✅ Migrations completed successfully!"
             
-            # 8. Cleanup
-            echo "🧹 Cleaning up old images..."
+            # 8. POST-DEPLOYMENT CLEANUP
+            echo "🧹 Post-deployment cleanup..."
             docker image prune -f
+            docker builder prune -f
             
             # 9. Health Check Function
             check_health() {
@@ -183,8 +189,8 @@ jobs:
             echo "🚀 Deployment Complete & Verified Successfully!"
             echo "📦 Backup saved: $BACKUP_FILE"
             echo "📊 Commit: $CURRENT_COMMIT"
+            echo "💾 Disk space: $(df -h / | tail -1 | awk '{print $4}') available"
             
-            # Send success notification
             curl -X POST "$DISCORD_WEBHOOK" \
               -H 'Content-Type: application/json' \
               -d "{\"content\":\"✅ Navaia deployed successfully! (\`${CURRENT_COMMIT:0:7}\`)\"}" 2>/dev/null || true
