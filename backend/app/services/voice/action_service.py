@@ -170,15 +170,29 @@ def create_call_from_voice_session(
         if voice_session.created_at and voice_session.ended_at:
             duration = int((voice_session.ended_at - voice_session.created_at).total_seconds())
 
+        # Set call status based on voice session status
+        call_status = models.CallStatusEnum.connected
+        if voice_session.status == models.VoiceSessionStatus.COMPLETED:
+            call_status = models.CallStatusEnum.connected
+        elif voice_session.status == models.VoiceSessionStatus.FAILED:
+            call_status = models.CallStatusEnum.no_answer  # or another appropriate status
+
+        # Set call outcome based on extracted intent
+        call_outcome = models.CallOutcomeEnum.info  # Default outcome
+        if voice_session.extracted_intent == "book_appointment":
+            call_outcome = models.CallOutcomeEnum.booked
+        elif voice_session.extracted_intent == "raise_ticket":
+            call_outcome = models.CallOutcomeEnum.ticket
+
         # Create Call Record
         call = models.Call(
             id=generate_id("call"),
             tenant_id=voice_session.tenant_id,
             conversation_id=voice_session.conversation_id,
             direction=models.CallDirectionEnum.inbound, # Inbound from ElevenLabs
-            status=models.CallStatusEnum.connected,
+            status=call_status,
             handle_sec=duration,
-            outcome=models.CallOutcomeEnum.info, # Default outcome
+            outcome=call_outcome,
             ai_or_human=models.AIOrHumanEnum.AI,
             recording_url=None # ElevenLabs recording URL usually retrieved separately if needed
         )

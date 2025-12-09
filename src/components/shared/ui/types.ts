@@ -49,7 +49,25 @@ export type TStatus =
   | "صوت"
   | "رسالة"
   | "web"   // CORRECTED: Added this missing type
-  | "visit"; // CORRECTED: Added this missing type
+  | "visit" // CORRECTED: Added this missing type
+  // Call Status
+  | "connected"
+  | "no_answer"
+  | "abandoned"
+  | "unknown"
+  | "متصل"
+  | "لا_إجابة"
+  | "متروك"
+  | "غير_معروف"
+  // LiveOps Call Status
+  | "وارد"
+  | "فائت"
+  // Call Outcomes
+  | "qualified"
+  | "booked"
+  | "ticket"
+  | "info"
+  | "raised_ticket";
 
 export interface IStatsCard {
   icon: LucideIcon;

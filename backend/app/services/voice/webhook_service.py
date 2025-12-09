@@ -67,9 +67,6 @@ def process_conversation_webhook(
     voice_session.summary = call_summary
     voice_session.extracted_intent = intent
     voice_session.customer_phone = customer_phone
-    voice_session.status = models.VoiceSessionStatus.COMPLETED
-    # Setting ended_at fixes the "00:00" duration issue in the dashboard
-    voice_session.ended_at = datetime.now(timezone.utc)
 
     # 5. SYNCHRONIZE CUSTOMER DATA (The "Identity" Fix)
     # We update the customer profile BEFORE creating bookings/tickets
@@ -139,12 +136,17 @@ def process_conversation_webhook(
              action_type = "booking_fallback"
 
     # 7. Create Historical Records (Populates 'Calls' and 'Conversations' pages)
-    # This ensures the call appears in the "Recent Calls" table
+    # This ensures the call appears in the "Recent Calls' table
     logger.info("Creating conversation and call history records")
     create_conversation_from_voice_session(db_session, voice_session, call_summary)
     create_call_from_voice_session(db_session, voice_session, call_summary)
 
-    # 8. Final Commit
+    # 8. Update voice session status to completed (ensures proper call status) - do this last
+    voice_session.status = models.VoiceSessionStatus.COMPLETED
+    if not voice_session.ended_at:
+        voice_session.ended_at = datetime.now(timezone.utc)
+
+    # 9. Final Commit
     db_session.commit()
 
     return {

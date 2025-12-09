@@ -88,7 +88,7 @@ async def fetch_elevenlabs_conversations(_=Depends(deps.get_current_user)):
 
 @router.post("/elevenlabs/conversation/{conversation_id}/process")
 async def process_conversation_fast(
-    conversation_id: str, 
+    conversation_id: str,
     db_session: Session = Depends(deps.get_session)
 ):
     """
@@ -96,8 +96,6 @@ async def process_conversation_fast(
     This is an external webhook, so we don't use authentication dependencies.
     Instead, we securely determine tenant context by looking up the existing voice session.
     """
-    from app.api.deps import get_session
-    
     try:
         result = process_conversation_webhook(db_session, conversation_id)
         return result
@@ -156,6 +154,9 @@ async def handle_elevenlabs_webhook(request: Request):
         try:
             result = process_webhook_payload(db_session, payload)
             return result
+        except HTTPException:
+            db_session.rollback()
+            raise
         except Exception as e:
             db_session.rollback()
             logger.error(f"Error processing webhook: {e}", exc_info=True)

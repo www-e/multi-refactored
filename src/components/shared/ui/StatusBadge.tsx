@@ -7,7 +7,7 @@ interface StatusBadgeProps {
   type?: 'pill' | 'icon';
 }
 
-const statusStyles: Record<TStatus, string> = {
+const statusStyles: Partial<Record<TStatus, string>> = {
   // Campaign & General Status
   'نشطة': 'bg-success text-white',
   'موقوفة': 'bg-warning text-white',
@@ -55,6 +55,15 @@ const statusStyles: Record<TStatus, string> = {
   'رسالة': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   'web': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   'visit': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+  // LiveOps Call Status (for current calls)
+  'وارد': 'bg-blue-500 text-white',
+  'فائت': 'bg-red-500 text-white',
+  // Call Outcomes
+  'qualified': 'bg-purple-500 text-white',
+  'booked': 'bg-green-500 text-white',
+  'ticket': 'bg-yellow-500 text-white',
+  'info': 'bg-slate-500 text-white',
+  'raised_ticket': 'bg-yellow-500 text-white',
 };
 
 const iconMap: Partial<Record<TStatus, React.ReactNode>> = {

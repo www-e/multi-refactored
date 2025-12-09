@@ -80,8 +80,8 @@ def get_voice_session(db_session: Session, session_id: str, tenant_id: str) -> O
 
 
 def update_voice_session_status(
-    db_session: Session, 
-    session_id: str, 
+    db_session: Session,
+    session_id: str,
     status: models.VoiceSessionStatus,
     summary: Optional[str] = None,
     customer_phone: Optional[str] = None,
@@ -95,19 +95,24 @@ def update_voice_session_status(
         .filter(models.VoiceSession.id == session_id)
         .first()
     )
-    
+
     if not voice_session:
         return False
-    
+
     voice_session.status = status
-    if summary:
+    if summary is not None:
         voice_session.summary = summary
     if customer_phone:
         voice_session.customer_phone = customer_phone
     if extracted_intent:
         voice_session.extracted_intent = extracted_intent
     if status == models.VoiceSessionStatus.COMPLETED:
-        voice_session.ended_at = datetime.now(timezone.utc)
-    
+        if not voice_session.ended_at:
+            voice_session.ended_at = datetime.now(timezone.utc)
+
+    # Ensure created_at is set if not already set
+    if not voice_session.created_at:
+        voice_session.created_at = datetime.now(timezone.utc)
+
     db_session.commit()
     return True

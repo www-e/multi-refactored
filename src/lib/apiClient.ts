@@ -1,4 +1,5 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps, Customer, EnhancedCampaign } from "@/app/(shared)/types";
+import { mapCallStatusToArabic } from "@/lib/statusMapper";
 
 // PRODUCTION-READY ERROR HANDLING: A custom error class for API-specific issues.
 export class ApiError extends Error {
@@ -369,7 +370,7 @@ const transformCall = (call: any) => ({
   customerId: call.customer_id,
   conversationId: call.conversation_id,
   direction: call.direction === 'outbound' ? 'صادر' : 'وارد', // Map to Arabic direction
-  status: call.status,
+  status: mapCallStatusToArabic(call.status || 'unknown'),
   outcome: call.outcome,
   handleSec: call.handle_sec,
   aiOrHuman: call.ai_or_human,

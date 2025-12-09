@@ -225,6 +225,24 @@ export default function DashboardPage() {
                     <StatusBadge
                       status={call.status as any || 'unknown' as any}
                     />
+                    {call.outcome && (
+                      <StatusBadge
+                        status={(() => {
+                          // Map outcome to a status that has proper styling
+                          switch(call.outcome) {
+                            case 'booked':
+                            case 'qualified':
+                              return 'booked';
+                            case 'ticket':
+                              return 'ticket';
+                            case 'info':
+                              return 'info';
+                            default:
+                              return 'info'; // Default to info for unknown outcomes
+                          }
+                        })()}
+                      />
+                    )}
                   </div>
                 </div>
               ))

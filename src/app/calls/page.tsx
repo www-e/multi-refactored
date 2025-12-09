@@ -121,8 +121,24 @@ export default function CallsPage() {
                         <Phone size={18} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-sm">
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
                           {getCustomerName(call.customerId || '')}
+                          {(() => {
+                            // Find the original customer data to see if name was updated from "Unknown Customer"
+                            const originalCustomer = customers.find(c => c.id === call.customerId);
+                            if (originalCustomer &&
+                                (originalCustomer.name.toLowerCase().includes('unknown') ||
+                                 originalCustomer.name === 'Unknown Customer' ||
+                                 originalCustomer.name === 'عميل غير معروف') &&
+                                !getCustomerName(call.customerId).toLowerCase().includes('unknown')) {
+                              return (
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  محدث من المكالمة
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </h4>
                         <div className="flex items-center gap-2 text-xs text-slate-500">
                           <span>{call.direction}</span>
@@ -132,7 +148,28 @@ export default function CallsPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <StatusBadge status={call.status as any || 'unknown' as any} />
+                      <div className="flex flex-col items-end gap-1">
+                        <StatusBadge status={call.status as any || 'unknown' as any} />
+                        {call.outcome && (
+                          <StatusBadge
+                            status={(() => {
+                              // Map outcome to a status that has proper styling
+                              switch(call.outcome) {
+                                case 'booked':
+                                case 'qualified':
+                                  return 'booked';
+                                case 'ticket':
+                                  return 'ticket';
+                                case 'info':
+                                  return 'info';
+                                default:
+                                  return 'info'; // Default to info for unknown outcomes
+                              }
+                            })()}
+                            type="pill"
+                          />
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-1">
                         {formatDate(call.createdAt)}
                       </p>
@@ -153,8 +190,24 @@ export default function CallsPage() {
                 {/* Header */}
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
                   <div>
-                    <h3 className="font-bold">
+                    <h3 className="font-bold flex items-center gap-2">
                       {getCustomerName(selectedCall.customerId || '')}
+                      {(() => {
+                        // Find the original customer data to see if name was updated from "Unknown Customer"
+                        const originalCustomer = customers.find(c => c.id === selectedCall.customerId);
+                        if (originalCustomer &&
+                            (originalCustomer.name.toLowerCase().includes('unknown') ||
+                             originalCustomer.name === 'Unknown Customer' ||
+                             originalCustomer.name === 'عميل غير معروف') &&
+                            !getCustomerName(selectedCall.customerId).toLowerCase().includes('unknown')) {
+                          return (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                              محدث من المكالمة
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
                     </h3>
                     <p className="text-sm text-slate-500">مكالمة {selectedCall.direction === 'صادر' ? 'صادرية' : 'واردة'}</p>
                   </div>
@@ -199,7 +252,41 @@ export default function CallsPage() {
                   {selectedCall.outcome && (
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">النتيجة</h4>
-                      <p className="font-medium">{selectedCall.outcome}</p>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge
+                          status={(() => {
+                            // Map outcome to a status that has proper styling
+                            switch(selectedCall.outcome) {
+                              case 'booked':
+                              case 'qualified':
+                                return 'booked';
+                              case 'ticket':
+                                return 'ticket';
+                              case 'info':
+                                return 'info';
+                              default:
+                                return 'info'; // Default to info for unknown outcomes
+                            }
+                          })()}
+                        />
+                        <span className="font-medium">
+                          {(() => {
+                            // Map outcome to better display text
+                            switch(selectedCall.outcome) {
+                              case 'booked':
+                                return 'تم الحجز';
+                              case 'ticket':
+                                return 'تم رفع تذكرة';
+                              case 'qualified':
+                                return 'عميل مؤهل';
+                              case 'info':
+                                return 'استفسار معلوماتي';
+                              default:
+                                return selectedCall.outcome;
+                            }
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   )}
 

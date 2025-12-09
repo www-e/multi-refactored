@@ -158,3 +158,32 @@ export const mapCampaignObjectiveToEnglish = (objective: string): string => {
   };
   return mapping[objective] || objective;
 };
+
+// Call status mapping
+export const mapCallStatusToArabic = (status: string): string => {
+  const mapping: Record<string, string> = {
+    'connected': 'متصل',
+    'no_answer': 'لا_إجابة',
+    'abandoned': 'متروك',
+    'unknown': 'غير_معروف',
+    'متصل': 'متصل',
+    'لا_إجابة': 'لا_إجابة',
+    'متروك': 'متروك',
+    'غير_معروف': 'غير_معروف',
+  };
+  return mapping[status] || status;
+};
+
+export const mapCallStatusToEnglish = (status: string): string => {
+  const mapping: Record<string, string> = {
+    'connected': 'connected',
+    'no_answer': 'no_answer',
+    'abandoned': 'abandoned',
+    'unknown': 'unknown',
+    'متصل': 'connected',
+    'لا_إجابة': 'no_answer',
+    'متروك': 'abandoned',
+    'غير_معروف': 'unknown',
+  };
+  return mapping[status] || status;
+};
