@@ -78,21 +78,20 @@ async def process_conversation_webhook(
     voice_session.extracted_intent = intent
     voice_session.customer_phone = customer_phone
 
-    # 5. SYNCHRONIZE CUSTOMER DATA (The "Identity" Fix)
-    # Create or update the customer profile with extracted data
-    from .customer_service import get_or_create_customer
-    
-    # Try to get existing customer by ID
+    # 5. UPDATE CUSTOMER DATA with extracted information
+    # Customer was created as placeholder during session creation
+    # Now we update it with real data from the conversation
     customer = db_session.query(models.Customer).filter(
         models.Customer.id == voice_session.customer_id
     ).first()
     
-    # If customer doesn't exist (we didn't create it initially), create it now with real data
     if not customer:
-        logger.info(f"Creating new customer with extracted data: name={customer_name}, phone={customer_phone}")
+        # This shouldn't happen, but create customer if missing
+        logger.warning(f"⚠️ Customer {voice_session.customer_id} not found, creating new one")
+        from .customer_service import get_or_create_customer
         customer = get_or_create_customer(
             db_session=db_session,
-            customer_id=voice_session.customer_id,  # Use the temp ID we generated
+            customer_id=voice_session.customer_id,
             customer_phone=customer_phone,
             customer_name=customer_name,
             tenant_id=voice_session.tenant_id
@@ -100,40 +99,32 @@ async def process_conversation_webhook(
     
     # Update customer with extracted data
     updates = []
-    if customer:
-        # Update Name if we have a real name
-        # Only skip if the name is clearly a placeholder or empty
-        if customer_name and customer_name.strip():
-            customer_name_clean = customer_name.strip()
-            # Skip only if it's an obvious placeholder (case-insensitive English check)
-            customer_name_lower = customer_name_clean.lower()
-            is_placeholder = (
-                customer_name_lower in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', 'temp'] or
-                customer_name_lower.startswith('customer ') or
-                customer_name_lower.startswith('temp ')
-            )
-            
-            # Update if: (1) current name is empty/placeholder AND new name is not placeholder
-            # OR (2) new name is different and not a placeholder
-            should_update = (
-                (not customer.name or customer.name.strip() == '' or customer.name == 'Unknown Customer') and not is_placeholder
-            ) or (
-                customer.name != customer_name_clean and not is_placeholder
-            )
-            
-            if should_update:
+    
+    # Update Name if we have a real name (not a placeholder)
+    if customer_name and customer_name.strip():
+        customer_name_clean = customer_name.strip()
+        # Skip only if it's an obvious English placeholder
+        customer_name_lower = customer_name_clean.lower()
+        is_placeholder = (
+            customer_name_lower in ['unknown', 'user', 'n/a', 'customer', 'unknown customer', 'temp'] or
+            customer_name_lower.startswith('customer ') or
+            customer_name_lower.startswith('temp ')
+        )
+        
+        if not is_placeholder:
+            # Always update if we have a real name
+            if not customer.name or customer.name.strip() == '' or customer.name != customer_name_clean:
                 customer.name = customer_name_clean
                 updates.append("name")
                 logger.info(f"✅ Updated customer name to '{customer_name_clean}'")
 
-        # Update Phone if extracted and different from current phone
-        if customer_phone and customer_phone.strip():
-            customer_phone_clean = customer_phone.strip()
-            # Update if current phone is empty or different
-            if not customer.phone or customer.phone.strip() == '' or customer.phone != customer_phone_clean:
-                customer.phone = customer_phone_clean
-                updates.append("phone")
-                logger.info(f"✅ Updated customer phone to '{customer_phone_clean}'")
+    # Update Phone if extracted
+    if customer_phone and customer_phone.strip():
+        customer_phone_clean = customer_phone.strip()
+        if not customer.phone or customer.phone.strip() == '' or customer.phone != customer_phone_clean:
+            customer.phone = customer_phone_clean
+            updates.append("phone")
+            logger.info(f"✅ Updated customer phone to '{customer_phone_clean}'")
 
         # Update Region/Neighborhood (The Fix for 'المنطقة')
         if extracted_region:
