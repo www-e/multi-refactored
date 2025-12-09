@@ -8,6 +8,7 @@ jobs:
   deploy_and_verify:
     name: Build, Deploy & Health Check
     runs-on: ubuntu-latest
+    environment: production
     
     steps:
       - name: Executing remote SSH commands
@@ -17,21 +18,49 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop_on_error: true
+          envs: POSTGRES_PASSWORD,DISCORD_WEBHOOK
           script: |
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
-            MAX_RETRIES=12   # 12 * 5 seconds = 60 seconds max wait
+            MAX_RETRIES=12
+            LOCK_FILE="/tmp/navaia_deploy.lock"
+            DEPLOYMENT_SUCCESS=false
+            
+            # Deployment Lock
+            if [ -f "$LOCK_FILE" ]; then
+                echo "⚠️  Another deployment is in progress. Exiting..."
+                exit 1
+            fi
+            echo $$ > "$LOCK_FILE"
+            
+            # Cleanup and notification on exit
+            cleanup() {
+                rm -f "$LOCK_FILE"
+                if [ "$DEPLOYMENT_SUCCESS" = false ]; then
+                    echo "❌ Deployment failed!"
+                    curl -X POST "$DISCORD_WEBHOOK" \
+                      -H 'Content-Type: application/json' \
+                      -d "{\"content\":\"❌ Deployment failed for Navaia!\"}" 2>/dev/null || true
+                fi
+            }
+            trap cleanup EXIT
             
             # 1. Navigate to Project
             cd $PROJECT_DIR
             echo "📁 Changed directory to $PROJECT_DIR"
             
-            # 2. Sync Code
+            # 2. Store current commit for rollback
+            PREVIOUS_COMMIT=$(git rev-parse HEAD)
+            
+            # 3. Sync Code
             echo "📥 Pulling latest code..."
             git fetch --all
             git reset --hard origin/main
+            CURRENT_COMMIT=$(git rev-parse HEAD)
             
-            # 3. Backup Database (Safety Net)
+            echo "📊 Deploying: $PREVIOUS_COMMIT → $CURRENT_COMMIT"
+            
+            # 4. Backup Database
             echo "💾 Creating database backup..."
             BACKUP_FILE="backups/navaia_$(date +%Y%m%d_%H%M%S).sql"
             mkdir -p backups
@@ -40,21 +69,28 @@ jobs:
             # Keep only last 5 backups
             ls -t backups/*.sql 2>/dev/null | tail -n +6 | xargs -r rm
             
-            # 4. Rebuild and Restart
+            # 5. Rebuild and Restart
             echo "🏗️ Building and Starting Docker Containers..."
-            docker-compose up -d --build --remove-orphans
             
-            # 5. Wait for PostgreSQL to be ready
+            if ! docker-compose up -d --build --remove-orphans; then
+                echo "❌ Docker build failed! Rolling back..."
+                git reset --hard $PREVIOUS_COMMIT
+                docker-compose up -d
+                exit 1
+            fi
+            
+            # 6. Wait for PostgreSQL
             echo "⏳ Waiting for PostgreSQL..."
             for i in {1..30}; do
                 if docker exec navaia_db pg_isready -U navaia > /dev/null 2>&1; then
                     echo "✅ PostgreSQL is ready!"
                     break
                 fi
+                [ $i -eq 30 ] && { echo "❌ PostgreSQL failed to start!"; exit 1; }
                 sleep 1
             done
             
-            # 6. Smart Migration Handler
+            # 7. Smart Migration Handler (WITH FIX)
             echo "🔄 Running Database Migrations..."
             
             # Get current database revision
@@ -70,9 +106,12 @@ jobs:
             if [ -n "$DB_REVISION" ] && [ "$DB_REVISION" != "None" ]; then
                 if ! docker exec navaia_backend alembic show "$DB_REVISION" > /dev/null 2>&1; then
                     echo "⚠️  Database revision '$DB_REVISION' not found in migration files!"
-                    echo "🔧 Stamping database to latest revision: $LATEST_REVISION"
+                    echo "🔧 Force clearing bad revision and stamping to: $LATEST_REVISION"
                     
-                    # Stamp to head (sync database state with code)
+                    # FORCE DELETE the bad revision from database
+                    docker exec navaia_db psql -U navaia -d navaia -c "DELETE FROM alembic_version WHERE version_num = '$DB_REVISION';" > /dev/null 2>&1
+                    
+                    # Now stamp to head (database is clean)
                     if ! docker exec navaia_backend alembic stamp head; then
                         echo "❌ Failed to stamp database!"
                         docker logs navaia_backend --tail 50
@@ -85,25 +124,27 @@ jobs:
             # Run migrations
             if ! docker exec navaia_backend alembic upgrade head; then
                 echo "❌ Migration Failed!"
-                echo "🔍 Backend logs:"
                 docker logs navaia_backend --tail 50
                 
-                # Restore from backup if available
+                # Restore from backup
                 if [ -f "$BACKUP_FILE" ]; then
                     echo "🔄 Restoring from backup..."
                     docker exec -i navaia_db psql -U navaia navaia < "$BACKUP_FILE"
-                    echo "✅ Database restored from backup!"
                 fi
+                
+                # Rollback code
+                git reset --hard $PREVIOUS_COMMIT
+                docker-compose up -d --build
                 exit 1
             fi
             
             echo "✅ Migrations completed successfully!"
             
-            # 7. Cleanup Disk Space
+            # 8. Cleanup
             echo "🧹 Cleaning up old images..."
             docker image prune -f
             
-            # 8. Smart Health Check Function
+            # 9. Health Check Function
             check_health() {
                 local url=$1
                 local name=$2
@@ -124,7 +165,7 @@ jobs:
                 return 0
             }
             
-            # 9. Execute Health Checks
+            # 10. Execute Health Checks
             if ! check_health "http://127.0.0.1:8000/healthz" "Backend"; then
                 echo "🔍 DUMPING BACKEND LOGS:"
                 docker logs navaia_backend --tail 50
@@ -137,5 +178,16 @@ jobs:
                 exit 1
             fi
             
+            # 11. Success!
+            DEPLOYMENT_SUCCESS=true
             echo "🚀 Deployment Complete & Verified Successfully!"
             echo "📦 Backup saved: $BACKUP_FILE"
+            echo "📊 Commit: $CURRENT_COMMIT"
+            
+            # Send success notification
+            curl -X POST "$DISCORD_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{\"content\":\"✅ Navaia deployed successfully! (\`${CURRENT_COMMIT:0:7}\`)\"}" 2>/dev/null || true
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
