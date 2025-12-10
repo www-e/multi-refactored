@@ -1,3 +1,4 @@
+## File: .github/workflows/deploy.yml
 name: Agentic Auto-Deploy
 
 on:
@@ -36,7 +37,7 @@ jobs:
             rm -f "/tmp/agentic_navaia_deploy.lock" "/tmp/agentic_navaia_deploy.info"
             
             echo "🧹 Pre-deployment cleanup..."
-            docker system prune -f --volumes 2>/dev/null || true
+            docker system prune -f 2>/dev/null || true
             
             # Check disk space
             AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')

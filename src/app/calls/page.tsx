@@ -16,9 +16,9 @@ export default function CallsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { calls, setCalls, setCallsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getCalls, getCustomers, isAuthenticated } = useAuthApi();
+  const { getCalls, getCustomers, getVoiceSessions, isAuthenticated } = useAuthApi();
 
-  // Fetch calls and customers
+  // Fetch calls, voice sessions and customers
   useEffect(() => {
     if (isAuthenticated) {
       const fetchData = async () => {
@@ -26,15 +26,36 @@ export default function CallsPage() {
           setCallsLoading(true);
           setCustomersLoading(true);
 
-          const [callsData, customersData] = await Promise.all([
+          const [callsData, customersData, voiceSessionsData] = await Promise.all([
             getCalls(),
-            getCustomers()
+            getCustomers(),
+            getVoiceSessions()
           ]);
 
-          setCalls(callsData);
+          // Combine calls with voice session data
+          const enhancedCalls = callsData.map(call => {
+            // Find matching voice session by conversation ID or other correlation
+            const matchingVoiceSession = voiceSessionsData.find(vs =>
+              vs.conversation_id === call.conversationId || vs.id === call.voiceSessionId
+            );
+
+            if (matchingVoiceSession) {
+              return {
+                ...call,
+                voiceSessionId: matchingVoiceSession.id,
+                extractedIntent: matchingVoiceSession.extracted_intent,
+                sessionSummary: matchingVoiceSession.summary,
+                agentName: matchingVoiceSession.agent_name,
+                sessionStatus: matchingVoiceSession.status
+              };
+            }
+            return call;
+          });
+
+          setCalls(enhancedCalls);
           setCustomers(customersData);
         } catch (error) {
-          console.error('Error fetching calls and customers:', error);
+          console.error('Error fetching calls, voice sessions and customers:', error);
         } finally {
           setCallsLoading(false);
           setCustomersLoading(false);
@@ -42,7 +63,7 @@ export default function CallsPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getCalls, getCustomers, setCalls, setCustomers, setCallsLoading, setCustomersLoading]);
+  }, [isAuthenticated, getCalls, getCustomers, getVoiceSessions, setCalls, setCustomers, setCallsLoading, setCustomersLoading]);
 
   const getCustomerName = (id: string) => {
     // Find customer by id in the customers array
@@ -76,15 +97,36 @@ export default function CallsPage() {
                   setCallsLoading(true);
                   setCustomersLoading(true);
 
-                  const [callsData, customersData] = await Promise.all([
+                  const [callsData, customersData, voiceSessionsData] = await Promise.all([
                     getCalls(),
-                    getCustomers()
+                    getCustomers(),
+                    getVoiceSessions()
                   ]);
 
-                  setCalls(callsData);
+                  // Combine calls with voice session data
+                  const enhancedCalls = callsData.map(call => {
+                    // Find matching voice session by conversation ID or other correlation
+                    const matchingVoiceSession = voiceSessionsData.find(vs =>
+                      vs.conversation_id === call.conversationId || vs.id === call.voiceSessionId
+                    );
+
+                    if (matchingVoiceSession) {
+                      return {
+                        ...call,
+                        voiceSessionId: matchingVoiceSession.id,
+                        extractedIntent: matchingVoiceSession.extracted_intent,
+                        sessionSummary: matchingVoiceSession.summary,
+                        agentName: matchingVoiceSession.agent_name,
+                        sessionStatus: matchingVoiceSession.status
+                      };
+                    }
+                    return call;
+                  });
+
+                  setCalls(enhancedCalls);
                   setCustomers(customersData);
                 } catch (error) {
-                  console.error('Error refreshing calls and customers:', error);
+                  console.error('Error refreshing calls, voice sessions and customers:', error);
                 } finally {
                   setCallsLoading(false);
                   setCustomersLoading(false);
@@ -235,6 +277,12 @@ export default function CallsPage() {
                         {selectedCall.aiOrHuman === 'AI' ? 'ذكاء اصطناعي' : ' بشري'}
                       </p>
                     </div>
+                    {selectedCall.voiceSessionId && (
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">رقم الجلسة الصوتية</h4>
+                        <p className="font-medium">{selectedCall.voiceSessionId}</p>
+                      </div>
+                    )}
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تاريخ البدء</h4>
                       <p className="font-medium">
@@ -247,6 +295,30 @@ export default function CallsPage() {
                         {selectedCall.handleSec ? `${selectedCall.handleSec} ثانية` : 'غير متوفرة'}
                       </p>
                     </div>
+                    {selectedCall.agentName && (
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">نوع العميل</h4>
+                        <p className="font-medium">{selectedCall.agentName}</p>
+                      </div>
+                    )}
+                    {selectedCall.sessionStatus && (
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">حالة الجلسة</h4>
+                        <p className="font-medium capitalize">{selectedCall.sessionStatus}</p>
+                      </div>
+                    )}
+                    {selectedCall.extractedIntent && (
+                      <div className="col-span-2">
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">النوع المستخرج</h4>
+                        <p className="font-medium">{selectedCall.extractedIntent}</p>
+                      </div>
+                    )}
+                    {selectedCall.sessionSummary && (
+                      <div className="col-span-2">
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">ملخص الجلسة</h4>
+                        <p className="font-medium">{selectedCall.sessionSummary}</p>
+                      </div>
+                    )}
                   </div>
 
                   {selectedCall.outcome && (

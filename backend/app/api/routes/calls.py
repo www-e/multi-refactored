@@ -1,6 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 from typing import List, Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
@@ -31,6 +32,12 @@ class CallResponse(BaseModel):
     status: str
     outcome: Optional[str]
     created_at: datetime
+    # Voice Session fields
+    voice_session_id: Optional[str] = None
+    extracted_intent: Optional[str] = None
+    summary: Optional[str] = None
+    agent_name: Optional[str] = None
+    session_status: Optional[str] = None
 
 @router.post("/calls", response_model=CallResponse)
 async def create_call(
@@ -41,7 +48,7 @@ async def create_call(
 ):
     # Real DB Logic
     conv_id = f"conv_{generate_id()[5:]}"
-    
+
     # 1. Create Conversation Container
     conversation = models.Conversation(
         id=conv_id,
@@ -76,7 +83,12 @@ async def create_call(
         direction=db_call.direction.value,
         status=db_call.status.value,
         outcome=None,
-        created_at=db_call.created_at
+        created_at=db_call.created_at,
+        voice_session_id=None,
+        extracted_intent=None,
+        summary=None,
+        agent_name=None,
+        session_status=None
     )
 
 @router.post("/calls/bulk")
@@ -120,7 +132,7 @@ async def create_bulk_calls(
 
     db_session.commit()
     return {
-        "status": "success", 
+        "status": "success",
         "message": f"Created {created_count} real call records.",
         "created_count": created_count
     }
@@ -130,7 +142,7 @@ def get_calls(
     tenant_id: str = Depends(deps.get_current_tenant_id),
     db_session: Session = Depends(deps.get_session),
     _=Depends(deps.get_current_user),
-    skip: int = 0, 
+    skip: int = 0,
     limit: int = 100
 ):
     results = db_session.query(models.Call, models.Conversation.customer_id)\
@@ -147,7 +159,12 @@ def get_calls(
             direction=c.direction.value if hasattr(c.direction, 'value') else str(c.direction),
             status=c.status.value if hasattr(c.status, 'value') else str(c.status),
             outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
-            created_at=c.created_at
+            created_at=c.created_at,
+            voice_session_id=None,  # Will be populated if we find a connection
+            extracted_intent=None,
+            summary=None,
+            agent_name=None,
+            session_status=None
         )
         for c, cid in results
     ]

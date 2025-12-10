@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -6,40 +7,41 @@ from app import models
 
 logger = logging.getLogger(__name__)
 
-def generate_id(prefix: str = "id") -> str:
-    import secrets
+def generate_id(prefix: str = "vs") -> str:
     return f"{prefix}_{secrets.token_hex(8)}"
 
 def create_voice_session(
-    db_session: Session, 
-    agent_type: str, 
-    customer_id: Optional[str], 
-    tenant_id: str, 
+    db_session: Session,
+    agent_type: str,
+    customer_id: Optional[str],
+    tenant_id: str,
     customer_phone: Optional[str] = None
 ) -> models.VoiceSession:
+    """
+    Initializes a session when the call STARTS.
+    """
+    session_id = generate_id()
     
-    if customer_id == "":
-        customer_id = None
-        
     voice_session = models.VoiceSession(
-        id=generate_id("vs"),
+        id=session_id,
         tenant_id=tenant_id,
-        customer_id=customer_id,
-        direction="inbound",
-        status=models.VoiceSessionStatus.ACTIVE,
+        customer_id=customer_id, # Can be None initially
         customer_phone=customer_phone,
+        direction="inbound", # Default assumption, can be adjusted
+        status=models.VoiceSessionStatus.ACTIVE,
         agent_name=agent_type,
         created_at=datetime.now(timezone.utc)
     )
-    voice_session.conversation_id = voice_session.id
     
     db_session.add(voice_session)
     db_session.commit()
     db_session.refresh(voice_session)
+    
+    logger.info(f"📞 Session Started: {session_id} (Agent: {agent_type})")
     return voice_session
 
-def get_voice_session(db_session: Session, session_id: str, tenant_id: str) -> Optional[models.VoiceSession]:
+def get_voice_session(db_session: Session, session_id: str) -> Optional[models.VoiceSession]:
+    """Retrieves a session by ID."""
     return db_session.query(models.VoiceSession).filter(
-        models.VoiceSession.id == session_id,
-        models.VoiceSession.tenant_id == tenant_id
+        models.VoiceSession.id == session_id
     ).first()

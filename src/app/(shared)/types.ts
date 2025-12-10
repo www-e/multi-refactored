@@ -65,6 +65,12 @@ export interface Call {
   recordingUrl?: string;
   createdAt: string;
   updatedAt?: string;
+  // Voice Session specific fields
+  voiceSessionId?: string;
+  extractedIntent?: string;
+  sessionSummary?: string;
+  agentName?: string;
+  sessionStatus?: 'active' | 'completed' | 'failed';
 }
 
 export interface CallRecord {

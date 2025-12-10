@@ -1,6 +1,7 @@
 import logging
 import secrets
 from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, Union
 from sqlalchemy.orm import Session
 from app import models
 
@@ -9,123 +10,192 @@ logger = logging.getLogger(__name__)
 def generate_id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_hex(8)}"
 
-def create_booking_from_conversation(db: Session, session: models.VoiceSession, data: dict):
-    if not session.customer_id:
-        return
-
-    # Safe extraction of nested values
-    raw_date = data.get("preferred_datetime", {}).get("value")
-    # Default to tomorrow 10am if not found/parsed
-    final_date = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=10, minute=0)
-    
-    if raw_date:
-        try:
-            # Simple ISO parsing attempt
-            final_date = datetime.fromisoformat(raw_date.replace('Z', '+00:00'))
-        except:
-            logger.warning(f"Could not parse date: {raw_date}, using default")
-            pass
-
-    project = data.get("project", {}).get("value") or "GENERAL"
-    
-    # Fetch customer for denormalized fields
-    cust = db.query(models.Customer).filter(models.Customer.id == session.customer_id).first()
-    c_name = cust.name if cust else "Unknown"
-    c_phone = cust.phone if cust else ""
-
-    booking = models.Booking(
-        id=generate_id("bk"),
-        tenant_id=session.tenant_id,
-        customer_id=session.customer_id,
-        session_id=session.id,
-        customer_name=c_name,
-        phone=c_phone,
-        property_code=project,
-        project=project,
-        start_date=final_date,
-        preferred_datetime=final_date,
-        source=models.ChannelEnum.voice,
-        created_by=models.AIOrHumanEnum.AI,
-        status=models.BookingStatusEnum.pending,
-        created_at=datetime.now(timezone.utc)
-    )
-    db.add(booking)
-    logger.info(f"Created booking {booking.id} for session {session.id}")
-
-def create_ticket_from_conversation(db: Session, session: models.VoiceSession, data: dict):
-    if not session.customer_id:
-        return
-
-    issue = data.get("issue", {}).get("value") or session.summary or "Voice Interaction"
-    project = data.get("project", {}).get("value") or "General"
-    
-    cust = db.query(models.Customer).filter(models.Customer.id == session.customer_id).first()
-    
-    ticket = models.Ticket(
-        id=generate_id("tkt"),
-        tenant_id=session.tenant_id,
-        customer_id=session.customer_id,
-        session_id=session.id,
-        customer_name=cust.name if cust else "Unknown",
-        phone=cust.phone if cust else "",
-        issue=issue,
-        project=project,
-        category="Voice",
-        priority=models.TicketPriorityEnum.med,
-        status=models.TicketStatusEnum.open,
-        created_at=datetime.now(timezone.utc)
-    )
-    db.add(ticket)
-    logger.info(f"Created ticket {ticket.id} for session {session.id}")
-
-def create_history_records(db: Session, session: models.VoiceSession):
-    if not session.customer_id: 
-        return
-
-    conv = models.Conversation(
-        id=generate_id("conv"),
-        tenant_id=session.tenant_id,
-        channel=models.ChannelEnum.voice,
-        customer_id=session.customer_id,
-        summary=session.summary,
-        ai_or_human=models.AIOrHumanEnum.AI,
-        recording_url=session.conversation_id, # Storing ID as ref for now
-        created_at=session.created_at,
-        ended_at=session.ended_at or datetime.now(timezone.utc)
-    )
-    db.add(conv)
-    
-    call = models.Call(
-        id=generate_id("call"),
-        tenant_id=session.tenant_id,
-        conversation_id=conv.id,
-        direction=models.CallDirectionEnum.inbound,
-        status=models.CallStatusEnum.connected,
-        ai_or_human=models.AIOrHumanEnum.AI,
-        created_at=session.created_at
-    )
-    db.add(call)
-
-def create_full_interaction_record(db: Session, session: models.VoiceSession, customer: models.Customer, data: dict):
+def get_val(data: Dict[str, Any], key: str) -> str:
     """
-    Orchestrator function called by webhook_service to create all necessary
-    business records based on the extracted intent.
+    Robustly extracts value from ElevenLabs tool output.
+    Handles:
+    1. {"value": "some_data"} (Nested dict)
+    2. "some_data" (Direct string)
+    3. None
     """
-    # 1. Always create the historical conversation/call records
-    create_history_records(db, session)
+    obj = data.get(key)
+    if obj is None:
+        return ""
+    if isinstance(obj, dict):
+        return str(obj.get("value", "")).strip()
+    return str(obj).strip()
 
-    # 2. Determine Intent (Booking vs Ticket)
-    # The key might vary based on ElevenLabs prompt, but usually it's 'extracted_intent'
-    intent_obj = data.get("extracted_intent") 
-    intent = intent_obj.get("value") if isinstance(intent_obj, dict) else str(intent_obj)
+def parse_iso_date(date_str: str) -> datetime:
+    """
+    Attempts to parse ISO date from AI.
+    Fallback: Tomorrow at 10:00 AM
+    """
+    fallback = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=10, minute=0, second=0, microsecond=0)
+    
+    if not date_str:
+        return fallback
+    
+    try:
+        # Clean extra quotes and handle Z
+        clean_date = date_str.replace('"', '').replace("'", "").replace("Z", "+00:00").strip()
+        
+        # Handle simple date (YYYY-MM-DD) vs full ISO
+        if "T" in clean_date:
+            return datetime.fromisoformat(clean_date)
+        else:
+            return datetime.fromisoformat(f"{clean_date}T10:00:00+00:00")
+            
+    except Exception as e:
+        logger.warning(f"⚠️ Date parse failed for '{date_str}': {e}. Using fallback.")
+        return fallback
 
-    logger.info(f"Processing intent '{intent}' for session {session.id}")
+def create_booking_from_conversation(
+    db: Session, 
+    session: Any, # Can be VoiceSession or MockSession
+    customer: models.Customer, 
+    data: Dict[str, Any]
+):
+    """Creates a booking using the EXPLICIT customer object."""
+    logger.info(f"📅 Creating Booking for: {customer.name}")
+
+    # 1. Extract Data
+    raw_date = get_val(data, "preferred_datetime")
+    project_val = get_val(data, "project") or "General Inquiry"
+    
+    # 2. Parse Date
+    final_date = parse_iso_date(raw_date)
+
+    # 3. Create Record
+    # Note: We check if session is a real DB object before linking the FK
+    is_real_session = hasattr(session, "_sa_instance_state")
+    
+    try:
+        booking = models.Booking(
+            id=generate_id("bk"),
+            tenant_id=session.tenant_id,
+            customer_id=customer.id, # Uses the explicitly passed customer
+            session_id=session.id if is_real_session else None, # Don't link FK if it's a ghost session
+            customer_name=customer.name,
+            phone=customer.phone,
+            property_code=project_val,
+            project=project_val,
+            start_date=final_date,
+            preferred_datetime=final_date,
+            source=models.ChannelEnum.voice,
+            created_by=models.AIOrHumanEnum.AI,
+            status=models.BookingStatusEnum.pending,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(booking)
+        logger.info(f"✅ Booking Created: {booking.id} @ {final_date}")
+    except Exception as e:
+        logger.error(f"❌ Booking Creation Failed: {e}", exc_info=True)
+        raise e
+
+def create_ticket_from_conversation(
+    db: Session, 
+    session: Any, 
+    customer: models.Customer, 
+    data: Dict[str, Any]
+):
+    """Creates a ticket using the EXPLICIT customer object."""
+    logger.info(f"🎫 Creating Ticket for: {customer.name}")
+
+    # 1. Extract Data
+    issue_val = get_val(data, "issue") or getattr(session, "summary", "Voice Interaction Issue")
+    project_val = get_val(data, "project") or "General"
+    raw_priority = get_val(data, "priority").lower()
+
+    # 2. Map Priority (Handles your specific 'high' case)
+    priority_enum = models.TicketPriorityEnum.med
+    if "high" in raw_priority or "urgent" in raw_priority:
+        priority_enum = models.TicketPriorityEnum.high
+    elif "low" in raw_priority:
+        priority_enum = models.TicketPriorityEnum.low
+
+    # 3. Create Record
+    is_real_session = hasattr(session, "_sa_instance_state")
+
+    try:
+        ticket = models.Ticket(
+            id=generate_id("tkt"),
+            tenant_id=session.tenant_id,
+            customer_id=customer.id,
+            session_id=session.id if is_real_session else None,
+            customer_name=customer.name,
+            phone=customer.phone,
+            issue=issue_val,
+            project=project_val,
+            category="Voice Support",
+            priority=priority_enum,
+            status=models.TicketStatusEnum.open,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.add(ticket)
+        logger.info(f"✅ Ticket Created: {ticket.id} (Priority: {priority_enum.value})")
+    except Exception as e:
+        logger.error(f"❌ Ticket Creation Failed: {e}", exc_info=True)
+        raise e
+
+def create_history_records(db: Session, session: Any, customer: models.Customer):
+    """Creates Conversation and Call logs for the timeline."""
+    try:
+        conv_id = getattr(session, "conversation_id", None) or generate_id("conv")
+        
+        # Check existence to avoid PK error
+        existing = db.query(models.Conversation).filter(models.Conversation.id == conv_id).first()
+        if existing:
+            return 
+
+        conv = models.Conversation(
+            id=conv_id,
+            tenant_id=session.tenant_id,
+            channel=models.ChannelEnum.voice,
+            customer_id=customer.id,
+            summary=getattr(session, "summary", "Auto-log"),
+            ai_or_human=models.AIOrHumanEnum.AI,
+            created_at=getattr(session, "created_at", datetime.now(timezone.utc)),
+            ended_at=getattr(session, "ended_at", datetime.now(timezone.utc))
+        )
+        db.add(conv)
+        
+        call = models.Call(
+            id=generate_id("call"),
+            tenant_id=session.tenant_id,
+            conversation_id=conv.id,
+            direction=models.CallDirectionEnum.inbound,
+            status=models.CallStatusEnum.connected,
+            ai_or_human=models.AIOrHumanEnum.AI
+        )
+        db.add(call)
+    except Exception as e:
+        logger.warning(f"⚠️ History Log Error: {e}")
+
+def create_full_interaction_record(
+    db: Session, 
+    session: Any, 
+    customer: models.Customer, 
+    data: Dict[str, Any]
+):
+    """
+    Router for AI Intents. Decides what to create.
+    """
+    # 1. Log History (Best Effort)
+    create_history_records(db, session, customer)
+
+    # 2. Identify Intent
+    intent = get_val(data, "extracted_intent")
+    logger.info(f"🧠 Action Routing: Intent='{intent}'")
 
     if intent == "book_appointment":
-        create_booking_from_conversation(db, session, data)
+        create_booking_from_conversation(db, session, customer, data)
     elif intent == "raise_ticket":
-        create_ticket_from_conversation(db, session, data)
+        create_ticket_from_conversation(db, session, customer, data)
     else:
-        # Default behavior if intent is unclear: assume ticket if there is an issue, otherwise just history
-        if data.get("issue"):
-            create_ticket_from_conversation(db, session, data)
+        # Fallback Logic: Look for clues if intent is missing
+        if get_val(data, "issue"):
+            logger.info("↪️ Fallback: Found 'issue', creating Ticket.")
+            create_ticket_from_conversation(db, session, customer, data)
+        elif get_val(data, "preferred_datetime"):
+            logger.info("↪️ Fallback: Found 'date', creating Booking.")
+            create_booking_from_conversation(db, session, customer, data)

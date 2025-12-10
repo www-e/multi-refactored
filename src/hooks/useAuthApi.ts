@@ -41,6 +41,7 @@ export const useAuthApi = () => {
     getConversations: false,
     getCalls: false,
     getCall: false,
+    getVoiceSessions: false,
   });
 
   const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
@@ -356,6 +357,17 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  const getVoiceSessions = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getVoiceSessions', true);
+    try {
+      const result = await apiClient.getVoiceSessions(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getVoiceSessions', false);
+    }
+  }, [accessToken]);
+
   return {
     loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
@@ -389,5 +401,6 @@ export const useAuthApi = () => {
     getConversations,
     getCalls,
     getCall,
+    getVoiceSessions,
   };
 };

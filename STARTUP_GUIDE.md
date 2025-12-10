@@ -157,7 +157,7 @@ alembic upgrade head
 
 
 check logs
-docker logs -f navaia_backend --tail 100 & docker logs -f navaia_frontend --tail 100
+docker logs -f agentic_portal_backend --tail 100 & docker logs -f agentic_portal_frontend --tail 100
 docker ps -a | grep navaia
 
 

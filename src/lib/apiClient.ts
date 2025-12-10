@@ -152,7 +152,7 @@ export const createVoiceSession = (
   token: string,
   customerId?: string,
   customerPhone?: string
-): Promise<{ session_id: string; websocket_url: string }> => {
+): Promise<{ session_id: string; status: string; agent_type: string; customer_id?: string; created_at: string }> => {
   return clientFetch('/voice/sessions', token, {
     method: 'POST',
     body: JSON.stringify({
@@ -376,7 +376,13 @@ const transformCall = (call: any) => ({
   aiOrHuman: call.ai_or_human,
   recordingUrl: call.recording_url,
   createdAt: call.created_at,
-  updatedAt: call.updated_at || call.created_at
+  updatedAt: call.updated_at || call.created_at,
+  // Add voice session fields if they exist in the backend response
+  voiceSessionId: call.voice_session_id || call.session_id,
+  extractedIntent: call.extracted_intent,
+  sessionSummary: call.summary,
+  agentName: call.agent_name,
+  sessionStatus: call.session_status
 });
 
 export const getCalls = (token: string): Promise<any[]> => {
@@ -390,4 +396,23 @@ export const getCall = (id: string, token: string): Promise<any> => {
   return clientFetch(`/calls/${id}`, token).then((call: any) => {
     return transformCall(call);
   });
+};
+
+export interface VoiceSession {
+  id: string;
+  tenant_id: string;
+  customer_id?: string;
+  direction: string;
+  status: string;
+  created_at: string;
+  ended_at?: string;
+  conversation_id?: string;
+  agent_name?: string;
+  customer_phone?: string;
+  summary?: string;
+  extracted_intent?: string;
+}
+
+export const getVoiceSessions = (token: string): Promise<VoiceSession[]> => {
+  return clientFetch('/voice-sessions', token);
 };
