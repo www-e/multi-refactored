@@ -38,8 +38,7 @@ export function useVoiceAgent(
       const errorStr = typeof error === 'string' ? error : JSON.stringify(error);
       console.log('Voice Agent Socket Event:', errorStr);
 
-      // 🟢 THE FIX: If the socket is closing, it means the call is over. 
-      // Do NOT treat it as an error. Reset the UI.
+      // 🟢 Logic to handle normal socket closures gracefully
       if (
         errorStr.includes('CLOSING') || 
         errorStr.includes('CLOSED') || 
@@ -62,20 +61,23 @@ export function useVoiceAgent(
     try {
       options.onStatusChange?.('connecting');
       
-      // 1. Create Backend Session
+      // 1. Create Backend Session First (Get the ID)
       const backendSession = await createVoiceSession(agentType, customerId, customerPhone);
       
-      // 2. Get Agent ID
+      // 2. Get Agent ID based on type
       const agentId = agentType === 'support'
         ? process.env.NEXT_PUBLIC_ELEVENLABS_SUPPORT_AGENT_ID
         : process.env.NEXT_PUBLIC_ELEVENLABS_SALES_AGENT_ID;
 
       if (!agentId) throw new Error(`Agent ID not configured for ${agentType}`);
 
-      // 3. Start Session (Websocket)
+      // 3. Start Session (Websocket) with ID Linkage
       await navigator.mediaDevices.getUserMedia({ audio: true });
+      
       await conversation.startSession({
         agentId: agentId,
+        // @ts-ignore - Ensures compatibility with different SDK versions
+        clientReferenceId: backendSession.session_id, // 👈 CRITICAL: Links 11Labs call to our Backend Session
         // @ts-ignore
         connectionType: 'websocket', 
       });

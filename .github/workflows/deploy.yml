@@ -1,11 +1,9 @@
-## File: .github/workflows/deploy.yml
 name: Agentic Auto-Deploy
 
 on:
   push:
     branches: [ "main" ]
 
-# ✅ SAFETY: GitHub handles the locking for us now.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -26,15 +24,14 @@ jobs:
           script: |
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
-            MAX_RETRIES=12
             
-            # Container Names
+            # Container Names (matching docker-compose.yml container_name)
             DB_CONTAINER="agentic_portal_db"
             BACKEND_CONTAINER="agentic_portal_backend"
             FRONTEND_CONTAINER="agentic_portal_frontend"
 
-            echo "🔓 Force-cleaning any stale lock files to ensure deployment proceeds..."
-            rm -f "/tmp/agentic_navaia_deploy.lock" "/tmp/agentic_navaia_deploy.info"
+            echo "🔓 Force-cleaning any stale lock files..."
+            rm -f "/tmp/agentic_portal_deploy.lock" "/tmp/agentic_portal_deploy.info"
             
             echo "🧹 Pre-deployment cleanup..."
             docker system prune -f 2>/dev/null || true
@@ -61,7 +58,7 @@ jobs:
             
             # 3. Backup Database
             echo "💾 Creating database backup..."
-            BACKUP_FILE="backups/agentic_$(date +%Y%m%d_%H%M%S).sql"
+            BACKUP_FILE="backups/agentic_portal_$(date +%Y%m%d_%H%M%S).sql"
             mkdir -p backups
             docker exec $DB_CONTAINER pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null || echo "⚠️  Backup skipped (DB may not exist yet)"
             ls -t backups/*.sql 2>/dev/null | tail -n +4 | xargs -r rm
@@ -99,32 +96,42 @@ jobs:
             docker image prune -f
             
             # 8. Health Checks
+            echo "💤 Warming up services (waiting 10s)..."
+            sleep 10
+            
             check_health() {
                 local url=$1
                 local name=$2
-                local retries=0
+                local max_retries=12
+                local wait_time=5
+                
                 echo "🏥 Checking $name at $url..."
-                until curl -f -s -o /dev/null "$url"; do
-                    retries=$((retries+1))
-                    if [ $retries -gt $MAX_RETRIES ]; then
-                        echo "❌ $name failed to start."
-                        return 1
+                
+                for i in $(seq 1 $max_retries); do
+                    # Capture HTTP Status Code (000 = Connection Failed)
+                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+                    
+                    if [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ]; then
+                        echo "✅ $name is HEALTHY! (Status: $STATUS)"
+                        return 0
                     fi
-                    echo "⏳ $name not ready yet... waiting 5s ($retries/$MAX_RETRIES)"
-                    sleep 5
+                    
+                    echo "⏳ $name not ready (Status: $STATUS)... waiting ${wait_time}s ($i/$max_retries)"
+                    sleep $wait_time
                 done
-                echo "✅ $name is HEALTHY!"
-                return 0
+                
+                echo "❌ $name failed to start after $((max_retries * wait_time))s."
+                return 1
             }
             
-            # Check Backend (Port 8000)
+            # Check Backend
             if ! check_health "http://127.0.0.1:8000/healthz" "Backend"; then
                 echo "🔍 DUMPING BACKEND LOGS:"
                 docker logs $BACKEND_CONTAINER --tail 50
                 exit 1
             fi
             
-            # Check Frontend (Port 3001)
+            # Check Frontend
             if ! check_health "http://127.0.0.1:3001" "Frontend"; then
                 echo "🔍 DUMPING FRONTEND LOGS:"
                 docker logs $FRONTEND_CONTAINER --tail 50

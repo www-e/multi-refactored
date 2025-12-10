@@ -155,26 +155,16 @@ alembic upgrade head
 
 
 
-
-check logs
+# Check logs
 docker logs -f agentic_portal_backend --tail 100 & docker logs -f agentic_portal_frontend --tail 100
-docker ps -a | grep navaia
 
+# Check Docker containers
+docker ps -a | grep agentic
 
+# Truncate database tables
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE bookings, voice_sessions, customers RESTART IDENTITY CASCADE;"
 
-
-
-
-
-docker exec -it navaia_db psql -U navaia -d navaia -c "TRUNCATE TABLE bookings, voice_sessions, customers RESTART IDENTITY CASCADE;"
-
-
-
-# Check customers table is empty
-docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM customers;"
-
-# Check voice_sessions table is empty  
-docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
-
-# Check bookings table is empty
-docker exec -it navaia_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"
+# Verify tables are empty
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM customers;"
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"
