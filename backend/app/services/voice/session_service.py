@@ -25,11 +25,15 @@ def create_voice_session(
     voice_session = models.VoiceSession(
         id=session_id,
         tenant_id=tenant_id,
-        customer_id=customer_id, # Can be None initially
+        customer_id=customer_id, 
         customer_phone=customer_phone,
-        direction="inbound", # Default assumption, can be adjusted
+        direction="inbound", 
         status=models.VoiceSessionStatus.ACTIVE,
         agent_name=agent_type,
+        
+        # ✅ FIX: Explicitly set locale
+        locale="ar-SA", 
+        
         created_at=datetime.now(timezone.utc)
     )
     
@@ -41,7 +45,6 @@ def create_voice_session(
     return voice_session
 
 def get_voice_session(db_session: Session, session_id: str) -> Optional[models.VoiceSession]:
-    """Retrieves a session by ID."""
     return db_session.query(models.VoiceSession).filter(
         models.VoiceSession.id == session_id
     ).first()

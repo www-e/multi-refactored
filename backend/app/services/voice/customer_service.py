@@ -25,17 +25,17 @@ def normalize_phone_number(phone: str) -> str:
     if clean.startswith('+'): 
         return clean
         
-    # Egypt Handling
+    # Egypt Handling (01X... -> +201X...)
     if clean.startswith('0020'): 
         return '+' + clean[2:]
     if clean.startswith('01') and len(clean) == 11: 
-        return '+20' + clean
+        return '+20' + clean[1:] # ✅ FIX: Drop the leading '0'
         
-    # Saudi Handling
+    # Saudi Handling (05X... -> +9665X...)
     if clean.startswith('966'): 
         return '+' + clean
     if clean.startswith('05') and len(clean) == 10: 
-        return '+966' + clean[1:]
+        return '+966' + clean[1:] # Drop the leading '0'
         
     # Fallback: Just add plus if it looks like digits
     if clean.isdigit(): 
@@ -50,8 +50,6 @@ def upsert_customer(db: Session, phone: str, name: Optional[str], tenant_id: str
     """
     # 1. Handle missing phone scenarios
     if not phone:
-        # If AI failed to get phone, we still need a customer record for the ticket
-        # We generate a unique placeholder
         phone = f"UNKNOWN_{secrets.token_hex(4)}"
         
     normalized = normalize_phone_number(phone)
@@ -64,7 +62,6 @@ def upsert_customer(db: Session, phone: str, name: Optional[str], tenant_id: str
     
     # 3. Update Existing
     if customer:
-        # Update name if we learned a better one (and it's not generic)
         if name and name.strip() and customer.name != name:
             logger.info(f"📝 Updating Name: {customer.name} -> {name}")
             customer.name = name
@@ -75,12 +72,12 @@ def upsert_customer(db: Session, phone: str, name: Optional[str], tenant_id: str
     new_customer = models.Customer(
         id=generate_id(),
         tenant_id=tenant_id,
-        name=name or "New Customer", # Default name
+        name=name or "New Customer",
         phone=normalized,
         created_at=datetime.now(timezone.utc)
     )
     db.add(new_customer)
-    db.flush() # Flush to ensure ID is generated and usable immediately
+    db.flush() 
     
     logger.info(f"🆕 Created Customer: {new_customer.name} ({normalized})")
     return new_customer

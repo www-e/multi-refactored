@@ -77,16 +77,17 @@ class VoiceSession(Base):
     customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     direction: Mapped[str] = mapped_column(String, default="inbound")
     status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)
+    locale: Mapped[str] = mapped_column(String, default="ar-SA", nullable=False) 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True) # ✅ Ensure this exists for webhook
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     conversation_id: Mapped[str | None] = mapped_column(String, unique=True, index=True)
     agent_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    agent_id: Mapped[str | None] = mapped_column(String, nullable=True) # ✅ Added for consistency
+    agent_id: Mapped[str | None] = mapped_column(String, nullable=True)
     customer_phone: Mapped[str | None] = mapped_column(String, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_intent: Mapped[str | None] = mapped_column(String, nullable=True)
-    simulation: Mapped[bool] = mapped_column(Boolean, default=False) # ✅ Added default
+    simulation: Mapped[bool] = mapped_column(Boolean, default=False)
 
 class Ticket(Base):
     __tablename__ = "tickets"
