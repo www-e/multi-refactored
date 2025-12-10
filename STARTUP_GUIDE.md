@@ -168,3 +168,8 @@ docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE bo
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM customers;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"
+
+
+# live watch
+docker logs -f agentic_portal_backend --tail 20
+docker logs -f agentic_portal_frontend --tail 20

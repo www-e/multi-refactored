@@ -1,7 +1,6 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps, Customer, EnhancedCampaign } from "@/app/(shared)/types";
 import { mapCallStatusToArabic } from "@/lib/statusMapper";
 
-// PRODUCTION-READY ERROR HANDLING: A custom error class for API-specific issues.
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -13,14 +12,12 @@ export class ApiError extends Error {
   }
 }
 
-// CENTRALIZED FETCHER: A single, robust function to handle all client-side API calls.
 async function clientFetch<T>(
   endpoint: string,
   accessToken: string,
   options?: RequestInit
 ): Promise<T> {
   const url = `/api${endpoint}`;
-
   try {
     const response = await fetch(url, {
       ...options,
@@ -43,21 +40,17 @@ async function clientFetch<T>(
       );
     }
 
-    // Handle responses with no content (e.g., PATCH, DELETE, POST returning 204)
     if (response.status === 204 || !response.headers.get('content-type')?.includes('application/json')) {
-      return null as T; // Return null explicitly for void/empty responses
+      return null as T;
     }
 
     return response.json();
   } catch (error) {
-    if (error instanceof ApiError) throw error; // Re-throw known API errors
+    if (error instanceof ApiError) throw error;
     console.error(`Client Network Error on ${endpoint}:`, error);
-    // Throw a generic network error for fetch failures (e.g., server is down)
     throw new ApiError('فشل الاتصال بالخادم. يرجى التحقق من اتصال الإنترنت.');
   }
 }
-
-// --- API Functions ---
 
 export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs; liveOps: LiveOps }> =>
   clientFetch('/dashboard', token);
@@ -68,16 +61,13 @@ export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
 export const getTickets = (token: string): Promise<EnhancedTicket[]> =>
   clientFetch('/tickets/recent', token);
 
-// Helper function to transform backend customer data to frontend Customer interface
 const transformCustomer = (customer: any): Customer => ({
   id: customer.id,
   name: customer.name,
   phone: customer.phone,
   email: customer.email,
   budget: customer.budget,
-  // Convert neighborhoods from JSON to array if needed
   neighborhoods: Array.isArray(customer.neighborhoods) ? customer.neighborhoods : (customer.neighborhoods ? [customer.neighborhoods] : []),
-  // Default stage if not provided by backend (can be calculated based on customer history)
   stage: customer.stage || 'جديد',
   consents: customer.consents || {
     marketing: customer.consent || true,
@@ -108,7 +98,6 @@ export const createCustomer = (
   }).then(transformCustomer);
 };
 
-// CORRECTED DATA CONTRACT
 export const createTicket = (
   data: {
     customerId: string;
@@ -322,7 +311,7 @@ export const makeCall = (
 export const makeBulkCalls = (
   customer_ids: string[],
   token: string
-): Promise<any> => {
+): Promise<{ initiated_calls: number; created_calls: number; results?: any[] }> => {
   return clientFetch('/calls/bulk', token, {
     method: 'POST',
     body: JSON.stringify({ customer_ids }),
@@ -348,10 +337,9 @@ export const getConversations = (token: string): Promise<any[]> => {
     const conversations = Array.isArray(convs) ? convs : [];
     return conversations.map((conv: any) => ({
       ...conv,
-      customerId: conv.customer_id,  // Convert snake_case to camelCase
-      type: conv.channel === 'voice' ? 'صوت' : 'رسالة', // Map channel to Arabic type
+      customerId: conv.customer_id,
+      type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
       createdAt: conv.created_at,
-      // Add other fields as needed to match the Conversation interface
       transcript: conv.transcript || [],
       entities: conv.entities || {},
       sentiment: conv.sentiment || 'محايد',
@@ -363,13 +351,11 @@ export const getConversations = (token: string): Promise<any[]> => {
   });
 };
 
-// Helper function to transform backend call data to frontend format
 const transformCall = (call: any) => ({
   ...call,
-  // Map snake_case backend fields to camelCase for consistency
   customerId: call.customer_id,
   conversationId: call.conversation_id,
-  direction: call.direction === 'outbound' ? 'صادر' : 'وارد', // Map to Arabic direction
+  direction: call.direction === 'outbound' ? 'صادر' : 'وارد',
   status: mapCallStatusToArabic(call.status || 'unknown'),
   outcome: call.outcome,
   handleSec: call.handle_sec,
@@ -377,7 +363,6 @@ const transformCall = (call: any) => ({
   recordingUrl: call.recording_url,
   createdAt: call.created_at,
   updatedAt: call.updated_at || call.created_at,
-  // Add voice session fields if they exist in the backend response
   voiceSessionId: call.voice_session_id || call.session_id,
   extractedIntent: call.extracted_intent,
   sessionSummary: call.summary,
@@ -398,6 +383,7 @@ export const getCall = (id: string, token: string): Promise<any> => {
   });
 };
 
+// ✅ FIXED: Correct definition and endpoint
 export interface VoiceSession {
   id: string;
   tenant_id: string;
@@ -413,6 +399,7 @@ export interface VoiceSession {
   extracted_intent?: string;
 }
 
+// ✅ FIXED: Pointing to /voice/sessions (plural, slash)
 export const getVoiceSessions = (token: string): Promise<VoiceSession[]> => {
-  return clientFetch('/voice/sessions', token);
+  return clientFetch<VoiceSession[]>('/voice/sessions', token);
 };
