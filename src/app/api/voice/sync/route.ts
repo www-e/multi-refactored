@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleSessionPostApi } from '@/lib/apiHandler';
+import { handleSessionBasedApi } from '@/lib/apiHandler';
 
-// POST /api/voice/sync
-// Triggers the backend to manually fetch conversation data from ElevenLabs
-// and run the processing logic (creating tickets/bookings/updating customer)
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // 1. Read body ONCE
   const body = await request.json();
   const { conversation_id } = body;
 
@@ -12,15 +10,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Conversation ID is required' }, { status: 400 });
   }
 
-  // We are calling the backend endpoint: POST /elevenlabs/conversation/{id}/process
-  // We use the existing API handler to manage authentication automatically
-  return handleSessionPostApi(
+  // 2. Pass the data explicitly to the backend, NOT the request object
+  // We use handleSessionBasedApi directly to bypass the double-read in handleSessionPostApi
+  return handleSessionBasedApi(
     request,
     `/elevenlabs/conversation/${conversation_id}/process`,
-    {
-        // Pass the body explicitly if needed, but the backend endpoint only needs the ID in the URL
-        // So we transform the request to have an empty body or specific flags if required by backend
-        transformRequest: () => ({ manual_sync: true }) 
-    }
+    'POST',
+    { manual_sync: true } // Pass the body directly here
   );
 }

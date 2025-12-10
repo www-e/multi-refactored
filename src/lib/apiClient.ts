@@ -414,5 +414,5 @@ export interface VoiceSession {
 }
 
 export const getVoiceSessions = (token: string): Promise<VoiceSession[]> => {
-  return clientFetch('/voice-sessions', token);
+  return clientFetch('/voice/sessions', token);
 };

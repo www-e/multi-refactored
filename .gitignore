@@ -91,3 +91,5 @@ package-lock.json
 
 
 .vscode/
+
+backend/tests/
