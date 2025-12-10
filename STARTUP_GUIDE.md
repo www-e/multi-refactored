@@ -162,12 +162,13 @@ docker logs -f agentic_portal_backend --tail 100 & docker logs -f agentic_portal
 docker ps -a | grep agentic
 
 # Truncate database tables
-docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE bookings, voice_sessions, customers RESTART IDENTITY CASCADE;"
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE bookings, voice_sessions, customers , tickets RESTART IDENTITY CASCADE;"
 
 # Verify tables are empty
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM customers;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM tickets;"
 
 
 # live watch

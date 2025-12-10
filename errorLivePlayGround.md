@@ -189,3 +189,29 @@ DETAIL:  Key (conversation_id)=(conv_5901kc4k6b5zekks303g0cf1sw03) is not presen
 (Background on this error at: https://sqlalche.me/e/20/gkpj)
 WARNING:app.api.routes.voice:⚠️ Webhook Warning: {'status': 'error', 'message': 'Action logic failed'}
 INFO:     172.22.0.4:43864 - "POST /voice/post_call HTTP/1.1" 200 OK
+
+
+-------------------------------------------------------------------
+after edit
+INFO:     172.22.0.4:52970 - "GET /dashboard/kpis HTTP/1.1" 200 OK
+INFO:app.services.voice.session_service:📞 Session Started: vs_5237ecf4e661cfea (Agent: support)
+INFO:     172.22.0.4:60974 - "POST /voice/sessions HTTP/1.1" 200 OK
+INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_3301kc4mtb5ve6sbppja6v6anfq5
+INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
+INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688628', RefID='None'
+INFO:app.services.voice.customer_service:🆕 Created Customer: عمر (+201154688628)
+WARNING:app.services.voice.webhook_service:👻 Session not found for conv_3301kc4mtb5ve6sbppja6v6anfq5. Processing as Ghost Call.
+INFO:app.services.voice.action_service:🧠 Action Routing: Intent='raise_ticket'
+INFO:app.services.voice.action_service:🎫 Creating Ticket for: عمر
+INFO:app.services.voice.action_service:✅ Ticket Created: tkt_1db11c94eb2db444 (Priority: high)
+INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for عمر
+INFO:     172.22.0.4:41276 - "POST /voice/post_call HTTP/1.1" 200 OK
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_3301kc4mtb5ve6sbppja6v6anfq5
+INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688628', RefID='None'
+WARNING:app.services.voice.webhook_service:👻 Session not found for conv_3301kc4mtb5ve6sbppja6v6anfq5. Processing as Ghost Call.
+INFO:app.services.voice.action_service:🧠 Action Routing: Intent='raise_ticket'
+INFO:app.services.voice.action_service:🎫 Creating Ticket for: عمر
+INFO:app.services.voice.action_service:✅ Ticket Created: tkt_b4fdd0bc8039332a (Priority: high)
+INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for عمر
+INFO:     172.22.0.4:41288 - "POST /voice/post_call HTTP/1.1" 200 OK

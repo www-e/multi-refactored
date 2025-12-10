@@ -3,6 +3,7 @@ import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Union
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app import models
 
 logger = logging.getLogger(__name__)
@@ -33,9 +34,9 @@ def parse_iso_date(date_str: str) -> datetime:
         return fallback
 
 def create_booking_from_conversation(
-    db: Session, 
-    session: Any, 
-    customer: models.Customer, 
+    db: Session,
+    session: Any,
+    customer: models.Customer,
     data: Dict[str, Any]
 ):
     logger.info(f"📅 Creating Booking for: {customer.name}")
@@ -56,35 +57,37 @@ def create_booking_from_conversation(
             project=project_val,
             start_date=final_date,
             preferred_datetime=final_date,
+            price_sar=0.0,
             source=models.ChannelEnum.voice,
-            created_by=models.AIOrHumanEnum.AI,
             status=models.BookingStatusEnum.pending,
+            created_by=models.AIOrHumanEnum.AI,
             created_at=datetime.now(timezone.utc)
         )
         db.add(booking)
         logger.info(f"✅ Booking Created: {booking.id} @ {final_date}")
     except Exception as e:
         logger.error(f"❌ Booking Creation Failed: {e}", exc_info=True)
-        raise e
+        # Don't raise, allow flow to continue (best effort)
 
 def create_ticket_from_conversation(
-    db: Session, 
-    session: Any, 
-    customer: models.Customer, 
+    db: Session,
+    session: Any,
+    customer: models.Customer,
     data: Dict[str, Any]
 ):
     logger.info(f"🎫 Creating Ticket for: {customer.name}")
     issue_val = get_val(data, "issue") or getattr(session, "summary", "Voice Interaction Issue")
     project_val = get_val(data, "project") or "General"
     raw_priority = get_val(data, "priority").lower()
+    
     priority_enum = models.TicketPriorityEnum.med
     if "high" in raw_priority or "urgent" in raw_priority:
         priority_enum = models.TicketPriorityEnum.high
     elif "low" in raw_priority:
         priority_enum = models.TicketPriorityEnum.low
-
+    
     is_real_session = hasattr(session, "_sa_instance_state")
-
+    
     try:
         ticket = models.Ticket(
             id=generate_id("tkt"),
@@ -104,69 +107,89 @@ def create_ticket_from_conversation(
         logger.info(f"✅ Ticket Created: {ticket.id} (Priority: {priority_enum.value})")
     except Exception as e:
         logger.error(f"❌ Ticket Creation Failed: {e}", exc_info=True)
-        raise e
+        # Don't raise, allow flow to continue
 
 def create_history_records(db: Session, session: Any, customer: models.Customer):
-    """Creates Conversation and Call logs for the timeline."""
-    try:
-        conv_id = getattr(session, "conversation_id", None) or generate_id("conv")
-        
-        # Check existence to avoid PK error
-        existing = db.query(models.Conversation).filter(models.Conversation.id == conv_id).first()
-        if existing:
-            return 
+    """
+    Safely creates Conversation and Call records.
+    Uses nested transaction (begin_nested) to handle race conditions where 
+    ElevenLabs sends duplicate webhooks simultaneously.
+    """
+    conv_id = getattr(session, "conversation_id", None) or generate_id("conv")
+    
+    # 1. Ensure Conversation Exists
+    conversation = db.query(models.Conversation).filter(models.Conversation.id == conv_id).first()
+    
+    if not conversation:
+        try:
+            # Create savepoint for safe insertion attempt
+            with db.begin_nested():
+                conversation = models.Conversation(
+                    id=conv_id,
+                    tenant_id=session.tenant_id,
+                    channel=models.ChannelEnum.voice,
+                    customer_id=customer.id,
+                    summary=getattr(session, "summary", "Auto-log"),
+                    ai_or_human=models.AIOrHumanEnum.AI,
+                    created_at=getattr(session, "created_at", datetime.now(timezone.utc)),
+                    ended_at=getattr(session, "ended_at", datetime.now(timezone.utc))
+                )
+                db.add(conversation)
+                # Flush to trigger constraint check immediately within nested transaction
+                db.flush()
+        except IntegrityError:
+            # Race condition caught: another request created it just now
+            logger.info(f"⚠️ Conversation {conv_id} already exists (race condition), fetching existing.")
+            # Re-fetch the conversation that blocked us
+            conversation = db.query(models.Conversation).filter(models.Conversation.id == conv_id).first()
+        except Exception as e:
+            logger.error(f"❌ Failed to create conversation: {e}")
+            return
 
-        conv = models.Conversation(
-            id=conv_id,
-            tenant_id=session.tenant_id,
-            channel=models.ChannelEnum.voice,
-            customer_id=customer.id,
-            summary=getattr(session, "summary", "Auto-log"),
-            ai_or_human=models.AIOrHumanEnum.AI,
-            created_at=getattr(session, "created_at", datetime.now(timezone.utc)),
-            ended_at=getattr(session, "ended_at", datetime.now(timezone.utc))
-        )
-        db.add(conv)
-        
-        # ✅ CRITICAL FIX: Flush here so the Conversation exists in DB before we link the Call to it
-        db.flush()
-        
-        call = models.Call(
-            id=generate_id("call"),
-            tenant_id=session.tenant_id,
-            conversation_id=conv.id,
-            direction=models.CallDirectionEnum.inbound,
-            status=models.CallStatusEnum.connected,
-            ai_or_human=models.AIOrHumanEnum.AI,
-            created_at=datetime.now(timezone.utc)
-        )
-        db.add(call)
-    except Exception as e:
-        logger.warning(f"⚠️ History Log Error: {e}")
-        # Don't re-raise, we want the booking to succeed even if history log fails slightly
-        # But for debugging, print it clearly
-        print(f"DEBUG HISTORY ERROR: {e}")
+    # 2. Add Call Record (if conversation exists)
+    if conversation:
+        # Check if call already logged for this conversation (deduplication)
+        existing_call = db.query(models.Call).filter(models.Call.conversation_id == conv_id).first()
+        if existing_call:
+            logger.info(f"ℹ️ Call record already exists for conversation {conv_id}")
+            return
+
+        try:
+            call = models.Call(
+                id=generate_id("call"),
+                tenant_id=session.tenant_id,
+                conversation_id=conversation.id,
+                direction=models.CallDirectionEnum.inbound,
+                status=models.CallStatusEnum.connected,
+                ai_or_human=models.AIOrHumanEnum.AI,
+                created_at=datetime.now(timezone.utc)
+            )
+            db.add(call)
+            # We don't strictly need to flush here, main commit will handle it
+        except Exception as e:
+            logger.error(f"❌ Failed to create call record: {e}")
+    else:
+        logger.error(f"❌ Could not link Call to Conversation {conv_id} (Missing)")
 
 def create_full_interaction_record(
-    db: Session, 
-    session: Any, 
-    customer: models.Customer, 
+    db: Session,
+    session: Any,
+    customer: models.Customer,
     data: Dict[str, Any]
 ):
-    # 1. Log History (Best Effort)
-    # We moved the try/catch inside the function so it doesn't block the booking
+    # 1. Log History (Safe Mode)
     create_history_records(db, session, customer)
-
-    # 2. Identify Intent
+    
+    # 2. Execute Business Logic
     intent = get_val(data, "extracted_intent")
     logger.info(f"🧠 Action Routing: Intent='{intent}'")
-
+    
     if intent == "book_appointment":
         create_booking_from_conversation(db, session, customer, data)
     elif intent == "raise_ticket":
         create_ticket_from_conversation(db, session, customer, data)
     else:
-        # Fallback Logic
+        # Fallback Heuristics
         if get_val(data, "issue"):
             logger.info("↪️ Fallback: Found 'issue', creating Ticket.")
             create_ticket_from_conversation(db, session, customer, data)
