@@ -111,7 +111,8 @@ jobs:
                     # Capture HTTP Status Code (000 = Connection Failed)
                     STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
                     
-                    if [ "$STATUS" = "200" ] || [ "$STATUS" = "201" ]; then
+                    # Accept 2xx and 3xx as healthy (3xx = redirects are OK)
+                    if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
                         echo "✅ $name is HEALTHY! (Status: $STATUS)"
                         return 0
                     fi

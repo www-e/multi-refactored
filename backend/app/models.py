@@ -5,7 +5,6 @@ import enum
 from typing import Any
 from .db import Base
 
-# --- ENUMS ---
 class ChannelEnum(str, enum.Enum):
     voice = "voice"
     chat = "chat"
@@ -60,14 +59,12 @@ class UserRoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
 
-# --- MODELS ---
-
 class Customer(Base):
     __tablename__ = "customers"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True, default="demo-tenant")
     name: Mapped[str] = mapped_column(String, index=True, default="Unknown")
-    phone: Mapped[str] = mapped_column(String, index=True, nullable=False) # Phone is critical
+    phone: Mapped[str] = mapped_column(String, index=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     neighborhoods: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     consent: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -77,17 +74,19 @@ class VoiceSession(Base):
     __tablename__ = "voice_sessions"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String, index=True)
-    # Nullable because session starts before customer is identified
     customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     direction: Mapped[str] = mapped_column(String, default="inbound")
     status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True) # ✅ Ensure this exists for webhook
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     conversation_id: Mapped[str | None] = mapped_column(String, unique=True, index=True)
     agent_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    agent_id: Mapped[str | None] = mapped_column(String, nullable=True) # ✅ Added for consistency
     customer_phone: Mapped[str | None] = mapped_column(String, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_intent: Mapped[str | None] = mapped_column(String, nullable=True)
+    simulation: Mapped[bool] = mapped_column(Boolean, default=False) # ✅ Added default
 
 class Ticket(Base):
     __tablename__ = "tickets"
@@ -103,6 +102,9 @@ class Ticket(Base):
     customer_name: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
     assignee: Mapped[str | None] = mapped_column(String, nullable=True)
+    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True) # ✅ Ensure consistency
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 class Booking(Base):
@@ -132,9 +134,10 @@ class Conversation(Base):
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     sentiment: Mapped[str | None] = mapped_column(String, nullable=True)
     ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI)
-    recording_url: Mapped[str | None] = mapped_column(String, nullable=True) # Used to link to ElevenLabs Conv ID
+    recording_url: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 class Call(Base):
     __tablename__ = "calls"
@@ -147,8 +150,10 @@ class Call(Base):
     outcome: Mapped[CallOutcomeEnum | None] = mapped_column(Enum(CallOutcomeEnum), default=CallOutcomeEnum.info)
     ai_or_human: Mapped[AIOrHumanEnum] = mapped_column(Enum(AIOrHumanEnum), default=AIOrHumanEnum.AI)
     recording_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # ✅ FIXED: The critical missing field
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-# Auth
 class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -170,6 +175,7 @@ class Campaign(Base):
     objective: Mapped[str] = mapped_column(String)
     status: Mapped[str] = mapped_column(String, default="active")
     audience_query: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    schedule: Mapped[dict | None] = mapped_column(JSON, nullable=True) # ✅ Added back to match alembic
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 class CampaignMetrics(Base):
@@ -184,3 +190,48 @@ class CampaignMetrics(Base):
     booked: Mapped[int] = mapped_column(Integer, default=0)
     revenue_sar: Mapped[float] = mapped_column(Float, default=0.0)
     roas: Mapped[float] = mapped_column(Float, default=0.0)
+
+# Supporting tables for consistency
+class Event(Base):
+    __tablename__ = "events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+class Handoff(Base):
+    __tablename__ = "handoffs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), nullable=False)
+    from_tier: Mapped[str] = mapped_column(String, nullable=False)
+    to_tier: Mapped[str] = mapped_column(String, nullable=False)
+    reason: Mapped[str] = mapped_column(String, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+
+class Approval(Base):
+    __tablename__ = "approvals"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    entity_type: Mapped[str] = mapped_column(String, nullable=False)
+    entity_id: Mapped[str] = mapped_column(String, nullable=False)
+    approver: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    tenant_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+class Message(Base):
+    __tablename__ = "messages"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
