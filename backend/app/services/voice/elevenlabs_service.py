@@ -3,7 +3,7 @@ import logging
 import hmac
 import hashlib
 import json
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from fastapi import Request, HTTPException
 
 logger = logging.getLogger(__name__)
