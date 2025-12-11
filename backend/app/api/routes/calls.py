@@ -32,6 +32,7 @@ class CallResponse(BaseModel):
     status: str
     outcome: Optional[str]
     created_at: datetime
+    handle_sec: Optional[int] = None
     # Voice Session fields
     voice_session_id: Optional[str] = None
     extracted_intent: Optional[str] = None
@@ -84,6 +85,7 @@ async def create_call(
         status=db_call.status.value,
         outcome=None,
         created_at=db_call.created_at,
+        handle_sec=db_call.handle_sec,
         voice_session_id=None,
         extracted_intent=None,
         summary=None,
@@ -160,6 +162,7 @@ def get_calls(
             status=c.status.value if hasattr(c.status, 'value') else str(c.status),
             outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
             created_at=c.created_at,
+            handle_sec=c.handle_sec,
             voice_session_id=None,  # Will be populated if we find a connection
             extracted_intent=None,
             summary=None,

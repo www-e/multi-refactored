@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, campaigns, calls, conversations, voice_sessions
+from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, campaigns, calls, conversations, voice_sessions, transcripts
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(campaigns.router, tags=["Campaigns"])
 api_router.include_router(calls.router, tags=["Calls"])
 api_router.include_router(conversations.router, tags=["Conversations"])
 api_router.include_router(voice_sessions.router, tags=["Voice Sessions"])
+api_router.include_router(transcripts.router, tags=["Transcripts"])

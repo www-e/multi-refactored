@@ -155,6 +155,12 @@ def create_history_records(db: Session, session: Any, customer: models.Customer)
             return
 
         try:
+            # Calculate handle_sec if session has start and end times
+            handle_sec = None
+            if hasattr(session, 'created_at') and hasattr(session, 'ended_at') and session.created_at and session.ended_at:
+                duration_seconds = (session.ended_at - session.created_at).total_seconds()
+                handle_sec = int(duration_seconds)
+
             call = models.Call(
                 id=generate_id("call"),
                 tenant_id=session.tenant_id,
@@ -162,6 +168,7 @@ def create_history_records(db: Session, session: Any, customer: models.Customer)
                 direction=models.CallDirectionEnum.inbound,
                 status=models.CallStatusEnum.connected,
                 ai_or_human=models.AIOrHumanEnum.AI,
+                handle_sec=handle_sec,
                 created_at=datetime.now(timezone.utc)
             )
             db.add(call)

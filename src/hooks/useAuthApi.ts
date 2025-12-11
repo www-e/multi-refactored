@@ -42,6 +42,7 @@ export const useAuthApi = () => {
     getCalls: false,
     getCall: false,
     getVoiceSessions: false,
+    getTranscript: false,
   });
 
   const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
@@ -368,10 +369,22 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  const getTranscript = useCallback(async (conversationId: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getTranscript', true);
+    try {
+      const result = await apiClient.getTranscript(conversationId, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getTranscript', false);
+    }
+  }, [accessToken]);
+
   return {
     loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
     isLoading: status === 'loading',
+    isTranscriptLoading: loadingStates.getTranscript,
 
     getDashboardKpis,
     getTickets,
@@ -402,5 +415,6 @@ export const useAuthApi = () => {
     getCalls,
     getCall,
     getVoiceSessions,
+    getTranscript,
   };
 };

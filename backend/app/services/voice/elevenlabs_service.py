@@ -85,7 +85,7 @@ def extract_conversation_data(data: Dict[str, Any]) -> Tuple[Dict, str, str, str
     analysis = data.get("analysis", {})
     metadata = data.get("metadata", {})
     data_collection = analysis.get("data_collection_results", {})
-    
+
     # Helper to safely get string values
     def get_val(key):
         val = data_collection.get(key)
@@ -97,19 +97,89 @@ def extract_conversation_data(data: Dict[str, Any]) -> Tuple[Dict, str, str, str
     phone = get_val("phone")
     name = get_val("customer_name")
     summary = analysis.get("transcript_summary") or analysis.get("call_summary_title", "Voice Interaction")
-    
+
     # Robust extraction of client reference ID
     # ElevenLabs sometimes puts it in 'user_id' or 'custom_LLM_metadata'
     client_ref_id = str(metadata.get("user_id", "")).strip()
-    
+
     # Log metadata for debugging context
     if not client_ref_id:
         logger.debug(f"🔍 Metadata Dump: {json.dumps(metadata)}")
-    
+
     # Heuristic: If ID looks like a phone number, it's not a session ID
     if client_ref_id and len(client_ref_id) < 15 and client_ref_id.isdigit():
         if not phone:
             phone = client_ref_id
         client_ref_id = None
-        
+
     return data_collection, intent, phone, summary, name, client_ref_id
+
+
+def extract_transcript_from_conversation(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Extracts transcript from ElevenLabs conversation data.
+    Returns: List of transcript entries with role, text, and timestamp
+    """
+    transcript = []
+
+    # Try different possible locations for transcript data
+    conversation_data = data.get("conversation", {})
+    if not conversation_data:
+        conversation_data = data
+
+    # Look for messages in conversation data
+    messages = conversation_data.get("messages", [])
+
+    # If messages not found, try 'user_transcript' or 'agent_transcript'
+    if not messages:
+        user_transcript = conversation_data.get("user_transcript", [])
+        agent_transcript = conversation_data.get("agent_transcript", [])
+
+        # Combine both if they exist
+        for ut in user_transcript:
+            transcript.append({
+                "role": "user",
+                "text": ut.get("text", ""),
+                "timestamp": ut.get("time_in_call_secs", 0)
+            })
+
+        for at in agent_transcript:
+            transcript.append({
+                "role": "assistant",
+                "text": at.get("text", ""),
+                "timestamp": at.get("time_in_call_secs", 0)
+            })
+    else:
+        # Process standard messages format
+        for msg in messages:
+            transcript.append({
+                "role": msg.get("role", "unknown"),
+                "text": msg.get("text", ""),
+                "timestamp": msg.get("time_in_call_secs", 0)
+            })
+
+    # Sort by timestamp if available
+    transcript.sort(key=lambda x: x.get("timestamp", 0))
+
+    return transcript
+
+def check_transcript_availability(data: Dict[str, Any]) -> bool:
+    """
+    Checks if transcript is available in the ElevenLabs conversation data.
+    Returns: Boolean indicating if transcript is available
+    """
+    # Try different possible locations for transcript data
+    conversation_data = data.get("conversation", {})
+    if not conversation_data:
+        conversation_data = data
+
+    # Check if messages exist
+    messages = conversation_data.get("messages", [])
+    if messages:
+        return True
+
+    # Check if user or agent transcripts exist
+    user_transcript = conversation_data.get("user_transcript", [])
+    agent_transcript = conversation_data.get("agent_transcript", [])
+
+    return len(user_transcript) > 0 or len(agent_transcript) > 0

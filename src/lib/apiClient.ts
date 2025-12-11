@@ -403,3 +403,19 @@ export interface VoiceSession {
 export const getVoiceSessions = (token: string): Promise<VoiceSession[]> => {
   return clientFetch<VoiceSession[]>('/voice/sessions', token);
 };
+
+export interface TranscriptResponse {
+  conversation_id: string;
+  transcript: Array<{
+    role: string;
+    text: string;
+    timestamp: number;
+  }>;
+  summary?: string;
+  extracted_intent?: string;
+  is_available: boolean;
+}
+
+export const getTranscript = (conversationId: string, token: string): Promise<TranscriptResponse> => {
+  return clientFetch(`/transcripts/${conversationId}`, token);
+};

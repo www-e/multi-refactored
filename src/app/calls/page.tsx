@@ -10,13 +10,16 @@ import { formatDate } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import { AudioPlayer } from '@/components/features/calls/AudioPlayer';
+import { TranscriptModal } from '@/components/features/calls/TranscriptModal';
 
 export default function CallsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [transcriptModalOpen, setTranscriptModalOpen] = useState(false);
 
   const { calls, setCalls, setCallsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getCalls, getCustomers, getVoiceSessions, isAuthenticated } = useAuthApi();
+  const { getCalls, getCustomers, getVoiceSessions, getTranscript, isAuthenticated } = useAuthApi();
 
   // Fetch calls, voice sessions and customers
   useEffect(() => {
@@ -283,6 +286,12 @@ export default function CallsPage() {
                         <p className="font-medium">{selectedCall.voiceSessionId}</p>
                       </div>
                     )}
+                    {selectedCall.conversationId && (
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-500 mb-1">رقم المحادثة</h4>
+                        <p className="font-medium">{selectedCall.conversationId}</p>
+                      </div>
+                    )}
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تاريخ البدء</h4>
                       <p className="font-medium">
@@ -362,12 +371,60 @@ export default function CallsPage() {
                     </div>
                   )}
 
+                  {/* Show extracted intent if available, prioritizing it over outcome */}
+                  {selectedCall.extractedIntent && (
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-500 mb-1">نوع المكالمة</h4>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge
+                          status={(() => {
+                            switch(selectedCall.extractedIntent) {
+                              case 'raise_ticket':
+                                return 'ticket';
+                              case 'book_appointment':
+                                return 'booked';
+                              case 'none':
+                                return 'info';
+                              default:
+                                return 'info';
+                            }
+                          })()}
+                        />
+                        <span className="font-medium">
+                          {(() => {
+                            switch(selectedCall.extractedIntent) {
+                              case 'raise_ticket':
+                                return 'رفع تذكرة';
+                              case 'book_appointment':
+                                return 'حجز موعد';
+                              case 'none':
+                                return 'غير مصنفة';
+                              default:
+                                return selectedCall.extractedIntent;
+                            }
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {selectedCall.recordingUrl && (
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">تسجيل المكالمة</h4>
-                      <button className="flex items-center gap-2 bg-primary text-white px-3 py-1 rounded-full text-sm">
-                        <Play size={14} />
-                        <span>استمع للتسجيل</span>
+                      <AudioPlayer src={selectedCall.recordingUrl} />
+                    </div>
+                  )}
+
+                  {/* Transcript button if conversation ID is available */}
+                  {selectedCall.conversationId && (
+                    <div>
+                      <h4 className="text-sm font-medium text-slate-500 mb-1">النص</h4>
+                      <button
+                        onClick={() => setTranscriptModalOpen(true)}
+                        className="flex items-center gap-2 bg-primary text-white px-3 py-1 rounded-full text-sm"
+                      >
+                        <MessageSquare size={14} />
+                        <span>عرض النص</span>
                       </button>
                     </div>
                   )}
@@ -383,6 +440,15 @@ export default function CallsPage() {
             )}
           </div>
         </div>
+
+        {/* Transcript Modal */}
+        {selectedCall && selectedCall.conversationId && (
+          <TranscriptModal
+            open={transcriptModalOpen}
+            onOpenChange={setTranscriptModalOpen}
+            conversationId={selectedCall.conversationId}
+          />
+        )}
       </div>
     </div>
   );

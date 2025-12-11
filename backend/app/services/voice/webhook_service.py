@@ -92,13 +92,17 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
             customer = upsert_customer(db, phone, name, current_tenant_id)
 
         # Create virtual session object for the logic
+        # Use conversation timestamps from ElevenLabs data if available, otherwise use current time
+        conversation_start_time = data.get('created_at') or datetime.now(timezone.utc)
+        conversation_end_time = data.get('ended_at') or datetime.now(timezone.utc)
+
         session = SimpleNamespace(
             id=client_ref_id if client_ref_id else f"ghost_{conv_id[:8]}",
             tenant_id=current_tenant_id,
             conversation_id=conv_id,
             summary=summary,
-            created_at=datetime.now(timezone.utc),
-            ended_at=datetime.now(timezone.utc),
+            created_at=conversation_start_time,
+            ended_at=conversation_end_time,
             customer_id=customer.id,
             status=models.VoiceSessionStatus.COMPLETED
         )
@@ -106,11 +110,25 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
     # 4. Action Execution
     try:
         create_full_interaction_record(db, session, customer, data_dict)
-        
+
+        # Update call duration if conversation data contains timing info
+        # Calculate duration from ended_at - created_at and store in handle_sec
+        if hasattr(session, 'ended_at') and hasattr(session, 'created_at') and session.ended_at and session.created_at:
+            duration_seconds = (session.ended_at - session.created_at).total_seconds()
+            # Update corresponding call record with duration
+            if hasattr(session, 'conversation_id'):
+                # Find the call associated with this conversation
+                call_record = db.query(models.Call).filter(
+                    models.Call.conversation_id == session.conversation_id
+                ).first()
+                if call_record:
+                    call_record.handle_sec = int(duration_seconds)
+                    db.add(call_record)
+
         # Determine if we are committing a real SQLAlchemy object or just the side-effects
         if hasattr(session, "_sa_instance_state"):
             db.add(session)
-            
+
         db.commit()
         logger.info(f"🚀 SUCCESS: Webhook processed for {customer.name} (Tenant: {current_tenant_id})")
         return {
