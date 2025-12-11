@@ -12,6 +12,7 @@ import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Card } from '@/components/shared/ui/Card';
+import ActionMenu from '@/components/shared/ui/ActionMenu';
 import BookingModal from '@/components/shared/modals/BookingModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
@@ -208,6 +209,7 @@ export default function BookingsPage() {
                     <table className="w-full">
                         <thead className="bg-slate-50 dark:bg-slate-800/50">
                             <tr>
+                                <th className="p-4 w-12 text-center font-semibold text-slate-900 dark:text-slate-100">#</th>
                                 <th className="text-right p-4">العميل</th>
                                 <th className="text-right p-4">العقار/المشروع</th>
                                 <th className="text-right p-4">التاريخ</th>
@@ -219,13 +221,14 @@ export default function BookingsPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {filteredBookings.length === 0 && (
-                                <tr><td colSpan={7} className="p-8 text-center text-slate-500">لا توجد حجوزات لعرضها</td></tr>
+                                <tr><td colSpan={8} className="p-8 text-center text-slate-500">لا توجد حجوزات لعرضها</td></tr>
                             )}
-                            {filteredBookings.map(booking => {
+                            {filteredBookings.map((booking, index) => {
                                 const customerName = getCustomerName(booking);
                                 const propDisplay = getPropertyDisplay(booking);
                                 return (
                                     <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                        <td className="p-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary"><User size={16}/></div>
@@ -242,11 +245,28 @@ export default function BookingsPage() {
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>
                                         <td className="p-4">
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setSelectedBooking(booking.id)} className="p-2 hover:bg-slate-100 rounded-lg"><Eye size={16}/></button>
-                                                <button onClick={() => handleEditBooking(booking)} className="p-2 hover:bg-slate-100 rounded-lg"><Edit size={16}/></button>
-                                                <button onClick={() => handleDeleteBooking({id: booking.id, customerName: customerName})} className="p-2 hover:bg-destructive/20 rounded-lg text-destructive"><Trash2 size={16}/></button>
-                                            </div>
+                                            <ActionMenu
+                                                actions={[
+                                                    {
+                                                        label: 'عرض التفاصيل',
+                                                        icon: <Eye size={16} />,
+                                                        onClick: () => setSelectedBooking(booking.id),
+                                                        color: 'text-slate-600 dark:text-slate-400'
+                                                    },
+                                                    {
+                                                        label: 'تعديل',
+                                                        icon: <Edit size={16} />,
+                                                        onClick: () => handleEditBooking(booking),
+                                                        color: 'text-slate-600 dark:text-slate-400'
+                                                    },
+                                                    {
+                                                        label: 'حذف',
+                                                        icon: <Trash2 size={16} />,
+                                                        onClick: () => handleDeleteBooking({id: booking.id, customerName: customerName}),
+                                                        color: 'text-destructive'
+                                                    }
+                                                ]}
+                                            />
                                         </td>
                                     </tr>
                                 );

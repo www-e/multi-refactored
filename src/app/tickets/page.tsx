@@ -1,13 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, MapPin, User, Clock, Edit, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, User, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
-import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import ActionMenu from '@/components/shared/ui/ActionMenu';
 import TicketModal from '@/components/shared/modals/TicketModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
@@ -19,8 +19,10 @@ export default function TicketsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<any>(null);
   const [ticketToEdit, setTicketToEdit] = useState<any>(null);
+  const [ticketToView, setTicketToView] = useState<any>(null);
 
   const { tickets, setTickets, setTicketsLoading, customers, setCustomers, addTicket, removeTicket, updateTicket: updateTicketInStore } = useAppStore();
   const { getTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
@@ -59,46 +61,43 @@ export default function TicketsPage() {
     setIsEditModalOpen(true);
   };
 
-  const columns = [
-    { id: 'open', label: 'مفتوحة', color: 'bg-blue-500' },
-    { id: 'in_progress', label: 'قيد المعالجة', color: 'bg-yellow-500' },
-    { id: 'pending_approval', label: 'بانتظار الموافقة', color: 'bg-orange-500' },
-    { id: 'resolved', label: 'محلولة', color: 'bg-green-500' },
-  ];
+  const handleViewTicket = (ticket: any) => {
+    setTicketToView(ticket);
+    setIsViewModalOpen(true);
+  };
 
-  const filteredTickets = tickets.filter(t => 
-    (t.issue.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredTickets = tickets.filter(t =>
+    (t.issue.toLowerCase().includes(searchQuery.toLowerCase()) ||
     getCustomerName(t).toLowerCase().includes(searchQuery.toLowerCase())) &&
     (statusFilter === 'all' || t.status === statusFilter)
   );
 
-  const matchesStatus = (ticketStatus: string, colId: string) => {
-    const s = ticketStatus.toLowerCase();
-    if (colId === 'open') return s === 'open' || s === 'مفتوحة';
-    if (colId === 'in_progress') return s === 'in_progress' || s === 'قيد_المعالجة';
-    if (colId === 'pending_approval') return s === 'pending_approval' || s === 'بانتظار_الموافقة';
-    if (colId === 'resolved') return s === 'resolved' || s === 'محلولة' || s === 'closed';
-    return false;
-  };
-
-  const getNextStatus = (currentStatus: string): string => {
-    if (matchesStatus(currentStatus, 'open')) return 'قيد المعالجة';
-    if (matchesStatus(currentStatus, 'in_progress')) return 'محلولة';
-    return 'مغلقة';
-  };
-
-  const handleNextStatus = async (id: string, currentStatus: string) => {
-    let nextStatus: 'in_progress' | 'resolved' | null = null;
-    if (matchesStatus(currentStatus, 'open')) nextStatus = 'in_progress';
-    else if (matchesStatus(currentStatus, 'in_progress')) nextStatus = 'resolved';
-    
-    if (nextStatus) {
-        try {
-            await updateTicketStatus(id, nextStatus);
-            updateTicketInStore(id, { status: nextStatus });
-        } catch (error) { console.error(error); }
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'open': return 'مفتوحة';
+      case 'in_progress': return 'قيد المعالجة';
+      case 'resolved': return 'محلولة';
+      default: return status;
     }
   };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'low': return 'منخفض';
+      case 'med': return 'متوسط';
+      case 'high': return 'عالٍ';
+      case 'urgent': return 'عاجل';
+      default: return priority;
+    }
+  };
+
+
+  const statusOptions = [
+    { value: 'all', label: 'الكل' },
+    { value: 'open', label: 'مفتوحة' },
+    { value: 'in_progress', label: 'قيد المعالجة' },
+    { value: 'resolved', label: 'محلولة' },
+  ];
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
@@ -126,70 +125,120 @@ export default function TicketsPage() {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث بالعميل أو المشكلة..." onFilterClick={() => {}} />
           <div className="flex gap-2">
-            {['all', 'open', 'in_progress', 'pending_approval', 'resolved'].map(status => (
+            {statusOptions.map(option => (
                 <button
-                  key={status}
-                  className={`px-3 py-2 rounded-lg text-sm ${statusFilter === status ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
-                  onClick={() => setStatusFilter(status)}
+                  key={option.value}
+                  className={`px-3 py-2 rounded-lg text-sm ${statusFilter === option.value ? 'bg-primary text-white' : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
+                  onClick={() => setStatusFilter(option.value)}
                 >
-                  {status === 'all' ? 'الكل' : 
-                   status === 'open' ? 'مفتوحة' : 
-                   status === 'in_progress' ? 'قيد المعالجة' : 
-                   status === 'pending_approval' ? 'بانتظار الموافقة' : 'محلولة'}
+                  {option.label}
                 </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 overflow-x-auto pb-4">
-            {columns.map(col => {
-                const colTickets = filteredTickets.filter(t => matchesStatus(t.status, col.id));
-                return (
-                    <div key={col.id} className="min-w-[280px]">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${col.color}`}></div>
-                                <h3 className="font-bold">{col.label}</h3>
-                            </div>
-                            <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full text-xs">{colTickets.length}</span>
-                        </div>
-                        <div className="space-y-3">
-                            {colTickets.map(ticket => {
-                                const customerName = getCustomerName(ticket);
-                                return (
-                                    <Card key={ticket.id} className="p-4 hover:shadow-md cursor-pointer border-l-4" style={{ borderLeftColor: col.color.replace('bg-', '') }}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <StatusBadge status={ticket.priority} />
-                                            <div className="flex gap-1">
-                                                <button onClick={(e) => { e.stopPropagation(); handleNextStatus(ticket.id, ticket.status); }} className="p-1 hover:bg-slate-100 rounded" title={`الانتقال إلى الحالة: ${getNextStatus(ticket.status)}`}>
-                                                    <Clock size={14} className="text-slate-400 hover:text-primary" />
-                                                </button>
-                                                <button onClick={(e) => { e.stopPropagation(); setTicketToDelete(ticket); setIsDeleteModalOpen(true); }} className="p-1 hover:bg-red-50 rounded">
-                                                    <Trash2 size={14} className="text-slate-400 hover:text-red-500" />
-                                                </button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleEditTicket(ticket); }} className="p-1 hover:bg-slate-100 rounded">
-                                                    <Edit size={14} className="text-slate-400 hover:text-primary" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <h4 className="font-semibold text-sm mb-1">{customerName}</h4>
-                                        <p className="text-xs text-slate-500 mb-3 line-clamp-2">{ticket.issue}</p>
-                                        <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-700">
-                                            <span className="flex items-center gap-1"><User size={12} /> {ticket.category}</span>
-                                            <span>{formatDate(ticket.createdAt)}</span>
-                                        </div>
-                                    </Card>
-                                );
-                            })}
-                            {colTickets.length === 0 && (
-                                <div className="p-4 text-center text-slate-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed text-sm">
-                                    لا يوجد تذاكر
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
+        {/* Table View */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+                <tr>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-12">#</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">العميل</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشكلة</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الفئة</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الأولوية</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الحالة</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشروع</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">التاريخ</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                {filteredTickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                      لا توجد تذاكر
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTickets.map((ticket, index) => {
+                    const customerName = getCustomerName(ticket);
+                    return (
+                      <tr
+                        key={ticket.id}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
+                        onClick={() => handleViewTicket(ticket)}
+                      >
+                        <td className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <User className="w-4 h-4 text-slate-400 ml-2" />
+                            <span className="font-medium">{customerName}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-slate-900 dark:text-slate-100 line-clamp-2 max-w-xs">
+                            {ticket.issue}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                          {ticket.category}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <StatusBadge status={ticket.priority} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            ticket.status === 'open' ? 'bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300' :
+                            ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300' :
+                            'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300'
+                          }`}>
+                            {getStatusLabel(ticket.status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                          {ticket.project || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                          {formatDate(ticket.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <ActionMenu
+                            position="left"
+                            actions={[
+                              {
+                                label: 'تعديل',
+                                icon: <Edit size={16} />,
+                                onClick: () => {
+                                  handleEditTicket(ticket);
+                                },
+                                color: 'text-slate-600 dark:text-slate-400'
+                              },
+                              {
+                                label: 'حذف',
+                                icon: <Trash2 size={16} />,
+                                onClick: () => {
+                                  setTicketToDelete(ticket);
+                                  setIsDeleteModalOpen(true);
+                                },
+                                color: 'text-destructive'
+                              }
+                            ]}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          {filteredTickets.length > 0 && (
+            <div className="px-6 py-3 text-sm text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
+              تم العثور على {filteredTickets.length} تذكرة
+            </div>
+          )}
         </div>
 
         <TicketModal
@@ -226,6 +275,20 @@ export default function TicketsPage() {
                 });
             }}
             isSubmitting={isSubmitting}
+        />
+
+        <TicketModal
+            isOpen={isViewModalOpen}
+            onClose={() => {
+              setIsViewModalOpen(false);
+              setTicketToView(null);
+            }}
+            title="تفاصيل التذكرة"
+            customers={customers}
+            ticket={ticketToView}
+            viewMode={true}
+            onSubmit={async (data) => {}} // No submit needed for view mode
+            isSubmitting={false}
         />
 
         <DeleteConfirmModal

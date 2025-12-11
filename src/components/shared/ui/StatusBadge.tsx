@@ -25,8 +25,6 @@ const statusStyles: Partial<Record<TStatus, string>> = {
   'مفتوحة': 'bg-blue-500 text-white',
   'in_progress': 'bg-yellow-500 text-white',
   'قيد_المعالجة': 'bg-yellow-500 text-white',
-  'pending_approval': 'bg-orange-500 text-white',
-  'بانتظار_الموافقة': 'bg-orange-500 text-white',
   'resolved': 'bg-green-500 text-white',
   'محلولة': 'bg-green-500 text-white',
   // Booking Status

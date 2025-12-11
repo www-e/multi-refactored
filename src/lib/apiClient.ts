@@ -127,7 +127,7 @@ export const updateBookingStatus = (
 
 export const updateTicketStatus = (
   id: string,
-  status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval',
+  status: 'in_progress' | 'resolved' | 'closed',
   token: string
 ): Promise<null> => {
   return clientFetch<null>(`/tickets/${id}`, token, {

@@ -15,6 +15,7 @@ interface ModalFormLayoutProps {
   isOpen: boolean;
   maxWidth?: 'md' | 'lg' | 'xl';
   destructive?: boolean;
+  showSubmitButton?: boolean;
 }
 
 export default function ModalFormLayout({
@@ -28,15 +29,19 @@ export default function ModalFormLayout({
   onCancel,
   isOpen,
   maxWidth = 'lg',
-  destructive = false
+  destructive = false,
+  showSubmitButton
 }: ModalFormLayoutProps) {
   if (!isOpen) return null;
 
   const maxWidthClasses = {
     md: 'max-w-md',
-    lg: 'max-w-lg', 
+    lg: 'max-w-lg',
     xl: 'max-w-xl'
   };
+
+  // Default to showing submit button if not specified
+  const showSubmitButtonFinal = showSubmitButton !== undefined ? showSubmitButton : true;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -45,7 +50,7 @@ export default function ModalFormLayout({
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
         </div>
-        
+
         {/* Form Content */}
         <form onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }} className="p-6 space-y-4">
           {children}
@@ -69,9 +74,9 @@ export default function ModalFormLayout({
                 {cancelLabel}
               </Button>
             )}
-            {onSubmit && (
-              <Button 
-                type="submit" 
+            {onSubmit && showSubmitButtonFinal && (
+              <Button
+                type="submit"
                 disabled={isSubmitting}
                 className={destructive ? "bg-red-600 hover:bg-red-700 text-white" : ""}
               >

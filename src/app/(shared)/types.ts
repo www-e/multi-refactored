@@ -198,7 +198,7 @@ export interface EnhancedTicket {
   category: string;
   issue: string;
   assignee?: string;
-  status: 'open' | 'in_progress' | 'pending_approval' | 'resolved';
+  status: 'open' | 'in_progress' | 'resolved';
   slaDueAt?: string;
   resolutionNote?: string;
   approvedBy?: string;

@@ -156,12 +156,11 @@ export default function CustomerDetailModal({
                     <span className={`px-2 py-1 rounded-full text-xs ${
                       ticket.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
                       ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                      ticket.status === 'pending_approval' ? 'bg-orange-100 text-orange-800' :
                       'bg-green-100 text-green-800'
                     }`}>
                       {ticket.status === 'open' ? 'مفتوحة' :
                        ticket.status === 'in_progress' ? 'قيد المعالجة' :
-                       ticket.status === 'pending_approval' ? 'بانتظار الموافقة' : 'محلولة'}
+                       'محلولة'}
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{ticket.issue}</p>

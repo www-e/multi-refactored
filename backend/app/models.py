@@ -37,7 +37,6 @@ class TicketPriorityEnum(str, enum.Enum):
 class TicketStatusEnum(str, enum.Enum):
     open = "open"
     in_progress = "in_progress"
-    pending_approval = "pending_approval"
     resolved = "resolved"
 
 class BookingStatusEnum(str, enum.Enum):
@@ -77,7 +76,7 @@ class VoiceSession(Base):
     customer_id: Mapped[str | None] = mapped_column(String, ForeignKey("customers.id"), nullable=True)
     direction: Mapped[str] = mapped_column(String, default="inbound")
     status: Mapped[VoiceSessionStatus] = mapped_column(Enum(VoiceSessionStatus), default=VoiceSessionStatus.ACTIVE)
-    locale: Mapped[str] = mapped_column(String, default="ar-SA", nullable=False) 
+    locale: Mapped[str] = mapped_column(String, default="ar-SA", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

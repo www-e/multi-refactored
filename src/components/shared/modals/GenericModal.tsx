@@ -31,6 +31,8 @@ export interface GenericModalProps<T> {
   maxWidth?: 'md' | 'lg' | 'xl';
   children?: React.ReactNode;
   onFormChange?: (formData: any) => void;
+  viewMode?: boolean;
+  customContent?: React.ReactNode;
 }
 
 export default function GenericModal<T extends Record<string, any>>({
@@ -45,9 +47,11 @@ export default function GenericModal<T extends Record<string, any>>({
   error,
   maxWidth = 'lg',
   children,
-  onFormChange
+  onFormChange,
+  viewMode = false,
+  customContent
 }: GenericModalProps<T>) {
-  // Initialize form data based on fields and initialData
+  // Initialize form data based on fields and initialData (only when not in view mode)
   const initializeFormData = () => {
     const formData: Record<string, any> = {};
     fields.forEach(field => {
@@ -65,17 +69,17 @@ export default function GenericModal<T extends Record<string, any>>({
   };
 
   const { handleFormSubmit } = useFormHandler(handleSubmitForm, () => {
-    if (!initialData) { // Only reset form for new items
+    if (!initialData && !viewMode) { // Only reset form for new items (not in view mode)
       setFormData(initializeFormData());
     }
   });
 
   // Update form data when initialData changes
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !viewMode) {
       setFormData(initializeFormData());
     }
-  }, [initialData, initializeFormData]);
+  }, [initialData, initializeFormData, viewMode]);
 
   const handleSubmit = () => {
     handleFormSubmit(formData);
@@ -101,6 +105,7 @@ export default function GenericModal<T extends Record<string, any>>({
           <select
             {...commonProps}
             onChange={(e) => handleFieldChange(field.name, e.target.value)}
+            disabled={viewMode}
           >
             {field.required && !field.defaultValue && <option value="" disabled>اختر {field.label}...</option>}
             {field.options?.map(option => (
@@ -118,6 +123,7 @@ export default function GenericModal<T extends Record<string, any>>({
             rows={field.rows || 3}
             onChange={(e) => handleFieldChange(field.name, e.target.value)}
             placeholder={field.placeholder}
+            disabled={viewMode}
           />
         );
 
@@ -130,13 +136,17 @@ export default function GenericModal<T extends Record<string, any>>({
             min={field.type === 'number' ? field.min : undefined}
             onChange={(e) => handleFieldChange(field.name, e.target.value)}
             placeholder={field.placeholder}
+            disabled={viewMode}
           />
         );
     }
   };
 
-  const currentSubmitLabel = initialData ? `تحديث ${title}` : `إنشاء ${title}`;
-  const currentIsSubmittingLabel = initialData ? 'جاري التحديث...' : 'جاري الإنشاء...';
+  // Use different submit labels based on view mode and initial data
+  let currentSubmitLabel = submitLabel;
+  if (!viewMode) {
+    currentSubmitLabel = initialData ? `تحديث ${title}` : `إنشاء ${title}`;
+  }
 
   return (
     <ModalFormLayout
@@ -145,72 +155,79 @@ export default function GenericModal<T extends Record<string, any>>({
       error={error}
       isSubmitting={isSubmitting}
       submitLabel={currentSubmitLabel}
-      onSubmit={handleSubmit}
+      onSubmit={viewMode ? onClose : handleSubmit} // In view mode, close button acts as submit
       onCancel={onClose}
       maxWidth={maxWidth}
+      showSubmitButton={!viewMode} // Hide submit button in view mode
     >
-      {/* Group fields based on layout */}
-      {(() => {
-        const fullFields = fields.filter(f => f.layout !== 'half' && f.layout !== 'third');
-        const halfFields = fields.filter(f => f.layout === 'half');
-        const thirdFields = fields.filter(f => f.layout === 'third');
+      {viewMode && customContent ? (
+        customContent
+      ) : (
+        <>
+          {/* Group fields based on layout */}
+          {(() => {
+            const fullFields = fields.filter(f => f.layout !== 'half' && f.layout !== 'third');
+            const halfFields = fields.filter(f => f.layout === 'half');
+            const thirdFields = fields.filter(f => f.layout === 'third');
 
-        const elements = [];
+            const elements = [];
 
-        // Add full width fields
-        for (const field of fullFields) {
-          elements.push(
-            <div key={field.name}>
-              <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                {field.label} {field.required && '*'}
-              </label>
-              {renderField(field)}
-            </div>
-          );
-        }
+            // Add full width fields
+            for (const field of fullFields) {
+              elements.push(
+                <div key={field.name}>
+                  <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                    {field.label} {field.required && '*'}
+                  </label>
+                  {renderField(field)}
+                </div>
+              );
+            }
 
-        // Add half width fields in pairs
-        if (halfFields.length > 0) {
-          for (let i = 0; i < halfFields.length; i += 2) {
-            const pair = halfFields.slice(i, i + 2);
-            elements.push(
-              <div key={`half-group-${i}`} className="grid grid-cols-2 gap-4">
-                {pair.map(field => (
-                  <div key={field.name}>
-                    <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                      {field.label} {field.required && '*'}
-                    </label>
-                    {renderField(field)}
+            // Add half width fields in pairs
+            if (halfFields.length > 0) {
+              for (let i = 0; i < halfFields.length; i += 2) {
+                const pair = halfFields.slice(i, i + 2);
+                elements.push(
+                  <div key={`half-group-${i}`} className="grid grid-cols-2 gap-4">
+                    {pair.map(field => (
+                      <div key={field.name}>
+                        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                          {field.label} {field.required && '*'}
+                        </label>
+                        {renderField(field)}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            );
-          }
-        }
+                );
+              }
+            }
 
-        // Add third width fields in triplets
-        if (thirdFields.length > 0) {
-          for (let i = 0; i < thirdFields.length; i += 3) {
-            const triplet = thirdFields.slice(i, i + 3);
-            elements.push(
-              <div key={`third-group-${i}`} className="grid grid-cols-3 gap-4">
-                {triplet.map(field => (
-                  <div key={field.name}>
-                    <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                      {field.label} {field.required && '*'}
-                    </label>
-                    {renderField(field)}
+            // Add third width fields in triplets
+            if (thirdFields.length > 0) {
+              for (let i = 0; i < thirdFields.length; i += 3) {
+                const triplet = thirdFields.slice(i, i + 3);
+                elements.push(
+                  <div key={`third-group-${i}`} className="grid grid-cols-3 gap-4">
+                    {triplet.map(field => (
+                      <div key={field.name}>
+                        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                          {field.label} {field.required && '*'}
+                        </label>
+                        {renderField(field)}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            );
-          }
-        }
+                );
+              }
+            }
 
-        return elements;
-      })()}
+            return elements;
+          })()}
 
-      {children}
+          {children}
+        </>
+      )}
     </ModalFormLayout>
   );
 }

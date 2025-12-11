@@ -19,6 +19,7 @@ interface TicketModalProps {
   customers: Customer[];
   isSubmitting?: boolean;
   error?: string;
+  viewMode?: boolean;
 }
 
 export default function TicketModal({
@@ -29,7 +30,8 @@ export default function TicketModal({
   title,
   customers,
   isSubmitting = false,
-  error
+  error,
+  viewMode = false
 }: TicketModalProps) {
   // Define the form fields configuration
   const ticketFields: FormField[] = [
@@ -87,7 +89,76 @@ export default function TicketModal({
     }
   ];
 
-  // Format initial data for the ticket
+  // For view mode, show the ticket details in read-only format
+  if (viewMode && ticket) {
+    const customer = customers.find(c => c.id === ticket.customerId);
+    const customerName = customer ? `${customer.name} - ${customer.phone}` : ticket.customerName || 'Unknown';
+
+    return (
+      <GenericModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSubmit={onSubmit}
+        title={title}
+        fields={[]}
+        initialData={null}
+        isSubmitting={isSubmitting}
+        error={error}
+        maxWidth="lg"
+        viewMode={true}
+        customContent={
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">العميل</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {customerName}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">الفئة</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {ticket.category}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">الأولوية</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {ticket.priority === 'low' ? 'منخفض' :
+                   ticket.priority === 'med' ? 'متوسط' :
+                   ticket.priority === 'high' ? 'عالٍ' :
+                   ticket.priority === 'urgent' ? 'عاجل' : ticket.priority}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">الحالة</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {ticket.status === 'open' ? 'مفتوحة' :
+                   ticket.status === 'in_progress' ? 'قيد المعالجة' :
+                   ticket.status === 'resolved' ? 'محلولة' :
+                   ticket.status}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">المشروع/العقار</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {ticket.project || '-'}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">وصف المشكلة</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg whitespace-pre-wrap">
+                  {ticket.issue || '-'}
+                </p>
+              </div>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
+  // Format initial data for the ticket (edit/create mode)
   const initialData = ticket ? {
     ...ticket
   } : null;

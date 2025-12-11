@@ -16,11 +16,9 @@ export type TStatus =
   // Ticket Status (from models.py & Arabic display)
   | "open"
   | "in_progress"
-  | "pending_approval"
   | "resolved"
-  | "مفتوحة" 
-  | "قيد_المعالجة" 
-  | "بانتظار_الموافقة" 
+  | "مفتوحة"
+  | "قيد_المعالجة"
   | "محلولة"
   // Booking Status (from models.py & Arabic display)
   | "pending"

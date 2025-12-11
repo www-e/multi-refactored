@@ -35,12 +35,10 @@ export const mapTicketStatusToArabic = (status: string): string => {
   const mapping: Record<string, string> = {
     'open': 'مفتوحة',
     'in_progress': 'قيد_المعالجة',
-    'pending_approval': 'بانتظار_الموافقة',
     'resolved': 'محلولة',
     'closed': 'مغلقة',
     'مفتوحة': 'مفتوحة',
     'قيد_المعالجة': 'قيد_المعالجة',
-    'بانتظار_الموافقة': 'بانتظار_الموافقة',
     'محلولة': 'محلولة',
     'مغلقة': 'مغلقة',
   };
@@ -51,12 +49,10 @@ export const mapTicketStatusToEnglish = (status: string): string => {
   const mapping: Record<string, string> = {
     'open': 'open',
     'in_progress': 'in_progress',
-    'pending_approval': 'pending_approval',
     'resolved': 'resolved',
     'closed': 'closed',
     'مفتوحة': 'open',
     'قيد_المعالجة': 'in_progress',
-    'بانتظار_الموافقة': 'pending_approval',
     'محلولة': 'resolved',
     'مغلقة': 'closed',
   };

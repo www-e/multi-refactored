@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -9,6 +9,7 @@ import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
+import ActionMenu from '@/components/shared/ui/ActionMenu';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
 import CustomerChatModal from '@/components/shared/modals/CustomerChatModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
@@ -246,6 +247,7 @@ export default function CustomersPage() {
                 <table className="w-full">
                     <thead className="bg-slate-50 dark:bg-slate-800/50">
                         <tr>
+                            <th className="p-4 w-12 text-center font-semibold text-slate-900 dark:text-slate-100">#</th>
                             {isSelectMode && (
                                 <th className="p-4 w-12">
                                     <button
@@ -270,18 +272,23 @@ export default function CustomersPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {filteredCustomers.map(customer => {
+                        {filteredCustomers.map((customer, index) => {
                             const stats = getCustomerStats(customer.id);
                             const isSelected = selectedCustomerIds.includes(customer.id);
                             return (
                                 <tr
                                     key={customer.id}
-                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/10' : ''}`}
+                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer ${isSelected ? 'bg-primary/10' : ''}`}
+                                    onClick={() => showCustomerDetails(customer)}
                                 >
+                                    <td className="p-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
                                     {isSelectMode && (
                                         <td className="p-4">
                                             <button
-                                                onClick={() => toggleCustomerSelection(customer.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleCustomerSelection(customer.id);
+                                                }}
                                                 className={`w-6 h-6 rounded-full border flex items-center justify-center ${
                                                     isSelected
                                                         ? 'bg-primary border-primary text-white'
@@ -295,9 +302,6 @@ export default function CustomersPage() {
                                     )}
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                                                {customer.name.charAt(0)}
-                                            </div>
                                             <div>
                                                 <div className="font-medium">{customer.name}</div>
                                             </div>
@@ -335,46 +339,37 @@ export default function CustomersPage() {
                                         {formatDate(customer.createdAt)}
                                     </td>
                                     <td className="p-4">
-                                        <div className="flex gap-1">
-                                            <button
-                                                className="p-2 bg-primary text-white rounded-lg hover:bg-primary/90"
-                                                onClick={() => handleCustomerCall(customer.phone, customer.id)}
-                                                aria-label={`اتصال بـ ${customer.name}`}
-                                            >
-                                                <PhoneCall size={16} />
-                                            </button>
-                                            <button
-                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
-                                                onClick={() => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email)}
-                                                aria-label={`مراسلة ${customer.name}`}
-                                            >
-                                                <MessageSquare size={16} />
-                                            </button>
-                                            <button
-                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
-                                                onClick={() => showCustomerDetails(customer)}
-                                                aria-label={`عرض تفاصيل ${customer.name}`}
-                                            >
-                                                <Eye size={16} />
-                                            </button>
-                                            <button
-                                                className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200"
-                                                onClick={() => {
-                                                  setCustomerToEdit(customer);
-                                                  setIsEditModalOpen(true);
-                                                }}
-                                                aria-label={`تعديل ${customer.name}`}
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                className="p-2 bg-destructive text-white rounded-lg hover:bg-destructive/90"
-                                                onClick={() => handleDeleteCustomer({id: customer.id, name: customer.name})}
-                                                aria-label={`حذف ${customer.name}`}
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
+                                        <ActionMenu
+                                            actions={[
+                                                {
+                                                    label: 'اتصال',
+                                                    icon: <PhoneCall size={16} />,
+                                                    onClick: () => handleCustomerCall(customer.phone, customer.id),
+                                                    color: 'text-primary'
+                                                },
+                                                {
+                                                    label: 'مراسلة',
+                                                    icon: <MessageSquare size={16} />,
+                                                    onClick: () => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email),
+                                                    color: 'text-slate-600 dark:text-slate-400'
+                                                },
+                                                {
+                                                    label: 'تعديل',
+                                                    icon: <Edit size={16} />,
+                                                    onClick: () => {
+                                                      setCustomerToEdit(customer);
+                                                      setIsEditModalOpen(true);
+                                                    },
+                                                    color: 'text-slate-600 dark:text-slate-400'
+                                                },
+                                                {
+                                                    label: 'حذف',
+                                                    icon: <Trash2 size={16} />,
+                                                    onClick: () => handleDeleteCustomer({id: customer.id, name: customer.name}),
+                                                    color: 'text-destructive'
+                                                }
+                                            ]}
+                                        />
                                     </td>
                                 </tr>
                             );

@@ -172,5 +172,10 @@ docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) F
 
 
 # live watch
-docker logs -f agentic_portal_backend --tail 20
-docker logs -f agentic_portal_frontend --tail 20
+docker logs -f agentic_portal_backend --tail 50
+docker logs -f agentic_portal_frontend --tail 50
+
+
+
+# changing all users to specfici tenant
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "UPDATE users SET tenant_id = 'demo-tenant';"

@@ -148,7 +148,7 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
-  const updateTicketStatus = useCallback(async (id: string, status: 'in_progress' | 'resolved' | 'closed' | 'pending_approval') => {
+  const updateTicketStatus = useCallback(async (id: string, status: 'in_progress' | 'resolved' | 'closed') => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('updateTicketStatus', true);
     try {
