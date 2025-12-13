@@ -34,6 +34,7 @@ class ConversationResponse(BaseModel):
 
 class ConversationDetailResponse(ConversationResponse):
     transcript: List[MessageInConversation]
+    recording_url: Optional[str] = None
 
 @router.post("/conversations", response_model=ConversationResponse)
 def create_conversation(
@@ -168,5 +169,6 @@ def get_conversation(
         channel=conversation.channel.value if hasattr(conversation.channel, 'value') else conversation.channel,
         summary=conversation.summary,
         created_at=conversation.created_at,
-        transcript=transcript
+        transcript=transcript,
+        recording_url=conversation.recording_url
     )

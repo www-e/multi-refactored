@@ -39,18 +39,29 @@ def create_booking_from_conversation(
     customer: models.Customer,
     data: Dict[str, Any]
 ):
+    # Check if a booking already exists for this session to prevent duplicates
+    session_id = getattr(session, "id", None)
+    if session_id:
+        existing_booking = db.query(models.Booking).filter(
+            models.Booking.session_id == session_id
+        ).first()
+
+        if existing_booking:
+            logger.info(f"ℹ️ Booking already exists for session {session_id}, skipping creation.")
+            return
+
     logger.info(f"📅 Creating Booking for: {customer.name}")
     raw_date = get_val(data, "preferred_datetime")
     project_val = get_val(data, "project") or "General Inquiry"
     final_date = parse_iso_date(raw_date)
     is_real_session = hasattr(session, "_sa_instance_state")
-    
+
     try:
         booking = models.Booking(
             id=generate_id("bk"),
             tenant_id=session.tenant_id,
             customer_id=customer.id,
-            session_id=session.id if is_real_session else None,
+            session_id=getattr(session, "id", None) if is_real_session else None,
             customer_name=customer.name,
             phone=customer.phone,
             property_code=project_val,
@@ -75,25 +86,36 @@ def create_ticket_from_conversation(
     customer: models.Customer,
     data: Dict[str, Any]
 ):
+    # Check if a ticket already exists for this session to prevent duplicates
+    session_id = getattr(session, "id", None)
+    if session_id:
+        existing_ticket = db.query(models.Ticket).filter(
+            models.Ticket.session_id == session_id
+        ).first()
+
+        if existing_ticket:
+            logger.info(f"ℹ️ Ticket already exists for session {session_id}, skipping creation.")
+            return
+
     logger.info(f"🎫 Creating Ticket for: {customer.name}")
     issue_val = get_val(data, "issue") or getattr(session, "summary", "Voice Interaction Issue")
     project_val = get_val(data, "project") or "General"
     raw_priority = get_val(data, "priority").lower()
-    
+
     priority_enum = models.TicketPriorityEnum.med
     if "high" in raw_priority or "urgent" in raw_priority:
         priority_enum = models.TicketPriorityEnum.high
     elif "low" in raw_priority:
         priority_enum = models.TicketPriorityEnum.low
-    
+
     is_real_session = hasattr(session, "_sa_instance_state")
-    
+
     try:
         ticket = models.Ticket(
             id=generate_id("tkt"),
             tenant_id=session.tenant_id,
             customer_id=customer.id,
-            session_id=session.id if is_real_session else None,
+            session_id=getattr(session, "id", None) if is_real_session else None,
             customer_name=customer.name,
             phone=customer.phone,
             issue=issue_val,

@@ -352,21 +352,6 @@ export const getConversations = (token: string): Promise<any[]> => {
   });
 };
 
-export const getConversation = (conversationId: string, token: string): Promise<any> => {
-  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
-    ...conv,
-    customerId: conv.customer_id,
-    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
-    createdAt: conv.created_at,
-    transcript: conv.transcript || [],
-    entities: conv.entities || {},
-    sentiment: conv.sentiment || 'محايد',
-    recordingUrl: conv.recording_url,
-    status: conv.status || 'مفتوحة',
-    assignedTo: conv.assigned_to,
-    updatedAt: conv.updated_at || conv.created_at
-  }));
-};
 
 const transformCall = (call: any) => ({
   ...call,
@@ -437,9 +422,29 @@ export const getTranscript = (conversationId: string, token: string): Promise<Tr
   return clientFetch(`/transcripts/${conversationId}`, token);
 };
 
+export const getVoiceSession = (sessionId: string, token: string): Promise<any> => {
+  return clientFetch(`/voice/sessions/${sessionId}`, token);
+};
+
 export const getMessages = (token: string, conversationId?: string): Promise<any[]> => {
   const endpoint = conversationId
     ? `/conversations/${conversationId}/messages`
     : '/messages';
   return clientFetch(endpoint, token);
+};
+
+export const getConversation = (conversationId: string, token: string): Promise<any> => {
+  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
+    ...conv,
+    customerId: conv.customer_id,
+    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
+    createdAt: conv.created_at,
+    transcript: conv.transcript || [],
+    entities: conv.entities || {},
+    sentiment: conv.sentiment || 'محايد',
+    recordingUrl: conv.recording_url,
+    status: conv.status || 'مفتوحة',
+    assignedTo: conv.assigned_to,
+    updatedAt: conv.updated_at || conv.created_at
+  }));
 };

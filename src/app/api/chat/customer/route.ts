@@ -66,8 +66,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (!convCreateResponse.ok) {
-        console.error('Failed to create conversation:', await convCreateResponse.text());
-        return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 });
+        const errorText = await convCreateResponse.text();
+        console.error('Failed to create conversation:', errorText);
+        return NextResponse.json({
+          error: 'Failed to create conversation',
+          details: errorText
+        }, { status: 500 });
       }
 
       const convData = await convCreateResponse.json();

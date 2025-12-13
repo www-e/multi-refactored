@@ -33,6 +33,7 @@ class CallResponse(BaseModel):
     outcome: Optional[str]
     created_at: datetime
     handle_sec: Optional[int] = None
+    recording_url: Optional[str] = None
     # Voice Session fields
     voice_session_id: Optional[str] = None
     extracted_intent: Optional[str] = None
@@ -86,6 +87,7 @@ async def create_call(
         outcome=None,
         created_at=db_call.created_at,
         handle_sec=db_call.handle_sec,
+        recording_url=db_call.recording_url,
         voice_session_id=None,
         extracted_intent=None,
         summary=None,
@@ -139,6 +141,41 @@ async def create_bulk_calls(
         "created_count": created_count
     }
 
+@router.get("/calls/{call_id}", response_model=CallResponse)
+def get_call(
+    call_id: str,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    db_session: Session = Depends(deps.get_session),
+    _=Depends(deps.get_current_user)
+):
+    # Find the call by ID and join with conversation to get customer_id
+    call_result = db_session.query(models.Call, models.Conversation.customer_id)\
+        .outerjoin(models.Conversation, models.Call.conversation_id == models.Conversation.id)\
+        .filter(models.Call.id == call_id, models.Call.tenant_id == tenant_id)\
+        .first()
+
+    if not call_result:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    c, customer_id = call_result
+
+    return CallResponse(
+        id=c.id,
+        conversation_id=c.conversation_id,
+        customer_id=customer_id,
+        direction=c.direction.value if hasattr(c.direction, 'value') else str(c.direction),
+        status=c.status.value if hasattr(c.status, 'value') else str(c.status),
+        outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
+        created_at=c.created_at,
+        handle_sec=c.handle_sec,
+        recording_url=c.recording_url,
+        voice_session_id=c.voice_session_id,
+        extracted_intent=None,
+        summary=None,
+        agent_name=None,
+        session_status=None
+    )
+
 @router.get("/calls", response_model=List[CallResponse])
 def get_calls(
     tenant_id: str = Depends(deps.get_current_tenant_id),
@@ -163,7 +200,8 @@ def get_calls(
             outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
             created_at=c.created_at,
             handle_sec=c.handle_sec,
-            voice_session_id=None,  # Will be populated if we find a connection
+            recording_url=c.recording_url,
+            voice_session_id=getattr(c, 'voice_session_id', None),  # Use getattr for safety
             extracted_intent=None,
             summary=None,
             agent_name=None,

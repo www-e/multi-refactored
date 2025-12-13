@@ -26,6 +26,19 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
 
     logger.info(f"🤖 Processing Webhook for ElevenLabs ID: {conv_id}")
 
+    # Check if this conversation has already been processed to prevent duplicates
+    existing_call = db.query(models.Call).filter(
+        models.Call.conversation_id == conv_id
+    ).first()
+
+    if existing_call:
+        logger.info(f"ℹ️ Conversation {conv_id} already processed, skipping duplicate webhook.")
+        return {
+            "status": "success",
+            "message": "Webhook already processed",
+            "conversation_id": conv_id
+        }
+
     # 1. Fetch ElevenLabs Data
     try:
         data = await fetch_conversation_from_elevenlabs(conv_id)
@@ -42,7 +55,7 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
         session = db.query(models.VoiceSession).filter(models.VoiceSession.id == client_ref_id).first()
         if session:
             logger.info(f"✅ Linked via Client Ref ID: {session.id}")
-    
+
     if not session:
         session = db.query(models.VoiceSession).filter(models.VoiceSession.conversation_id == conv_id).first()
         if session:
@@ -51,7 +64,7 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
     # 3. Context Recovery (Tenant ID & Customer)
     # CRITICAL: Use the Env Variable default, not hardcoded string
     current_tenant_id = DEFAULT_TENANT_ID
-    
+
     if session:
         current_tenant_id = session.tenant_id
         # Update session with final data
@@ -61,23 +74,23 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
         session.status = models.VoiceSessionStatus.COMPLETED
         session.ended_at = datetime.now(timezone.utc)
         if phone: session.customer_phone = phone
-        
+
         # Link Customer to Session if not already linked
         customer = upsert_customer(db, phone, name, current_tenant_id)
         if not session.customer_id:
             session.customer_id = customer.id
-            
+
     else:
         # Ghost Session Handling
         logger.warning(f"👻 Session not found for {conv_id}. Initiating Context Recovery...")
-        
+
         # Try to find existing customer by phone to recover Tenant ID
         existing_customer = None
         if phone:
             existing_customer = db.query(models.Customer).filter(
                 models.Customer.phone == phone
             ).order_by(models.Customer.created_at.desc()).first()
-            
+
         if existing_customer:
             current_tenant_id = existing_customer.tenant_id
             logger.info(f"🧬 Context Recovered: Found existing customer {existing_customer.name}, using Tenant: {current_tenant_id}")

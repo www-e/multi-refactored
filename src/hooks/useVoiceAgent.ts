@@ -21,7 +21,23 @@ export function useVoiceAgent(
   const { createVoiceSession, postLog } = api;
 
   const conversation = useConversation({
-    onConnect: () => options.onStatusChange?.('connected'),
+    onConnect: async () => {
+      options.onStatusChange?.('connected');
+
+      // Update session with actual ElevenLabs conversation ID once connected
+      // Note: The ElevenLabs SDK doesn't expose conversationId directly,
+      // so we rely on the clientReferenceId to maintain correlation
+      if (currentSession) {
+        const updatedSession = {
+          ...currentSession,
+          // The conversation ID correlation happens in the backend via clientReferenceId
+          elevenlabs_conversation: {
+            ...currentSession.elevenlabs_conversation,
+          }
+        };
+        setCurrentSession(updatedSession);
+      }
+    },
     onDisconnect: () => {
       console.log('Voice Agent Disconnected Normally');
       options.onStatusChange?.('idle');
@@ -40,15 +56,15 @@ export function useVoiceAgent(
 
       // 🟢 Logic to handle normal socket closures gracefully
       if (
-        errorStr.includes('CLOSING') || 
-        errorStr.includes('CLOSED') || 
+        errorStr.includes('CLOSING') ||
+        errorStr.includes('CLOSED') ||
         errorStr.includes('1000') ||
         errorStr.includes('1005')
       ) {
         console.log('Socket closed intentionally - resetting UI');
         options.onStatusChange?.('idle');
         setCurrentSession(null);
-        return; 
+        return;
       }
 
       console.error('Real Voice Error:', error);

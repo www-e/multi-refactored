@@ -41,9 +41,14 @@ export const TranscriptModal: React.FC<TranscriptModalProps> = ({
       if (!data.is_available && data.transcript.length === 0) {
         setError('النص غير متوفر لهذه المكالمة');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching transcript:', err);
-      setError('فشل تحميل النص');
+      // Provide more specific error message based on error type
+      if (err.statusCode === 404) {
+        setError('النص غير متوفر لهذه المكالمة');
+      } else {
+        setError('فشل تحميل النص');
+      }
     }
   }, [conversationId, getTranscript]);
 
