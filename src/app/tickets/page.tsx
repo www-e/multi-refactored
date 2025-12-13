@@ -167,8 +167,7 @@ export default function TicketsPage() {
                     return (
                       <tr
                         key={ticket.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
-                        onClick={() => handleViewTicket(ticket)}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                       >
                         <td className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
                         <td className="px-6 py-4 whitespace-nowrap">

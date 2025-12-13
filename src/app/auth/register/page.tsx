@@ -47,6 +47,10 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent multiple submissions while loading
+    if (isLoading) return;
+
     setIsLoading(true);
     setError('');
 
@@ -91,8 +95,8 @@ export default function RegisterPage() {
           setError('حدث خطأ أثناء تسجيل الدخول بعد التسجيل');
         } else {
           // Successful login after registration - redirect to dashboard
-          router.push('/dashboard');
-          router.refresh();
+          // Using router.replace to avoid back navigation to registration form
+          router.replace('/dashboard');
         }
       } else {
         const data = await response.json();

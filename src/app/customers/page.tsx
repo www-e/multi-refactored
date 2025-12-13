@@ -278,8 +278,7 @@ export default function CustomersPage() {
                             return (
                                 <tr
                                     key={customer.id}
-                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer ${isSelected ? 'bg-primary/10' : ''}`}
-                                    onClick={() => showCustomerDetails(customer)}
+                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/10' : ''}`}
                                 >
                                     <td className="p-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
                                     {isSelectMode && (

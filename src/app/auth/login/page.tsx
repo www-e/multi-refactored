@@ -19,6 +19,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent multiple submissions while loading
+    if (isLoading) return;
+
     setIsLoading(true);
     setError('');
 
@@ -33,7 +37,8 @@ export default function LoginPage() {
         setError('Invalid email or password');
       } else {
         // Successful login - redirect to dashboard
-        router.push('/dashboard');
+        // Using router.replace instead of router.push to avoid back button issues
+        router.replace('/dashboard');
       }
     } catch (error) {
       setError('An unexpected error occurred');
