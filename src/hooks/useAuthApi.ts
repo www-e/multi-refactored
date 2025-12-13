@@ -43,6 +43,7 @@ export const useAuthApi = () => {
     getCall: false,
     getVoiceSessions: false,
     getTranscript: false,
+    getMessages: false,
   });
 
   const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
@@ -314,7 +315,7 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
-  const sendCustomerMessage = useCallback(async (data: { customer_id: string; message: string; channel?: string; }) => {
+  const sendCustomerMessage = useCallback(async (data: { customer_id: string; message: string; channel?: string; agentType?: string; }) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('sendCustomerMessage', true);
     try {
@@ -330,6 +331,17 @@ export const useAuthApi = () => {
     updateLoadingState('getConversations', true);
     try {
       const result = await apiClient.getConversations(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getConversations', false);
+    }
+  }, [accessToken]);
+
+  const getConversation = useCallback(async (conversationId: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getConversations', true); // Reuse the same loading state
+    try {
+      const result = await apiClient.getConversation(conversationId, accessToken);
       return result;
     } finally {
       updateLoadingState('getConversations', false);
@@ -380,6 +392,17 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  const getMessages = useCallback(async (conversationId?: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getMessages', true);
+    try {
+      const result = await apiClient.getMessages(accessToken, conversationId);
+      return result;
+    } finally {
+      updateLoadingState('getMessages', false);
+    }
+  }, [accessToken]);
+
   return {
     loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
@@ -416,5 +439,7 @@ export const useAuthApi = () => {
     getCall,
     getVoiceSessions,
     getTranscript,
+    getMessages,
+    getConversation,
   };
 };

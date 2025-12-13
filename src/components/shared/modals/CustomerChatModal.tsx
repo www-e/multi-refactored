@@ -31,28 +31,33 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const { sendCustomerMessage } = useAuthApi();
 
-  // Load initial messages
+  // Load initial messages when modal opens
   useEffect(() => {
     if (isOpen) {
-      // In a real implementation, this would fetch existing messages
-      // For now, we'll populate with some sample messages
-      const sampleMessages: Message[] = [
-        {
-          id: '1',
-          text: 'مرحباً، هل يمكنني مساعدتك؟',
-          sender: 'agent',
-          timestamp: new Date(Date.now() - 3600000) // 1 hour ago
-        },
-        {
-          id: '2',
-          text: 'أرغب في معرفة معلومات عن مشروعكم الجديد',
-          sender: 'customer',
-          timestamp: new Date(Date.now() - 1800000) // 30 minutes ago
-        }
-      ];
-      setMessages(sampleMessages);
+      // In a real implementation, this would fetch existing messages from the conversation
+      // For now, we'll start with an empty array and load conversation history later
+      setMessages([]);
+      loadConversationHistory();
     }
-  }, [isOpen]);
+  }, [isOpen, customer.id]);
+
+  // Load conversation history
+  const loadConversationHistory = async () => {
+    try {
+      // In a real implementation, we would fetch conversation history here
+      // For now, we'll just continue with empty messages
+      // const response = await getConversationHistory(customer.id);
+      // const conversationMessages = response.messages.map(msg => ({
+      //   id: msg.id.toString(),
+      //   text: msg.text,
+      //   sender: msg.role === 'user' ? 'customer' : 'agent',
+      //   timestamp: new Date(msg.ts)
+      // }));
+      // setMessages(conversationMessages);
+    } catch (error) {
+      console.error('Failed to load conversation history:', error);
+    }
+  };
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -64,7 +69,7 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || isLoading) return;
 
     // Add user message to UI immediately
     const userMessage: Message = {
@@ -79,28 +84,27 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
     setIsLoading(true);
 
     try {
-      // Actually send the message via API
-      await sendCustomerMessage({
+      // Use the sendCustomerMessage function from useAuthApi hook which handles auth properly
+      const data = await sendCustomerMessage({
         customer_id: customer.id,
         message: message,
-        channel: 'chat'
+        channel: 'chat',
+        agentType: 'support' // Default to support agent
       });
 
-      // Simulate agent response (in a real app, this would come from the backend)
-      setTimeout(() => {
-        const agentResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'شكراً لرسالتك، سأقوم بمراجعة طلبك وسأعود إليك قريباً.',
-          sender: 'agent',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, agentResponse]);
-      }, 1000);
+      // Add the AI's response to the messages
+      const agentResponse: Message = {
+        id: `ai-${Date.now()}`,
+        text: data.response,
+        sender: 'agent',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, agentResponse]);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Add error message to UI
       setMessages(prev => [...prev, {
-        id: Date.now().toString(),
+        id: `error-${Date.now()}`,
         text: 'عذراً، فشل إرسال الرسالة. يرجى المحاولة مرة أخرى.',
         sender: 'agent',
         timestamp: new Date()
@@ -135,7 +139,7 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
             <button className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
               <Phone className="w-5 h-5" />
             </button>
-            <button 
+            <button
               className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
               onClick={onClose}
             >
@@ -168,7 +172,10 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
           {isLoading && (
             <div className="flex justify-start">
               <div className="max-w-[80%] p-3 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-tl-none shadow-sm">
-                <p>...</p>
+                <p className="flex items-center">
+                  <span className="animate-pulse">جاري الكتابة</span>
+                  <span className="ml-1">...</span>
+                </p>
               </div>
             </div>
           )}
@@ -185,6 +192,7 @@ export default function CustomerChatModal({ isOpen, onClose, customer }: Custome
               placeholder="اكتب رسالتك..."
               className="flex-1 p-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               rows={2}
+              disabled={isLoading}
             />
             <Button
               onClick={handleSendMessage}

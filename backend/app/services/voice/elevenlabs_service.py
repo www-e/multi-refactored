@@ -5,10 +5,13 @@ import hashlib
 import json
 from typing import Dict, Any, Tuple, Optional, List
 from fastapi import Request, HTTPException
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+SUPPORT_AGENT_ID = os.getenv("ELEVENLABS_SUPPORT_AGENT_ID")
+SALES_AGENT_ID = os.getenv("ELEVENLABS_SALES_AGENT_ID")
 
 def get_elevenlabs_headers() -> Dict[str, str]:
     if not ELEVENLABS_API_KEY:
@@ -27,7 +30,7 @@ def verify_elevenlabs_webhook_signature(
     if not ELEVENLABS_API_KEY:
         logger.warning("⚠️ ELEVENLABS_API_KEY missing. Skipping signature verification (Unsafe).")
         return True
-    
+
     try:
         parts = signature.split(',')
         timestamp = None
@@ -37,17 +40,17 @@ def verify_elevenlabs_webhook_signature(
                 timestamp = part[2:]
             elif part.startswith('v1='):
                 expected_sig = part[3:]
-                
+
         if not expected_sig or not timestamp:
             return False
-            
+
         signed_payload = f"{timestamp}.{body.decode('utf-8')}"
         calculated_sig = hmac.new(
             key=ELEVENLABS_API_KEY.encode('utf-8'),
             msg=signed_payload.encode('utf-8'),
             digestmod=hashlib.sha256
         ).hexdigest()
-        
+
         return hmac.compare_digest(calculated_sig, expected_sig)
     except Exception as e:
         logger.error(f"❌ Signature verification error: {e}")
@@ -57,18 +60,17 @@ def extract_conversation_id_from_payload(payload: Dict[str, Any]) -> Optional[st
     if payload.get("data") and isinstance(payload["data"], dict):
         if payload["data"].get("conversation_id"):
             return payload["data"]["conversation_id"]
-            
+
     return (
-        payload.get("conversation_id") or 
-        payload.get("conversationId") or 
+        payload.get("conversation_id") or
+        payload.get("conversationId") or
         payload.get("id")
     )
 
 async def fetch_conversation_from_elevenlabs(conversation_id: str) -> Dict[str, Any]:
-    import aiohttp
     headers = get_elevenlabs_headers()
     url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}"
-    
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url, headers=headers) as response:
             if response.status != 200:
@@ -183,3 +185,79 @@ def check_transcript_availability(data: Dict[str, Any]) -> bool:
     agent_transcript = conversation_data.get("agent_transcript", [])
 
     return len(user_transcript) > 0 or len(agent_transcript) > 0
+
+async def send_text_to_elevenlabs_agent(message: str, agent_type: str, session_id: Optional[str] = None) -> str:
+    """
+    Send a text message to ElevenLabs agent and get response.
+    """
+    if not ELEVENLABS_API_KEY:
+        logger.error("❌ ELEVENLABS_API_KEY is missing")
+        raise HTTPException(status_code=500, detail="Server configuration error: Missing API Key")
+
+    agent_id = SUPPORT_AGENT_ID if agent_type == 'support' else SALES_AGENT_ID
+    if not agent_id:
+        raise HTTPException(status_code=500, detail=f"Agent ID not configured for {agent_type}")
+
+    headers = get_elevenlabs_headers()
+
+    # Prepare the payload for text chat
+    payload = {
+        "text": message,
+        "agent_id": agent_id,
+        "session_id": session_id or None
+    }
+
+    url = "https://api.elevenlabs.io/v1/convai/chat"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"❌ ElevenLabs API Error {response.status}: {error_text}")
+                    raise HTTPException(status_code=response.status, detail=f"ElevenLabs API error: {error_text}")
+
+                result = await response.json()
+                # Extract the AI response text
+                ai_response = result.get('response', result.get('text', ''))
+                return ai_response
+    except Exception as e:
+        logger.error(f"❌ Error calling ElevenLabs API: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get AI response: {str(e)}")
+
+async def start_text_conversation(agent_type: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Start a new text-based conversation with ElevenLabs agent.
+    """
+    if not ELEVENLABS_API_KEY:
+        logger.error("❌ ELEVENLABS_API_KEY is missing")
+        raise HTTPException(status_code=500, detail="Server configuration error: Missing API Key")
+
+    agent_id = SUPPORT_AGENT_ID if agent_type == 'support' else SALES_AGENT_ID
+    if not agent_id:
+        raise HTTPException(status_code=500, detail=f"Agent ID not configured for {agent_type}")
+
+    headers = get_elevenlabs_headers()
+
+    # Prepare the payload for starting a conversation
+    payload = {
+        "agent_id": agent_id,
+        "session_id": session_id or None,
+        "require_auth": False  # For text chat, we don't necessarily need auth
+    }
+
+    url = "https://api.elevenlabs.io/v1/convai/conversations"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    logger.error(f"❌ ElevenLabs API Error {response.status}: {error_text}")
+                    raise HTTPException(status_code=response.status, detail=f"ElevenLabs API error: {error_text}")
+
+                result = await response.json()
+                return result
+    except Exception as e:
+        logger.error(f"❌ Error starting ElevenLabs conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start conversation: {str(e)}")

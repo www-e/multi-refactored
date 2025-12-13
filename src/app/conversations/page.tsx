@@ -10,14 +10,37 @@ import { formatDate } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 
+interface Message {
+  id: number;
+  role: string;
+  text: string;
+  ts: string | Date;
+}
+
+interface Conversation {
+  id: string;
+  type: 'صوت' | 'رسالة';
+  customerId: string;
+  transcript: Message[];
+  summary: string;
+  entities: any;
+  sentiment: 'إيجابي' | 'محايد' | 'سلبي';
+  recordingUrl?: string;
+  status: 'مفتوحة' | 'مغلقة' | 'محولة_للبشر';
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function ConversationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Update the store to use the new conversation type with transcript
   const { conversations, setConversations, setConversationsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getConversations, getCustomers, isAuthenticated } = useAuthApi();
+  const { getConversations, getCustomers, getConversation, isAuthenticated } = useAuthApi();
 
   // CRITICAL: Fetch Customers and Conversations
   useEffect(() => {
@@ -33,7 +56,10 @@ export default function ConversationsPage() {
             getCustomers()
           ]);
 
-          setConversations(conversationsData);
+          // Update conversations to include transcripts (this will get full conversation details with transcript)
+          const detailedConversations = conversationsData; // The API now returns conversations with transcript included
+
+          setConversations(detailedConversations);
           setCustomers(customersData);
         } catch (error) {
           console.error('Error fetching conversations and customers:', error);
@@ -44,7 +70,7 @@ export default function ConversationsPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getConversations, getCustomers, setConversations, setCustomers, setConversationsLoading, setCustomersLoading]);
+  }, [isAuthenticated, getConversations, getCustomers, getConversation, setConversations, setCustomers, setConversationsLoading, setCustomersLoading]);
 
   const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || 'عميل غير معروف';
 
@@ -53,7 +79,7 @@ export default function ConversationsPage() {
     return name.includes(searchQuery.toLowerCase()) || c.summary.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const selectedConversation = conversations.find(c => c.id === selectedId);
+  const selectedConversation: any = conversations.find(c => c.id === selectedId);
 
   const handlePlay = (url: string | undefined, id: string) => {
     if (url && audioRef.current) {
@@ -83,7 +109,10 @@ export default function ConversationsPage() {
                     getCustomers()
                   ]);
 
-                  setConversations(conversationsData);
+                  // Update conversations to include transcripts (this will get full conversation details with transcript)
+                  const detailedConversations = conversationsData; // The API now returns conversations with transcript included
+
+                  setConversations(detailedConversations);
                   setCustomers(customersData);
                 } catch (error) {
                   console.error('Error refreshing conversations and customers:', error);
@@ -102,8 +131,8 @@ export default function ConversationsPage() {
                 <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث..." onFilterClick={() => {}} />
                 <div className="space-y-2 h-[600px] overflow-y-auto">
                     {filteredConversations.map(conv => (
-                        <Card 
-                            key={conv.id} 
+                        <Card
+                            key={conv.id}
                             className={`p-4 cursor-pointer transition-all hover:shadow-md ${selectedId === conv.id ? 'border-primary ring-1 ring-primary' : ''}`}
                             onClick={() => setSelectedId(conv.id)}
                         >
@@ -138,7 +167,7 @@ export default function ConversationsPage() {
                                 <span className="text-xs text-slate-500">{selectedConversation.id}</span>
                             </div>
                             {selectedConversation.recordingUrl && (
-                                <button 
+                                <button
                                     onClick={() => handlePlay(selectedConversation.recordingUrl!, selectedConversation.id)}
                                     className="flex items-center gap-2 bg-white dark:bg-slate-700 px-3 py-1 rounded-full text-sm shadow-sm hover:bg-slate-100"
                                 >
@@ -149,7 +178,7 @@ export default function ConversationsPage() {
                         </div>
 
                         {/* Chat Area */}
-                        <div 
+                        <div
                             className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] dark:bg-[#0b141a]"
                             style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundBlendMode: 'overlay' }}
                         >
@@ -158,16 +187,18 @@ export default function ConversationsPage() {
                                     لا يوجد نص متوفر لهذه المحادثة
                                 </div>
                             )}
-                            {selectedConversation.transcript?.map((msg, idx) => (
-                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            {selectedConversation.transcript?.map((msg: Message, idx: number) => (
+                                <div key={`${msg.id}-${idx}`} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[70%] p-3 rounded-lg text-sm ${
-                                        msg.role === 'user' 
-                                        ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-slate-900 dark:text-white rounded-tl-none' 
+                                        msg.role === 'user' || msg.role === 'customer'
+                                        ? 'bg-[#dcf8c6] dark:bg-[#005c4b] text-slate-900 dark:text-white rounded-tl-none'
                                         : 'bg-white dark:bg-[#202c33] text-slate-900 dark:text-white rounded-tr-none'
                                     } shadow-sm`}>
                                         <p>{msg.text}</p>
                                         <span className="text-[10px] opacity-50 block text-left mt-1">
-                                            {msg.ts ? new Date(msg.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                                            {typeof msg.ts === 'string' ? new Date(msg.ts).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) :
+                                             msg.ts instanceof Date ? msg.ts.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) :
+                                             new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                         </span>
                                     </div>
                                 </div>

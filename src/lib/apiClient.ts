@@ -323,9 +323,10 @@ export const sendCustomerMessage = (
     customer_id: string;
     message: string;
     channel?: string;
+    agentType?: string;
   },
   token: string
-): Promise<any> => {
+): Promise<{ response: string; conversationId?: string }> => {
   return clientFetch('/chat/customer', token, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -349,6 +350,22 @@ export const getConversations = (token: string): Promise<any[]> => {
       updatedAt: conv.updated_at || conv.created_at
     }));
   });
+};
+
+export const getConversation = (conversationId: string, token: string): Promise<any> => {
+  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
+    ...conv,
+    customerId: conv.customer_id,
+    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
+    createdAt: conv.created_at,
+    transcript: conv.transcript || [],
+    entities: conv.entities || {},
+    sentiment: conv.sentiment || 'محايد',
+    recordingUrl: conv.recording_url,
+    status: conv.status || 'مفتوحة',
+    assignedTo: conv.assigned_to,
+    updatedAt: conv.updated_at || conv.created_at
+  }));
 };
 
 const transformCall = (call: any) => ({
@@ -418,4 +435,11 @@ export interface TranscriptResponse {
 
 export const getTranscript = (conversationId: string, token: string): Promise<TranscriptResponse> => {
   return clientFetch(`/transcripts/${conversationId}`, token);
+};
+
+export const getMessages = (token: string, conversationId?: string): Promise<any[]> => {
+  const endpoint = conversationId
+    ? `/conversations/${conversationId}/messages`
+    : '/messages';
+  return clientFetch(endpoint, token);
 };
