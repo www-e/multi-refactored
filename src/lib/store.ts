@@ -7,7 +7,6 @@ import {
   EnhancedBooking,
   EnhancedCampaign,
   DashboardKPIs,
-  LiveOps,
   Property,
   Call
 } from '@/app/(shared)/types';
@@ -32,14 +31,13 @@ interface AppState {
   campaignsLoading: boolean;
   // Dashboard state
   dashboardKPIs: DashboardKPIs;
-  liveOps: LiveOps;
   // Actions
   setCustomers: (customers: Customer[]) => void;
   setConversations: (conversations: Conversation[]) => void;
   setCalls: (calls: any[]) => void;
   setTickets: (tickets: EnhancedTicket[]) => void;
   setBookings: (bookings: EnhancedBooking[]) => void;
-  setDashboardData: (data: { kpis: DashboardKPIs, liveOps: LiveOps }) => void;
+  setDashboardData: (data: { kpis: DashboardKPIs }) => void;
   setCampaigns: (campaigns: EnhancedCampaign[]) => void;
   setCustomersLoading: (isLoading: boolean) => void;
   setConversationsLoading: (isLoading: boolean) => void;
@@ -85,10 +83,6 @@ const initialState = {
     totalCalls: 0, answerRate: 0, conversionToBooking: 0, revenue: 0, roas: 0,
     avgHandleTime: 0, csat: 0, missedCalls: 0, aiTransferred: 0, systemStatus: 'AI_يعمل',
   },
-  liveOps: {
-    currentCalls: [],
-    aiTransferredChats: [],
-  },
 };
 
 
@@ -102,7 +96,7 @@ export const useAppStore = create<AppState>()(
       setCalls: (calls) => set({ calls, callsLoading: false }),
       setTickets: (tickets) => set({ tickets, ticketsLoading: false }),
       setBookings: (bookings) => set({ bookings, bookingsLoading: false }),
-      setDashboardData: (data) => set({ dashboardKPIs: data.kpis, liveOps: data.liveOps, dashboardLoading: false }),
+      setDashboardData: (data) => set({ dashboardKPIs: data.kpis, dashboardLoading: false }),
       setCampaigns: (campaigns) => set({ campaigns, campaignsLoading: false }),
       setCustomersLoading: (isLoading) => set({ customersLoading: isLoading }),
       setConversationsLoading: (isLoading) => set({ conversationsLoading: isLoading }),

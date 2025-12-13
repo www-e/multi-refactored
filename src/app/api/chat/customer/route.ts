@@ -40,11 +40,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (conversationResponse.ok) {
-        const conversations = await conversationResponse.json();
-        if (conversations.length > 0) {
-          // Use the most recent conversation
-          conversationId = conversations[0].id;
+        // Check if response is JSON before parsing
+        const contentType = conversationResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const conversations = await conversationResponse.json();
+          if (conversations && Array.isArray(conversations) && conversations.length > 0) {
+            // Use the most recent conversation
+            conversationId = conversations[0].id;
+          }
+        } else {
+          // Received non-JSON response (likely HTML error page), log and continue
+          console.warn('Received non-JSON response when fetching conversations:', await conversationResponse.text());
         }
+      } else {
+        // Log the error response but don't fail completely
+        const errorText = await conversationResponse.text();
+        console.warn(`Failed to fetch conversations: ${conversationResponse.status} - ${errorText}`);
       }
     } catch (error) {
       console.warn('Failed to fetch existing conversations:', error);
@@ -66,7 +77,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (!convCreateResponse.ok) {
-        const errorText = await convCreateResponse.text();
+        const contentType = convCreateResponse.headers.get('content-type');
+        let errorText;
+        if (contentType && contentType.includes('application/json')) {
+          const errorJson = await convCreateResponse.json().catch(() => ({ error: 'Unknown JSON error' }));
+          errorText = JSON.stringify(errorJson);
+        } else {
+          // If not JSON, it might be HTML - get as text
+          errorText = await convCreateResponse.text();
+        }
         console.error('Failed to create conversation:', errorText);
         return NextResponse.json({
           error: 'Failed to create conversation',
@@ -74,7 +93,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }, { status: 500 });
       }
 
-      const convData = await convCreateResponse.json();
+      const contentType = convCreateResponse.headers.get('content-type');
+      let convData;
+      if (contentType && contentType.includes('application/json')) {
+        convData = await convCreateResponse.json();
+      } else {
+        // Handle case where response might be HTML
+        const responseText = await convCreateResponse.text();
+        console.error('Unexpected non-JSON response when creating conversation:', responseText);
+        return NextResponse.json({
+          error: 'Unexpected response format from server',
+          details: responseText
+        }, { status: 500 });
+      }
       conversationId = convData.id;
     }
 
@@ -93,7 +124,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     if (!messageResponse.ok) {
-      console.error('Failed to store user message:', await messageResponse.text());
+      const contentType = messageResponse.headers.get('content-type');
+      let errorText;
+      if (contentType && contentType.includes('application/json')) {
+        errorText = await messageResponse.json().catch(() => 'Unknown JSON error').then(data => JSON.stringify(data));
+      } else {
+        // If not JSON, it might be HTML - get as text
+        errorText = await messageResponse.text();
+      }
+      console.error('Failed to store user message:', errorText);
       // Continue anyway, as we still want to get the AI response
     }
 
@@ -139,7 +178,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
 
         if (!aiMessageResponse.ok) {
-          console.error('Failed to store AI message:', await aiMessageResponse.text());
+          const contentType = aiMessageResponse.headers.get('content-type');
+          let errorText;
+          if (contentType && contentType.includes('application/json')) {
+            errorText = await aiMessageResponse.json().catch(() => 'Unknown JSON error').then(data => JSON.stringify(data));
+          } else {
+            // If not JSON, it might be HTML - get as text
+            errorText = await aiMessageResponse.text();
+          }
+          console.error('Failed to store AI message:', errorText);
         }
       }
 
@@ -165,7 +212,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (!aiMessageResponse.ok) {
-        console.error('Failed to store AI message:', await aiMessageResponse.text());
+        const contentType = aiMessageResponse.headers.get('content-type');
+        let errorText;
+        if (contentType && contentType.includes('application/json')) {
+          errorText = await aiMessageResponse.json().catch(() => 'Unknown JSON error').then(data => JSON.stringify(data));
+        } else {
+          // If not JSON, it might be HTML - get as text
+          errorText = await aiMessageResponse.text();
+        }
+        console.error('Failed to store AI message:', errorText);
         // Continue anyway
       }
     }

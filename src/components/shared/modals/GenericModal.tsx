@@ -145,7 +145,21 @@ export default function GenericModal<T extends Record<string, any>>({
   // Use different submit labels based on view mode and initial data
   let currentSubmitLabel = submitLabel;
   if (!viewMode) {
-    currentSubmitLabel = initialData ? `تحديث ${title}` : `إنشاء ${title}`;
+    if (initialData) {
+      // If title already starts with 'تعديل' (edit), 'تحديث' (update), or 'عرض' (view), keep the existing title
+      if (title.startsWith('تعديل') || title.startsWith('تحديث') || title.startsWith('عرض')) {
+        currentSubmitLabel = title;
+      } else {
+        currentSubmitLabel = 'تحديث';
+      }
+    } else {
+      // If title already starts with 'إنشاء' (create), 'حجز جديد' (new booking), etc., keep the existing title
+      if (title.startsWith('إنشاء') || title.includes('جديد')) {
+        currentSubmitLabel = title;
+      } else {
+        currentSubmitLabel = 'إنشاء';
+      }
+    }
   }
 
   return (

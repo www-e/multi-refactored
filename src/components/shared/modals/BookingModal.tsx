@@ -19,6 +19,7 @@ interface BookingModalProps {
   customers: Customer[];
   isSubmitting?: boolean;
   error?: string;
+  viewMode?: boolean;
 }
 
 export default function BookingModal({
@@ -29,7 +30,8 @@ export default function BookingModal({
   title,
   customers,
   isSubmitting = false,
-  error
+  error,
+  viewMode = false
 }: BookingModalProps) {
   // Define the form fields configuration
   const bookingFields: FormField[] = [
@@ -78,6 +80,77 @@ export default function BookingModal({
       layout: 'half'
     }
   ];
+
+  // For view mode, show the booking details in read-only format
+  if (viewMode && booking) {
+    const customer = customers.find(c => c.id === booking.customerId);
+    const customerName = customer ? `${customer.name} - ${customer.phone}` : booking.customerName || 'Unknown';
+
+    return (
+      <GenericModal
+        isOpen={isOpen}
+        onClose={onClose}
+        onSubmit={async () => {}} // Empty function for view mode
+        title={title}
+        fields={[]}
+        initialData={null}
+        isSubmitting={false}
+        error={error}
+        maxWidth="lg"
+        viewMode={true}
+        customContent={
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">العميل</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {customerName}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">رمز العقار</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {booking.propertyId || booking.propertyCode || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">تاريخ ووقت الحجز</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {new Date(booking.startDate).toLocaleString('ar-SA')}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">السعر</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {booking.price} ر.س
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">المصدر</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {booking.source === 'voice' ? 'مكالمة صوتية' :
+                   booking.source === 'chat' ? 'محادثة' :
+                   booking.source}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">الحالة</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {booking.status}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">تاريخ الإنشاء</label>
+                <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
+                  {new Date(booking.createdAt).toLocaleString('ar-SA')}
+                </p>
+              </div>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
 
   // Format initial data for the booking
   const initialData = booking ? {

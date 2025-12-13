@@ -75,7 +75,7 @@ export default function BookingsPage() {
   };
 
   const getCustomer = (id: string) => customers.find(c => c.id === id);
-  
+
   const getCustomerName = (booking: any) => {
       if (booking.customerName && booking.customerName !== 'Unknown') return booking.customerName;
       const c = getCustomer(booking.customerId);
@@ -88,6 +88,10 @@ export default function BookingsPage() {
       if (p) return p.code;
       return booking.propertyId || 'General';
   };
+
+  const getBookingById = (id: string) => bookings.find(b => b.id === id);
+
+  const selectedBookingData = selectedBooking ? getBookingById(selectedBooking) : null;
 
   // Status Matching Helper
   const matchesStatus = (bookingStatus: string, filter: string) => {
@@ -327,6 +331,18 @@ export default function BookingsPage() {
             message={`هل أنت متأكد من رغبتك في حذف الحجز للعميل "${bookingToDelete?.customerName}"؟`}
             itemName={bookingToDelete?.customerName}
             isSubmitting={isSubmitting}
+        />
+
+        {/* Booking Detail Modal */}
+        <BookingModal
+            isOpen={!!selectedBooking}
+            onClose={() => setSelectedBooking(null)}
+            title="عرض تفاصيل الحجز"
+            booking={selectedBookingData}
+            customers={customers}
+            viewMode={true}
+            onSubmit={async () => {}} // Not used in view mode
+            isSubmitting={false}
         />
       </div>
     </div>

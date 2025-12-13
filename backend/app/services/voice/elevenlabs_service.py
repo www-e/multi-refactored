@@ -95,7 +95,15 @@ def extract_conversation_data(data: Dict[str, Any]) -> Tuple[Dict, str, str, str
             return str(val.get("value", "")).strip()
         return str(val if val else "").strip()
 
-    intent = get_val("extracted_intent") or "unknown"
+    # Handle extracted_intent which may be a string, dict, or other complex type
+    intent_raw = data_collection.get("extracted_intent")
+    if isinstance(intent_raw, dict):
+        # Extract the value from dict if it's a complex object
+        intent = intent_raw.get("value") or str(intent_raw)
+    elif intent_raw is not None:
+        intent = str(intent_raw)
+    else:
+        intent = "unknown"
     phone = get_val("phone")
     name = get_val("customer_name")
     summary = analysis.get("transcript_summary") or analysis.get("call_summary_title", "Voice Interaction")

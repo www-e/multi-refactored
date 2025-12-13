@@ -87,31 +87,60 @@ export async function handleAuthenticatedApi(
     const response = await fetch(backendEndpoint, fetchOptions);
 
     if (!response.ok) {
-      let errorBody;
-      try {
-        // Try to parse the standardized error response from backend
-        errorBody = await response.json();
+      const contentType = response.headers.get('content-type');
 
-        // Check if this is a standardized error response from our backend
-        if (errorBody && typeof errorBody === 'object' && errorBody.error) {
-          console.error(`Standardized error from backend service on ${method} ${endpoint}:`, response.status, errorBody.error);
-          return NextResponse.json(errorBody, { status: response.status });
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          // Try to parse the standardized error response from backend
+          const errorBody = await response.json();
+
+          // Check if this is a standardized error response from our backend
+          if (errorBody && typeof errorBody === 'object' && errorBody.error) {
+            console.error(`Standardized error from backend service on ${method} ${endpoint}:`, response.status, errorBody.error);
+            return NextResponse.json(errorBody, { status: response.status });
+          } else {
+            // If not a standardized error, create a formatted error response
+            const formattedError = {
+              error: {
+                message: errorBody?.detail || `Backend failed: ${response.statusText}`,
+                code: "BACKEND_ERROR",
+                status_code: response.status
+              }
+            };
+            console.error(`Error from backend service on ${method} ${endpoint}:`, response.status, errorBody);
+            return NextResponse.json(formattedError, { status: response.status });
+          }
         } else {
-          // If not a standardized error, create a formatted error response
-          const formattedError = {
-            error: {
-              message: errorBody?.detail || `Backend failed: ${response.statusText}`,
-              code: "BACKEND_ERROR",
-              status_code: response.status
-            }
-          };
-          console.error(`Error from backend service on ${method} ${endpoint}:`, response.status, errorBody);
-          return NextResponse.json(formattedError, { status: response.status });
+          // If not JSON, it's likely an HTML error page or plain text - get as text
+          const textError = await response.text();
+
+          // Check if it looks like an HTML error page
+          if (textError.includes('<!DOCTYPE html') || textError.includes('<html') || textError.includes('404') || textError.includes('405') || textError.includes('500')) {
+            console.error(`HTML error page received from backend service on ${method} ${endpoint}:`, response.status, textError.substring(0, 200) + '...');
+            const formattedError = {
+              error: {
+                message: `Received HTML error page instead of JSON response: ${response.status} ${response.statusText}`,
+                code: "BACKEND_ERROR",
+                status_code: response.status,
+                html_preview: textError.substring(0, 200) + '...'
+              }
+            };
+            return NextResponse.json(formattedError, { status: response.status });
+          } else {
+            console.error(`Non-JSON error from backend service on ${method} ${endpoint}:`, response.status, textError);
+            const formattedError = {
+              error: {
+                message: `Backend failed: ${response.statusText}`,
+                code: "BACKEND_ERROR",
+                status_code: response.status
+              }
+            };
+            return NextResponse.json(formattedError, { status: response.status });
+          }
         }
       } catch (parseError) {
-        // If the error response isn't JSON, handle it as text
-        const textError = await response.text();
-        console.error(`Non-JSON error from backend service on ${method} ${endpoint}:`, response.status, textError);
+        // If we can't parse the response at all, log and return a generic error
+        console.error(`Failed to parse error response from backend service on ${method} ${endpoint}:`, parseError);
         const formattedError = {
           error: {
             message: `Backend failed: ${response.statusText}`,
@@ -123,13 +152,29 @@ export async function handleAuthenticatedApi(
       }
     }
 
-    // Return the response from backend
-    const responseData = await response.json();
-    const transformedResponse = transformResponse 
-      ? transformResponse(responseData) 
-      : responseData;
-    
-    return NextResponse.json(transformedResponse);
+    // Check if the successful response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      // Return the response from backend
+      const responseData = await response.json();
+      const transformedResponse = transformResponse
+        ? transformResponse(responseData)
+        : responseData;
+
+      return NextResponse.json(transformedResponse);
+    } else {
+      // Handle case where successful response is not JSON
+      const responseText = await response.text();
+      console.error(`Unexpected non-JSON response from backend service on ${method} ${endpoint}:`, responseText.substring(0, 200) + '...');
+      const formattedError = {
+        error: {
+          message: `Backend returned non-JSON response for ${method} ${endpoint}`,
+          code: "BACKEND_ERROR",
+          status_code: 200
+        }
+      };
+      return NextResponse.json(formattedError, { status: 502 });
+    }
   } catch (error) {
     console.error(`Error in ${method} API handler:`, error);
     return NextResponse.json(
@@ -243,7 +288,30 @@ export async function handleSessionBasedApi(
       })
     });
 
-    const data = await response.json();
+    const contentType = response.headers.get('content-type');
+    let data;
+
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // If not JSON, handle as text and provide error context
+      const responseText = await response.text();
+
+      // Check if it looks like an HTML error page
+      if (responseText.includes('<!DOCTYPE html') || responseText.includes('<html')) {
+        console.error(`HTML error page received from backend service on ${method} ${endpoint}:`, response.status, responseText.substring(0, 200) + '...');
+        return NextResponse.json({
+          detail: `Received HTML error page instead of JSON response: ${response.status}`,
+          html_preview: responseText.substring(0, 200) + '...'
+        }, { status: response.status });
+      } else {
+        console.error(`Non-JSON response from backend service on ${method} ${endpoint}:`, response.status, responseText);
+        return NextResponse.json({
+          detail: `Backend returned non-JSON response: ${responseText}`
+        }, { status: response.status });
+      }
+    }
+
     if (!response.ok) {
       return NextResponse.json({ detail: data.detail || `Failed to ${method} ${endpoint}` }, { status: response.status });
     }

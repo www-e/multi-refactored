@@ -1,4 +1,4 @@
-import { EnhancedBooking, EnhancedTicket, DashboardKPIs, LiveOps, Customer, EnhancedCampaign } from "@/app/(shared)/types";
+import { EnhancedBooking, EnhancedTicket, DashboardKPIs, Customer, EnhancedCampaign } from "@/app/(shared)/types";
 import { mapCallStatusToArabic } from "@/lib/statusMapper";
 
 export class ApiError extends Error {
@@ -52,7 +52,7 @@ async function clientFetch<T>(
   }
 }
 
-export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs; liveOps: LiveOps }> =>
+export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs }> =>
   clientFetch('/dashboard', token);
 
 export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
