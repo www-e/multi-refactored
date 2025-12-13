@@ -97,8 +97,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Continue anyway, as we still want to get the AI response
     }
 
-    // Get AI response from the existing chat API which should connect to ElevenLabs
-    const chatResponse = await fetch('/api/chat', {
+    // Get AI response from the backend chat API which should connect to ElevenLabs
+    const chatBackendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!chatBackendUrl) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    const chatResponse = await fetch(`${chatBackendUrl}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

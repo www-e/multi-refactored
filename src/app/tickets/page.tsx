@@ -23,6 +23,7 @@ export default function TicketsPage() {
   const [ticketToDelete, setTicketToDelete] = useState<any>(null);
   const [ticketToEdit, setTicketToEdit] = useState<any>(null);
   const [ticketToView, setTicketToView] = useState<any>(null);
+  const [statusUpdateLoading, setStatusUpdateLoading] = useState<Record<string, 'idle' | 'in_progress' | 'resolved'>>({});
 
   const { tickets, setTickets, setTicketsLoading, customers, setCustomers, addTicket, removeTicket, updateTicket: updateTicketInStore } = useAppStore();
   const { getTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
@@ -206,6 +207,51 @@ export default function TicketsPage() {
                           <ActionMenu
                             position="left"
                             actions={[
+                              // Status update actions based on current ticket status
+                              ...(ticket.status === 'open' ? [
+                                {
+                                  label: statusUpdateLoading[ticket.id] === 'in_progress' ? 'جاري التحديث...' : 'بدء المعالجة',
+                                  icon: <Edit size={16} />,
+                                  onClick: async () => {
+                                    setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'in_progress' }));
+                                    try {
+                                      await updateTicketStatus(ticket.id, 'in_progress');
+                                      // Update the ticket in the store
+                                      const updatedTicket = { ...ticket, status: 'in_progress' as const };
+                                      updateTicketInStore(ticket.id, updatedTicket);
+                                    } catch (error) {
+                                      console.error('Failed to update ticket status:', error);
+                                      alert('فشل تحديث حالة التذكرة. يرجى المحاولة مرة أخرى.');
+                                    } finally {
+                                      setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'idle' }));
+                                    }
+                                  },
+                                  disabled: statusUpdateLoading[ticket.id] === 'in_progress',
+                                  color: 'text-yellow-600 dark:text-yellow-400'
+                                }
+                              ] : []),
+                              ...(ticket.status === 'in_progress' ? [
+                                {
+                                  label: statusUpdateLoading[ticket.id] === 'resolved' ? 'جاري التحديث...' : 'وضع كمحلولة',
+                                  icon: <Edit size={16} />,
+                                  onClick: async () => {
+                                    setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'resolved' }));
+                                    try {
+                                      await updateTicketStatus(ticket.id, 'resolved');
+                                      // Update the ticket in the store
+                                      const updatedTicket = { ...ticket, status: 'resolved' as const };
+                                      updateTicketInStore(ticket.id, updatedTicket);
+                                    } catch (error) {
+                                      console.error('Failed to update ticket status:', error);
+                                      alert('فشل تحديث حالة التذكرة. يرجى المحاولة مرة أخرى.');
+                                    } finally {
+                                      setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'idle' }));
+                                    }
+                                  },
+                                  disabled: statusUpdateLoading[ticket.id] === 'resolved',
+                                  color: 'text-green-600 dark:text-green-400'
+                                }
+                              ] : []),
                               {
                                 label: 'تعديل',
                                 icon: <Edit size={16} />,

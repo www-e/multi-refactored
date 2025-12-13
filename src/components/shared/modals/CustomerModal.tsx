@@ -48,6 +48,36 @@ export default function CustomerModal({
     }
   ];
 
+  // Custom validation function to validate email format before submission
+  const validateEmail = (email: string | undefined): string | null => {
+    if (!email) return null; // Allow undefined/null emails
+
+    // Simple but effective email regex pattern
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'الرجاء إدخال بريد إلكتروني صحيح';
+    }
+    return null;
+  };
+
+  // Override the onSubmit to include email validation
+  const handleSubmit = async (data: { name: string; phone: string; email?: string }) => {
+    // Validate email format before submitting
+    const emailError = validateEmail(data.email);
+    if (emailError) {
+      // This will be handled by the parent component's error handling
+      throw new Error(emailError);
+    }
+
+    // If email is empty string, convert to undefined to avoid backend validation issues
+    const processedData = {
+      ...data,
+      email: data.email?.trim() || undefined
+    };
+
+    await onSubmit(processedData);
+  };
+
   // Format initial data for the customer
   const initialData = customer ? {
     ...customer
@@ -57,7 +87,7 @@ export default function CustomerModal({
     <GenericModal
       isOpen={isOpen}
       onClose={onClose}
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
       title={title}
       fields={customerFields}
       initialData={initialData}

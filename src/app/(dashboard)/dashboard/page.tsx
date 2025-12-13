@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import {
-  Activity, Star, TrendingUp, BarChart3, MessageSquare, Users, Phone, AlertCircle, Clock
+  Star, TrendingUp, BarChart3, MessageSquare, Users, Phone
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
@@ -21,7 +21,6 @@ export default function DashboardPage() {
 
   const {
     dashboardKPIs,
-    liveOps,
     calls,
     dashboardLoading,
     setDashboardData,
@@ -120,60 +119,6 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-3 space-x-reverse">
-              <div className="w-12 h-12 bg-gradient-to-r from-primary to-purple-600 rounded-xl flex items-center justify-center">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <CardTitle>العمليات الحية</CardTitle>
-                <p className="text-slate-600 dark:text-slate-400">مراقبة المكالمات والرسائل في الوقت الفعلي</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 space-x-reverse">
-              <div className="w-3 h-3 bg-success rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-success">
-                {dashboardKPIs.systemStatus === 'AI_يعمل' ? 'AI يعمل' : 'التحويل للبشر'}
-              </span>
-            </div>
-          </CardHeader>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">المكالمات الحالية</h3>
-              <div className="space-y-3">
-                {liveOps.currentCalls.map((call) => (
-                  <div key={call.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                       <StatusBadge status={call.status as any} type="icon" />
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{call.customerName}</p>
-                        <p className="text-sm text-slate-500">المدة: {call.duration}</p>
-                      </div>
-                    </div>
-                    <StatusBadge status={call.status as any} />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">الرسائل المحولة من AI</h3>
-              <div className="space-y-3">
-                {liveOps.aiTransferredChats.map((chat) => (
-                  <div key={chat.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <AlertCircle className="w-4 h-4 text-warning" />
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{chat.customerName}</p>
-                        <p className="text-sm text-slate-500">{chat.reason}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Card>
 
         {/* Latest Calls Section */}
         <Card>

@@ -92,9 +92,20 @@ export const createCustomer = (
   },
   token: string
 ): Promise<Customer> => {
+  // Additional validation on the client side before sending
+  if (!data.name || !data.phone) {
+    return Promise.reject(new ApiError('Name and phone are required fields'));
+  }
+
+  // Sanitize email - convert empty string to undefined
+  const requestData = {
+    ...data,
+    email: data.email?.trim() || undefined
+  };
+
   return clientFetch('/customers', token, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(requestData),
   }).then(transformCustomer);
 };
 
@@ -327,9 +338,20 @@ export const sendCustomerMessage = (
   },
   token: string
 ): Promise<{ response: string; conversationId?: string }> => {
+  // Validate required fields before sending
+  if (!data.customer_id || !data.message) {
+    return Promise.reject(new ApiError('Customer ID and message are required'));
+  }
+
+  // Ensure message is trimmed
+  const requestData = {
+    ...data,
+    message: data.message.trim()
+  };
+
   return clientFetch('/chat/customer', token, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(requestData),
   });
 };
 

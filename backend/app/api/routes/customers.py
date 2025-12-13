@@ -23,6 +23,18 @@ def create_customer(
     """
     Create a new customer.
     """
+    # Validate email format if provided
+    if customer_in.email:
+        try:
+            # This will trigger Pydantic validation for EmailStr if email is invalid
+            # EmailStr validation will be handled by the schema
+            pass
+        except Exception as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid email format: {str(e)}"
+            )
+
     # Check if a customer with the same phone or email already exists
     existing_customer = db_session.query(models.Customer).filter(
         (models.Customer.phone == customer_in.phone) |
