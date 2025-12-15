@@ -9,6 +9,8 @@ import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { formatDate } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
+import { AudioPlayer } from '@/components/features/calls/AudioPlayer';
+import { TranscriptModal } from '@/components/features/calls/TranscriptModal';
 
 interface Message {
   id: number;
@@ -36,11 +38,12 @@ export default function ConversationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const [transcriptModalOpen, setTranscriptModalOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Update the store to use the new conversation type with transcript
   const { conversations, setConversations, setConversationsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getConversations, getCustomers, getConversation, isAuthenticated } = useAuthApi();
+  const { getConversations, getCustomers, getConversation, getTranscript, isAuthenticated } = useAuthApi();
 
   // CRITICAL: Fetch Customers and Conversations
   useEffect(() => {
@@ -80,19 +83,6 @@ export default function ConversationsPage() {
   });
 
   const selectedConversation: any = conversations.find(c => c.id === selectedId);
-
-  const handlePlay = (url: string | undefined, id: string) => {
-    if (url && audioRef.current) {
-      if (isPlaying === id) {
-        audioRef.current.pause();
-        setIsPlaying(null);
-      } else {
-        audioRef.current.src = url;
-        audioRef.current.play();
-        setIsPlaying(id);
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen gradient-bg p-4 md:p-6">
@@ -166,15 +156,20 @@ export default function ConversationsPage() {
                                 <h3 className="font-bold">{getCustomerName(selectedConversation.customerId)}</h3>
                                 <span className="text-xs text-slate-500">{selectedConversation.id}</span>
                             </div>
-                            {selectedConversation.recordingUrl && (
-                                <button
-                                    onClick={() => handlePlay(selectedConversation.recordingUrl!, selectedConversation.id)}
-                                    className="flex items-center gap-2 bg-white dark:bg-slate-700 px-3 py-1 rounded-full text-sm shadow-sm hover:bg-slate-100"
-                                >
-                                    {isPlaying === selectedConversation.id ? <Pause size={14}/> : <Play size={14}/>}
-                                    <span>تسجيل المكالمة</span>
-                                </button>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {selectedConversation.recordingUrl && (
+                                  <AudioPlayer src={selectedConversation.recordingUrl} />
+                              )}
+                              {selectedConversation.id && (
+                                  <button
+                                      onClick={() => setTranscriptModalOpen(true)}
+                                      className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded-full text-xs"
+                                  >
+                                      <MessageSquare size={12} />
+                                      <span>عرض النص</span>
+                                  </button>
+                              )}
+                            </div>
                         </div>
 
                         {/* Chat Area */}
@@ -215,7 +210,15 @@ export default function ConversationsPage() {
                 )}
             </div>
         </div>
-        <audio ref={audioRef} onEnded={() => setIsPlaying(null)} className="hidden" />
+
+        {/* Transcript Modal */}
+        {selectedConversation && selectedConversation.id && (
+          <TranscriptModal
+            open={transcriptModalOpen}
+            onOpenChange={setTranscriptModalOpen}
+            conversationId={selectedConversation.id}
+          />
+        )}
       </div>
     </div>
   );

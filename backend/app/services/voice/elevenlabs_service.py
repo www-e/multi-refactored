@@ -293,7 +293,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     def find_url_recursive(obj, path=""):
         """Recursively search for URL strings in nested data structure"""
         if isinstance(obj, str) and obj.startswith('http'):
-            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file']):
+            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file', 'mp3', 'wav', 'm4a']):
                 return obj
         elif isinstance(obj, dict):
             for key, value in obj.items():
@@ -380,6 +380,13 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
                             logger.debug(f"🔍 Found recording URL in conversation.turns[{i}].{field_name}: {turn_url[:50]}...")
                             return turn_url
 
+    # Additional check: Look for URLs in the main conversation object that might have audio extensions
+    for key, value in data.items():
+        if isinstance(value, str) and value.startswith('http'):
+            if any(ext in value.lower() for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac']):
+                logger.debug(f"🔍 Found audio recording URL in {key}: {value[:50]}...")
+                return value
+
     # Use recursive search as a last resort
     recursive_result = find_url_recursive(data)
     if recursive_result:
@@ -389,7 +396,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     # Sometimes recording URLs are nested in unexpected places
     def find_any_recording_url(obj):
         if isinstance(obj, str) and obj.startswith('http'):
-            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file']):
+            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file', 'mp3', 'wav', 'm4a']):
                 return obj
         elif isinstance(obj, dict):
             for key, value in obj.items():
@@ -410,6 +417,31 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     if fallback_result:
         logger.debug(f"🔍 Found recording URL via fallback search: {fallback_result[:50]}...")
         return fallback_result
+
+    # Even more extensive search: Check for nested objects that might contain recording URLs
+    def deep_search(obj, path=""):
+        if isinstance(obj, str) and obj.startswith('http'):
+            # Look for URLs that might be recordings even without explicit keywords
+            if any(ext in obj.lower() for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac']):
+                logger.debug(f"🔍 Found audio file URL via deep search at {path}: {obj[:50]}...")
+                return obj
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                new_path = f"{path}.{key}" if path else key
+                result = deep_search(value, new_path)
+                if result:
+                    return result
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                result = deep_search(item, new_path)
+                if result:
+                    return result
+        return None
+
+    deep_result = deep_search(data)
+    if deep_result:
+        return deep_result
 
     logger.debug("🔍 No recording URL found in ElevenLabs response")
     return None
