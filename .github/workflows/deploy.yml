@@ -84,115 +84,13 @@ jobs:
             done
             
             # 6. Database Migrations
-            echo "🔄 Checking Database State & Running Migrations..."
-
-            # Wait a bit for the DB to be completely ready
-            sleep 5
-
-            # Retry logic for database connectivity
-            CONNECTED=false
-            for i in {1..10}; do
-                if docker exec $BACKEND_CONTAINER python -c "
-import os
-from sqlalchemy import create_engine
-try:
-    engine = create_engine(os.getenv('DB_URL', 'postgresql://navaia:navaia@agentic_db:5432/navaia'))
-    with engine.connect() as conn:
-        conn.execute('SELECT 1')
-    print('CONNECTED')
-except:
-    print('ERROR')
-" | grep -q "CONNECTED"; then
-                    CONNECTED=true
-                    break
-                fi
-                echo "⏳ Waiting for DB connectivity... ($i/10)"
-                sleep 3
-            done
-
-            if [ "$CONNECTED" = false ]; then
-                echo "❌ Unable to connect to database!"
-                docker logs $BACKEND_CONTAINER --tail 30
-                exit 1
-            fi
-
-            # First, check current alembic revision to see what's applied
-            CURRENT_REVISION=$(docker exec $BACKEND_CONTAINER alembic current 2>&1 || echo "NO_REVISION")
-
-            if [[ "$CURRENT_REVISION" == *"No revision"* ]] || [[ "$CURRENT_REVISION" == "NO_REVISION" ]]; then
-                echo "📚 No alembic revision found - checking if tables exist..."
-
-                # Check if tables exist by trying to get table count (using a simple SQL query through alembic db connection)
-                TABLES_EXIST=$(docker exec $BACKEND_CONTAINER python -c "
-from sqlalchemy import create_engine, text
-import os
-try:
-    engine = create_engine(os.getenv('DB_URL', 'postgresql://navaia:navaia@agentic_db:5432/navaia'))
-    with engine.connect() as conn:
-        result = conn.execute(text(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name != 'alembic_version';\"))
-        count = result.scalar()
-        print('EXISTS' if count > 0 else 'NONE')
-except Exception as e:
-    print('ERROR')
-" 2>/dev/null || echo "ERROR")
-
-                if [ "$TABLES_EXIST" = "EXISTS" ]; then
-                    echo "📁 Tables exist but no alembic tracking - marking latest revision as current..."
-                    # Check if alembic_version table exists, if not create it first
-                    ALEMBIC_VERSION_TABLE=$(docker exec $BACKEND_CONTAINER python -c "
-from sqlalchemy import create_engine, text
-import os
-try:
-    engine = create_engine(os.getenv('DB_URL', 'postgresql://navaia:navaia@agentic_db:5432/navaia'))
-    with engine.connect() as conn:
-        result = conn.execute(text(\"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'alembic_version');\"))
-        exists = result.fetchone()[0]
-        print('EXISTS' if exists else 'NOT_EXISTS')
-except Exception:
-    print('ERROR')
-" 2>/dev/null || echo "ERROR")
-
-                    if [ "$ALEMBIC_VERSION_TABLE" != "EXISTS" ]; then
-                        echo "🔧 Creating alembic version table..."
-                        docker exec $BACKEND_CONTAINER alembic stamp base
-                    fi
-
-                    # Stamp the head revision as already applied to avoid re-creating existing tables
-                    docker exec $BACKEND_CONTAINER alembic stamp head
-                    echo "🔄 Now running any pending upgrades..."
-                    docker exec $BACKEND_CONTAINER alembic upgrade head
-                elif [ "$TABLES_EXIST" = "ERROR" ]; then
-                    # Database connection issue - try fresh migration
-                    echo "⚠️ Database check failed, attempting fresh migration..."
-                    docker exec $BACKEND_CONTAINER alembic upgrade head
-                else
-                    # Fresh database - run normal migration
-                    echo "🌱 Fresh database, running initial migration..."
-                    docker exec $BACKEND_CONTAINER alembic upgrade head
-                fi
-            else
-                # Alembic tracking exists - run normal upgrade to apply new migrations
-                echo "📋 Alembic tracking found (revision: $CURRENT_REVISION), running upgrade..."
-                docker exec $BACKEND_CONTAINER alembic upgrade head
-            fi
-
-            # Check migration result
-            MIGRATION_EXIT_CODE=$?
-            if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
+            echo "🔄 Running Database Migrations..."
+            if ! docker exec $BACKEND_CONTAINER alembic upgrade head; then
                 echo "❌ Migration Failed!"
-                echo "🔍 Checking alembic history:"
-                docker exec $BACKEND_CONTAINER alembic history || true
-                echo "🔍 Current revision state:"
-                docker exec $BACKEND_CONTAINER alembic current || true
-                echo "🔍 Available revisions:"
-                docker exec $BACKEND_CONTAINER alembic branches || true
-                docker logs $BACKEND_CONTAINER --tail 80
+                docker logs $BACKEND_CONTAINER --tail 50
                 exit 1
             fi
-
             echo "✅ Migrations completed successfully!"
-            echo "📋 Final revision state:"
-            docker exec $BACKEND_CONTAINER alembic current || echo "Could not retrieve current revision"
             
             # 7. Post-Cleanup
             docker image prune -f
