@@ -35,12 +35,10 @@ async def get_transcript(
         # Fetch conversation data from ElevenLabs
         elevenlabs_data = await fetch_conversation_from_elevenlabs(conversation_id)
 
-        # Check if transcript is available
-        is_available = check_transcript_availability(elevenlabs_data)
-
-        # Extract transcript if available
-        transcript = extract_transcript_from_conversation(elevenlabs_data) if is_available else []
+        # Extract transcript (the availability check might be too restrictive)
+        transcript = extract_transcript_from_conversation(elevenlabs_data)
         transcript_length = len(transcript)
+        is_available = transcript_length > 0  # Update availability based on actual extracted data
 
         logger.info(f"📋 Transcript data: Available={is_available}, Entries={transcript_length} for conversation {conversation_id}")
 
@@ -95,14 +93,12 @@ async def get_transcript_text(
         # Fetch conversation data from ElevenLabs
         elevenlabs_data = await fetch_conversation_from_elevenlabs(conversation_id)
 
-        # Check if transcript is available
-        is_available = check_transcript_availability(elevenlabs_data)
+        # Extract transcript (don't rely solely on availability check)
+        transcript = extract_transcript_from_conversation(elevenlabs_data)
+        is_available = len(transcript) > 0
 
         if not is_available:
             return {"text": "", "is_available": False}
-
-        # Extract transcript
-        transcript = extract_transcript_from_conversation(elevenlabs_data)
 
         # Format as plain text
         text_lines = []

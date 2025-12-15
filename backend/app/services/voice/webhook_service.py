@@ -57,7 +57,20 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
     transcript_data = extract_transcript_from_conversation(data)
     transcript_count = len(transcript_data) if transcript_data else 0
 
+    # Add more detailed logging to understand the ElevenLabs response structure
     logger.info(f"🔍 Extracted: Intent='{intent}', Phone='{phone}', RefID='{client_ref_id}', Recording URL: {recording_url is not None}, Transcript Entries: {transcript_count}")
+    logger.debug(f"🔍 ElevenLabs API response keys: {list(data.keys())}")
+
+    # If no transcript or recording URL, log more details about the structure
+    if not transcript_data and not recording_url:
+        logger.warning(f"⚠️ No transcript or recording URL found in ElevenLabs response for {conv_id}")
+        # Log nested structures to understand the response format
+        if 'conversation' in data:
+            logger.debug(f"🔍 Conversation data keys: {list(data['conversation'].keys()) if isinstance(data['conversation'], dict) else 'not a dict'}")
+        if 'analysis' in data:
+            logger.debug(f"🔍 Analysis data keys: {list(data['analysis'].keys()) if isinstance(data['analysis'], dict) else 'not a dict'}")
+        if 'metadata' in data:
+            logger.debug(f"🔍 Metadata keys: {list(data['metadata'].keys()) if isinstance(data['metadata'], dict) else 'not a dict'}")
 
     # 2. Session Discovery
     session = None

@@ -137,40 +137,149 @@ def extract_transcript_from_conversation(data: Dict[str, Any]) -> List[Dict[str,
     if not conversation_data:
         conversation_data = data
 
-    # Look for messages in conversation data
+    # Debug: Log the structure of the data we received
+    logger.debug(f"🔍 ElevenLabs response structure keys: {list(conversation_data.keys()) if conversation_data else 'empty'}")
+
+    # Based on analysis of elevenlabsextracted.md and common structures, check multiple locations
+    # Look for messages in various possible locations
     messages = conversation_data.get("messages", [])
+    logger.debug(f"🔍 Found {len(messages)} messages in 'messages' field")
 
-    # If messages not found, try 'user_transcript' or 'agent_transcript'
+    # If messages not found, try other common fields
     if not messages:
-        user_transcript = conversation_data.get("user_transcript", [])
-        agent_transcript = conversation_data.get("agent_transcript", [])
+        # Check for the transcript structure as seen in elevenlabsextracted.md
+        # May be in various formats like "conversation" -> "messages" or flat structure
+        if isinstance(conversation_data, list):
+            # If conversation_data is directly a list of messages
+            messages = conversation_data
+        else:
+            # Check common fields that might contain the conversation transcript
+            for field_name in ["messages", "conversation", "transcript", "dialogue"]:
+                if field_name in conversation_data and isinstance(conversation_data[field_name], list):
+                    messages = conversation_data[field_name]
+                    logger.debug(f"🔍 Found {len(messages)} messages in '{field_name}' field")
+                    break
 
-        # Combine both if they exist
-        for ut in user_transcript:
-            transcript.append({
-                "role": "user",
-                "text": ut.get("text", ""),
-                "timestamp": ut.get("time_in_call_secs", 0)
-            })
+        # If still no messages found, try more specific formats
+        if not messages:
+            # Check for structure like in elevenlabsextracted.md where we have turns
+            turns = conversation_data.get("turns", []) or conversation_data.get("conversation_turns", [])
+            if turns:
+                logger.debug(f"🔍 Found {len(turns)} turns in conversation")
+                for turn in turns:
+                    role = "user" if turn.get("speaker", "").lower() in ["user", "customer", "caller"] else "assistant"
+                    transcript.append({
+                        "role": role,
+                        "text": turn.get("text", turn.get("message", turn.get("content", ""))),
+                        "timestamp": turn.get("timestamp", turn.get("time", turn.get("time_in_call_secs", 0)))
+                    })
 
-        for at in agent_transcript:
-            transcript.append({
-                "role": "assistant",
-                "text": at.get("text", ""),
-                "timestamp": at.get("time_in_call_secs", 0)
-            })
-    else:
-        # Process standard messages format
+            if transcript:
+                logger.debug(f"📊 Extracted {len(transcript)} entries from turns")
+                # Sort by timestamp if available
+                transcript.sort(key=lambda x: x.get("timestamp", 0))
+                return transcript
+
+            # Try to extract from freeform text that might have timestamp-like patterns
+            # This handles cases where transcript is provided as a structured text rather than discrete messages
+            # Looking for patterns like "0:00" "0:06" "0:27" as seen in elevenlabsextracted.md
+            full_text = conversation_data.get("full_text", "") or conversation_data.get("summary", "")
+            if full_text and not transcript:
+                # Try to parse timestamped conversation from text
+                import re
+                # Look for timestamp patterns like "0:00" followed by text
+                timestamp_pattern = r'(\d+:\d+)\s*(.*?)(?=\d+:\d+|$)'
+                matches = re.findall(timestamp_pattern, full_text, re.DOTALL)
+                if matches:
+                    current_speaker = "assistant"  # Start with assistant as typically the first in the file is M7senNew subagent
+                    for timestamp, content in matches:
+                        # Simple heuristic to identify speaker changes based on text content
+                        # In the example, we see "M7senNew subagent" followed by content
+                        if "agent" in content.lower() or "ممثل" in content.lower():
+                            current_speaker = "assistant"
+                        else:
+                            current_speaker = "user"
+
+                        # Extract just the meaningful content, removing speaker labels
+                        content_text = re.sub(r'^.*?subagent\s*', '', content, flags=re.DOTALL).strip()
+                        content_text = re.sub(r'^.*?ممثل.*?\d+:\d+\s*', '', content_text, flags=re.DOTALL).strip()
+
+                        if content_text:
+                            # Convert timestamp to seconds: "0:27" -> 27 seconds, "1:30" -> 90 seconds
+                            time_parts = timestamp.split(':')
+                            if len(time_parts) == 2:
+                                seconds = int(time_parts[0]) * 60 + int(time_parts[1])
+                            else:
+                                seconds = 0
+
+                            transcript.append({
+                                "role": current_speaker,
+                                "text": content_text,
+                                "timestamp": seconds
+                            })
+
+    # Process messages if found
+    if messages:
+        logger.debug(f"🔍 Processing {len(messages)} messages from primary source")
         for msg in messages:
-            transcript.append({
-                "role": msg.get("role", "unknown"),
-                "text": msg.get("text", ""),
-                "timestamp": msg.get("time_in_call_secs", 0)
-            })
+            if isinstance(msg, dict):
+                # Standard message object format
+                role = msg.get("role", msg.get("speaker", "unknown"))
+                # Normalize roles to match frontend expectations
+                if role.lower() in ["user", "customer", "caller", "human"]:
+                    role = "user"
+                elif role.lower() in ["assistant", "agent", "ai", "subagent"]:
+                    role = "assistant"
+
+                transcript.append({
+                    "role": role,
+                    "text": msg.get("text", msg.get("content", msg.get("message", ""))),
+                    "timestamp": msg.get("time_in_call_secs", msg.get("timestamp", msg.get("time", 0)))
+                })
+            else:
+                # Handle if individual message is not a dict
+                logger.warning(f"🔍 Unexpected message format: {type(msg)}")
+
+    # If still no transcript found from main sources, check in analysis or other nested structures
+    if not transcript:
+        # Check in analysis section for detailed conversation data
+        analysis = data.get("analysis", {})
+        if analysis and isinstance(analysis, dict):
+            # Check if transcript data might be in data collection results or other analysis fields
+            data_collection = analysis.get("data_collection_results", {})
+            if data_collection:
+                # Some implementations store conversation details here
+                pass
+
+        # Check if there's a detailed conversation structure elsewhere in the response
+        for key, value in data.items():
+            if isinstance(value, list) and key.lower() != "messages":
+                # Potential list of conversation turns
+                potential_messages = True
+                for item in value:
+                    if not isinstance(item, dict) or not any(k in item for k in ["text", "message", "content"]):
+                        potential_messages = False
+                        break
+                if potential_messages and len(value) > 0:
+                    logger.debug(f"🔍 Found potential messages in field '{key}': {len(value)} items")
+                    for msg in value:
+                        role = msg.get("role", msg.get("speaker", "unknown"))
+                        if role.lower() in ["user", "customer", "caller", "human"]:
+                            role = "user"
+                        elif role.lower() in ["assistant", "agent", "ai"]:
+                            role = "assistant"
+
+                        transcript.append({
+                            "role": role,
+                            "text": msg.get("text", msg.get("content", msg.get("message", ""))),
+                            "timestamp": msg.get("time_in_call_secs", msg.get("timestamp", 0))
+                        })
+                    break
 
     # Sort by timestamp if available
     transcript.sort(key=lambda x: x.get("timestamp", 0))
 
+    logger.debug(f"📊 Total transcript entries extracted: {len(transcript)}")
     return transcript
 
 def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[str]:
@@ -178,46 +287,131 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     Extracts recording URL from ElevenLabs conversation data.
     Returns: Recording URL string or None if not available
     """
+    logger.debug(f"🔍 ElevenLabs response for recording URL - top level keys: {list(data.keys()) if data else 'empty'}")
+
+    # Comprehensive search for recording URLs in various possible locations
+    def find_url_recursive(obj, path=""):
+        """Recursively search for URL strings in nested data structure"""
+        if isinstance(obj, str) and obj.startswith('http'):
+            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file']):
+                return obj
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                new_path = f"{path}.{key}" if path else key
+                result = find_url_recursive(value, new_path)
+                if result:
+                    logger.debug(f"🔍 Found URL via recursive search at {new_path}: {result[:50]}...")
+                    return result
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                result = find_url_recursive(item, new_path)
+                if result:
+                    return result
+        return None
+
     # Try different possible locations for recording URL in ElevenLabs response
     recording_url = data.get("recording_url")
     if recording_url:
+        logger.debug(f"🔍 Found recording URL in 'recording_url' field: {recording_url[:50]}...")
         return recording_url
+
+    # Check for various related field names
+    for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url"]:
+        url = data.get(field_name)
+        if url and isinstance(url, str) and url.startswith('http'):
+            logger.debug(f"🔍 Found URL in '{field_name}' field: {url[:50]}...")
+            return url
 
     # Check in metadata
     metadata = data.get("metadata", {})
     if metadata:
-        recording_url = metadata.get("recording_url")
-        if recording_url:
-            return recording_url
+        for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url"]:
+            recording_url = metadata.get(field_name)
+            if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
+                logger.debug(f"🔍 Found recording URL in metadata.{field_name}: {recording_url[:50]}...")
+                return recording_url
 
     # Check in analysis section
     analysis = data.get("analysis", {})
     if analysis:
-        recording_url = analysis.get("recording_url")
-        if recording_url:
-            return recording_url
+        for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url", "conversation_url"]:
+            recording_url = analysis.get(field_name)
+            if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
+                logger.debug(f"🔍 Found recording URL in analysis.{field_name}: {recording_url[:50]}...")
+                return recording_url
 
     # Check in conversation section
     conversation_data = data.get("conversation", {})
-    if conversation_data:
-        recording_url = conversation_data.get("recording_url")
-        if recording_url:
-            return recording_url
+    if conversation_data and isinstance(conversation_data, dict):
+        for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url", "conversation_url"]:
+            recording_url = conversation_data.get(field_name)
+            if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
+                logger.debug(f"🔍 Found recording URL in conversation.{field_name}: {recording_url[:50]}...")
+                return recording_url
 
-    # Some ElevenLabs responses might have it in 'download_url' or similar keys
-    download_url = data.get("download_url")
-    if download_url:
-        return download_url
+    # Common ElevenLabs API fields that might contain recording URLs
+    elevenlabs_fields = [
+        "conversation_recording_url",
+        "audio_recording_url",
+        "recording_download_url",
+        "conversation_audio_url",
+        "call_recording_url",
+        "voice_recording_url"
+    ]
 
-    # Check in conversation data for other possible recording-related fields
-    if conversation_data:
-        # Look for any field with 'recording' or 'url' in the name
-        for key, value in conversation_data.items():
-            if 'recording' in key.lower() and isinstance(value, str) and value.startswith('http'):
-                return value
-            elif 'url' in key.lower() and isinstance(value, str) and value.startswith('http'):
-                return value
+    for field in elevenlabs_fields:
+        url = data.get(field)
+        if url and isinstance(url, str) and url.startswith('http'):
+            logger.debug(f"🔍 Found potential recording URL in '{field}': {url[:50]}...")
+            return url
 
+    # Check if there are nested structures that might contain recordings
+    # Check conversation.turns or similar for per-turn audio
+    if "conversation" in data and isinstance(data["conversation"], dict):
+        conversation = data["conversation"]
+        if "turns" in conversation and isinstance(conversation["turns"], list):
+            # Check individual turns for audio URLs
+            for i, turn in enumerate(conversation["turns"]):
+                if isinstance(turn, dict):
+                    for field_name in ["audio_url", "recording_url", "url"]:
+                        turn_url = turn.get(field_name)
+                        if turn_url and isinstance(turn_url, str) and turn_url.startswith('http'):
+                            logger.debug(f"🔍 Found recording URL in conversation.turns[{i}].{field_name}: {turn_url[:50]}...")
+                            return turn_url
+
+    # Use recursive search as a last resort
+    recursive_result = find_url_recursive(data)
+    if recursive_result:
+        return recursive_result
+
+    # Final fallback: look for any URL that might be related to recordings
+    # Sometimes recording URLs are nested in unexpected places
+    def find_any_recording_url(obj):
+        if isinstance(obj, str) and obj.startswith('http'):
+            if any(keyword in obj.lower() for keyword in ['recording', 'audio', 'download', 'playback', 'file']):
+                return obj
+        elif isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(key, str) and any(kw in key.lower() for kw in ['recording', 'audio', 'download']):
+                    if isinstance(value, str) and value.startswith('http'):
+                        return value
+                result = find_any_recording_url(value)
+                if result:
+                    return result
+        elif isinstance(obj, list):
+            for item in obj:
+                result = find_any_recording_url(item)
+                if result:
+                    return result
+        return None
+
+    fallback_result = find_any_recording_url(data)
+    if fallback_result:
+        logger.debug(f"🔍 Found recording URL via fallback search: {fallback_result[:50]}...")
+        return fallback_result
+
+    logger.debug("🔍 No recording URL found in ElevenLabs response")
     return None
 
 def check_transcript_availability(data: Dict[str, Any]) -> bool:
@@ -225,21 +419,10 @@ def check_transcript_availability(data: Dict[str, Any]) -> bool:
     Checks if transcript is available in the ElevenLabs conversation data.
     Returns: Boolean indicating if transcript is available
     """
-    # Try different possible locations for transcript data
-    conversation_data = data.get("conversation", {})
-    if not conversation_data:
-        conversation_data = data
-
-    # Check if messages exist
-    messages = conversation_data.get("messages", [])
-    if messages:
-        return True
-
-    # Check if user or agent transcripts exist
-    user_transcript = conversation_data.get("user_transcript", [])
-    agent_transcript = conversation_data.get("agent_transcript", [])
-
-    return len(user_transcript) > 0 or len(agent_transcript) > 0
+    # Instead of just checking for existence, use the same comprehensive extraction
+    # and check if any transcript data exists
+    transcript = extract_transcript_from_conversation(data)
+    return len(transcript) > 0
 
 async def send_text_to_elevenlabs_agent(message: str, agent_type: str, session_id: Optional[str] = None) -> str:
     """

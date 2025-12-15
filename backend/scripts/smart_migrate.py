@@ -32,13 +32,15 @@ def check_database_connection(db_url: str):
 def check_table_exists(engine, table_name: str) -> bool:
     """Check if a table exists in the database."""
     try:
-        result = engine.execute(text(f"SELECT to_regclass('{table_name}');")).fetchone()
-        return result and result[0] is not None
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT to_regclass('{table_name}');")).fetchone()
+            return result and result[0] is not None
     except Exception:
         # For SQLite compatibility or other databases
         try:
-            result = engine.execute(text(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")).fetchone()
-            return bool(result)
+            with engine.connect() as conn:
+                result = conn.execute(text(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")).fetchone()
+                return bool(result)
         except Exception:
             # Last resort: assume it exists if we can't check
             return False
@@ -46,9 +48,10 @@ def check_table_exists(engine, table_name: str) -> bool:
 def check_alembic_current_version(engine):
     """Check the current alembic version in the database."""
     try:
-        result = engine.execute(text("SELECT version_num FROM alembic_version LIMIT 1;")).fetchone()
-        if result:
-            return result[0]
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1;")).fetchone()
+            if result:
+                return result[0]
         return None
     except Exception as e:
         logger.info(f"Alembic version table doesn't exist or error occurred: {e}")
@@ -57,12 +60,15 @@ def check_alembic_current_version(engine):
 def ensure_alembic_version_table(engine):
     """Ensure the alembic_version table exists."""
     try:
-        engine.execute(text("""
-            CREATE TABLE IF NOT EXISTS alembic_version (
-                version_num VARCHAR(32) NOT NULL, 
-                CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-            );
-        """))
+        with engine.connect() as conn:
+            trans = conn.begin()
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS alembic_version (
+                    version_num VARCHAR(32) NOT NULL,
+                    CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                );
+            """))
+            trans.commit()
         logger.info("Alembic version table ensured")
     except Exception as e:
         logger.error(f"Could not create alembic_version table: {e}")
@@ -70,39 +76,39 @@ def ensure_alembic_version_table(engine):
 def smart_migrate(db_url: str):
     """Perform smart migration handling existing schemas."""
     logger.info("Starting smart migration process...")
-    
+
     # Connect to database
     engine = create_engine(db_url)
-    
+
     # Check if key tables exist (approvals as our indicator)
     approvals_exist = check_table_exists(engine, 'approvals')
     logger.info(f"Approvals table exists: {approvals_exist}")
-    
+
     # Check current alembic version
     current_version = check_alembic_current_version(engine)
     logger.info(f"Current alembic version: {current_version}")
-    
+
     alembic_cfg = Config("/app/alembic.ini")
-    
+
     if approvals_exist and not current_version:
         logger.info("Schema exists but no alembic tracking - setting up alembic...")
-        
+
         # Ensure alembic_version table exists
         ensure_alembic_version_table(engine)
-        
+
         # Stamp with the initial migration (assuming c1c3c5a1c065 is the first)
         try:
             # Get the actual first migration revision
             from alembic.script import ScriptDirectory
             script_dir = ScriptDirectory.from_config(alembic_cfg)
             first_revision = None
-            
+
             # Find the root migration (the one with no down_revision)
             for revision in script_dir.walk_revisions():
                 if revision.down_revision is None and revision.revision is not None:
                     first_revision = revision.revision
                     break
-            
+
             if first_revision:
                 logger.info(f"Stamping database with initial migration: {first_revision}")
                 command.stamp(alembic_cfg, first_revision)
@@ -110,11 +116,11 @@ def smart_migrate(db_url: str):
             else:
                 logger.error("Could not find initial migration revision")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Failed to stamp database: {e}")
             return False
-    
+
     # Now run the upgrade to head
     try:
         logger.info("Running alembic upgrade to head...")
@@ -123,6 +129,56 @@ def smart_migrate(db_url: str):
         return True
     except Exception as e:
         logger.error(f"Migration upgrade failed: {e}")
+
+        # If the error is specifically about duplicate table creation, try a more targeted approach
+        error_msg = str(e).lower()
+        if 'duplicate' in error_msg or 'already exists' in error_msg:
+            logger.info("Detected duplicate table error - attempting to mark initial migration as completed...")
+
+            try:
+                # Try to mark the initial migration as completed to bypass the issue
+                with engine.connect() as conn:
+                    trans = conn.begin()
+                    # Check if the alembic_version table exists, if not create it
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS alembic_version (
+                            version_num VARCHAR(32) NOT NULL,
+                            CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+                        );
+                    """))
+
+                    # Find and insert the first migration revision
+                    from alembic.script import ScriptDirectory
+                    script_dir = ScriptDirectory.from_config(alembic_cfg)
+                    first_revision = None
+                    for revision in script_dir.walk_revisions():
+                        if revision.down_revision is None and revision.revision is not None:
+                            first_revision = revision.revision
+                            break
+
+                    if first_revision:
+                        # Insert the first revision to mark it as done
+                        result = conn.execute(text("SELECT version_num FROM alembic_version WHERE version_num = :version"), {"version": first_revision})
+                        if not result.fetchone():
+                            conn.execute(text("INSERT INTO alembic_version (version_num) VALUES (:version)"), {"version": first_revision})
+                            trans.commit()
+                            logger.info(f"Marked initial migration {first_revision} as completed")
+                        else:
+                            trans.rollback()
+                            logger.info("Initial migration already marked as completed")
+                    else:
+                        trans.rollback()
+                        logger.error("Could not find initial migration revision")
+                        return False
+
+                # Retry the upgrade
+                logger.info("Retrying alembic upgrade to head after marking initial migration...")
+                command.upgrade(alembic_cfg, "head")
+                logger.info("Migration completed successfully after recovery!")
+                return True
+            except Exception as recovery_error:
+                logger.error(f"Recovery attempt failed: {recovery_error}")
+                return False
         return False
 
 def main():
