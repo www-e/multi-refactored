@@ -83,10 +83,12 @@ jobs:
                 sleep 1
             done
             
-            # 6. Database Migrations
-            echo "🔄 Running Database Migrations..."
-            if ! docker exec $BACKEND_CONTAINER alembic upgrade head; then
-                echo "❌ Migration Failed!"
+            # 6. Smart Database Migrations
+            echo "🔄 Running Smart Database Migrations..."
+
+            # Run the smart migration script that handles existing schemas intelligently
+            if ! docker exec $BACKEND_CONTAINER python /app/scripts/smart_migrate.py; then
+                echo "❌ Smart Migration Failed!"
                 docker logs $BACKEND_CONTAINER --tail 50
                 exit 1
             fi
