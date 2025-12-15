@@ -59,7 +59,22 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
 
     # Add more detailed logging to understand the ElevenLabs response structure
     logger.info(f"🔍 Extracted: Intent='{intent}', Phone='{phone}', RefID='{client_ref_id}', Recording URL: {recording_url is not None}, Transcript Entries: {transcript_count}")
-    logger.debug(f"🔍 ElevenLabs API response keys: {list(data.keys())}")
+    logger.info(f"🔍 ElevenLabs API response keys: {list(data.keys())}")
+
+    # Debug: Log more details about the response for investigation
+    if "conversation" in data:
+        logger.info(f"🔍 Conversation keys: {list(data['conversation'].keys()) if isinstance(data['conversation'], dict) else 'not a dict'}")
+    if "analysis" in data:
+        logger.info(f"🔍 Analysis keys: {list(data['analysis'].keys()) if isinstance(data['analysis'], dict) else 'not a dict'}")
+    if "metadata" in data:
+        logger.info(f"🔍 Metadata keys: {list(data['metadata'].keys()) if isinstance(data['metadata'], dict) else 'not a dict'}")
+    if "files" in data:
+        logger.info(f"🔍 Files found: {data['files']}")
+    if "recording" in data:
+        logger.info(f"🔍 Recording found: {data['recording']}")
+
+    # Log whether we have recording and transcript data for debugging
+    logger.info(f"📊 Recording data: {recording_url is not None}, Transcript data: {transcript_count > 0}")
 
     # If no transcript or recording URL, log more details about the structure
     if not transcript_data and not recording_url:

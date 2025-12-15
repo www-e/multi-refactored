@@ -157,9 +157,8 @@ export default function ConversationsPage() {
                                 <span className="text-xs text-slate-500">{selectedConversation.id}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              {selectedConversation.recordingUrl && (
-                                  <AudioPlayer src={selectedConversation.recordingUrl} />
-                              )}
+                              {/* Always show AudioPlayer for debugging - it will show appropriate message if no URL */}
+                              <AudioPlayer src={selectedConversation.recordingUrl || ''} />
                               {selectedConversation.id && (
                                   <button
                                       onClick={() => setTranscriptModalOpen(true)}

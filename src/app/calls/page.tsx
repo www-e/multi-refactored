@@ -366,12 +366,10 @@ export default function CallsPage() {
                     </div>
                   )}
 
-                  {selectedCall.recordingUrl && (
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-1">تسجيل المكالمة</h4>
-                      <AudioPlayer src={selectedCall.recordingUrl} />
-                    </div>
-                  )}
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-500 mb-1">تسجيل المكالمة</h4>
+                    <AudioPlayer src={selectedCall.recordingUrl || ''} />
+                  </div>
 
                   {/* Transcript button if conversation ID is available */}
                   {selectedCall.conversationId && (

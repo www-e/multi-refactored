@@ -28,10 +28,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Validate URL format
   const isValidUrl = src && typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'));
 
-  if (!src || !isValidUrl) {
+  if (!src) {
     return (
       <div className={`text-sm text-slate-500 ${className}`}>
-        لا توجد تسجيلات متاحة
+        لا توجد تسجيلات متاحة (URL فارغة)
+      </div>
+    );
+  }
+
+  if (!isValidUrl) {
+    return (
+      <div className={`text-sm text-red-500 ${className}`}>
+        رابط غير صحيح: {src.substring(0, 50)}...
       </div>
     );
   }

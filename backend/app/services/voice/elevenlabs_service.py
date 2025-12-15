@@ -300,7 +300,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
                 new_path = f"{path}.{key}" if path else key
                 result = find_url_recursive(value, new_path)
                 if result:
-                    logger.debug(f"🔍 Found URL via recursive search at {new_path}: {result[:50]}...")
+                    logger.info(f"🔍 Found URL via recursive search at {new_path}: {result[:50]}...")
                     return result
         elif isinstance(obj, list):
             for i, item in enumerate(obj):
@@ -313,14 +313,14 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     # Try different possible locations for recording URL in ElevenLabs response
     recording_url = data.get("recording_url")
     if recording_url:
-        logger.debug(f"🔍 Found recording URL in 'recording_url' field: {recording_url[:50]}...")
+        logger.info(f"🔍 Found recording URL in 'recording_url' field: {recording_url[:50]}...")
         return recording_url
 
     # Check for various related field names
     for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url"]:
         url = data.get(field_name)
         if url and isinstance(url, str) and url.startswith('http'):
-            logger.debug(f"🔍 Found URL in '{field_name}' field: {url[:50]}...")
+            logger.info(f"🔍 Found URL in '{field_name}' field: {url[:50]}...")
             return url
 
     # Check in metadata
@@ -329,7 +329,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
         for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url"]:
             recording_url = metadata.get(field_name)
             if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
-                logger.debug(f"🔍 Found recording URL in metadata.{field_name}: {recording_url[:50]}...")
+                logger.info(f"🔍 Found recording URL in metadata.{field_name}: {recording_url[:50]}...")
                 return recording_url
 
     # Check in analysis section
@@ -338,7 +338,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
         for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url", "conversation_url"]:
             recording_url = analysis.get(field_name)
             if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
-                logger.debug(f"🔍 Found recording URL in analysis.{field_name}: {recording_url[:50]}...")
+                logger.info(f"🔍 Found recording URL in analysis.{field_name}: {recording_url[:50]}...")
                 return recording_url
 
     # Check in conversation section
@@ -347,7 +347,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
         for field_name in ["recording_url", "audio_url", "download_url", "playback_url", "file_url", "url", "conversation_url"]:
             recording_url = conversation_data.get(field_name)
             if recording_url and isinstance(recording_url, str) and recording_url.startswith('http'):
-                logger.debug(f"🔍 Found recording URL in conversation.{field_name}: {recording_url[:50]}...")
+                logger.info(f"🔍 Found recording URL in conversation.{field_name}: {recording_url[:50]}...")
                 return recording_url
 
     # Common ElevenLabs API fields that might contain recording URLs
@@ -357,13 +357,16 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
         "recording_download_url",
         "conversation_audio_url",
         "call_recording_url",
-        "voice_recording_url"
+        "voice_recording_url",
+        "recording_file_url",
+        "audio_file_url",
+        "conversation_file_url"
     ]
 
     for field in elevenlabs_fields:
         url = data.get(field)
         if url and isinstance(url, str) and url.startswith('http'):
-            logger.debug(f"🔍 Found potential recording URL in '{field}': {url[:50]}...")
+            logger.info(f"🔍 Found potential recording URL in '{field}': {url[:50]}...")
             return url
 
     # Check if there are nested structures that might contain recordings
@@ -374,17 +377,50 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
             # Check individual turns for audio URLs
             for i, turn in enumerate(conversation["turns"]):
                 if isinstance(turn, dict):
-                    for field_name in ["audio_url", "recording_url", "url"]:
+                    for field_name in ["audio_url", "recording_url", "url", "audio_file", "recording_file"]:
                         turn_url = turn.get(field_name)
                         if turn_url and isinstance(turn_url, str) and turn_url.startswith('http'):
-                            logger.debug(f"🔍 Found recording URL in conversation.turns[{i}].{field_name}: {turn_url[:50]}...")
+                            logger.info(f"🔍 Found recording URL in conversation.turns[{i}].{field_name}: {turn_url[:50]}...")
                             return turn_url
+
+    # Check for URLs related to specific conversation ID
+    # Based on the logs, the conversation ID is conv_3201kch2yphkf1js35abe0j8hebm
+    conversation_id = extract_conversation_id_from_payload(data) or data.get('conversation_id')
+    if conversation_id:
+        # Look for URLs that contain the conversation ID
+        for key, value in data.items():
+            if isinstance(value, str) and value.startswith('http') and conversation_id in value:
+                logger.info(f"🔍 Found conversation ID related URL in {key}: {value[:50]}...")
+                return value
+
+        # Look recursively for URLs containing the conversation ID
+        def find_by_conversation_id(obj, path=""):
+            if isinstance(obj, str) and obj.startswith('http') and conversation_id in obj:
+                logger.info(f"🔍 Found conversation ID matching URL via search at {path}: {obj[:50]}...")
+                return obj
+            elif isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_path = f"{path}.{key}" if path else key
+                    result = find_by_conversation_id(value, new_path)
+                    if result:
+                        return result
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    new_path = f"{path}[{i}]" if path else f"[{i}]"
+                    result = find_by_conversation_id(item, new_path)
+                    if result:
+                        return result
+            return None
+
+        by_conv_id = find_by_conversation_id(data)
+        if by_conv_id:
+            return by_conv_id
 
     # Additional check: Look for URLs in the main conversation object that might have audio extensions
     for key, value in data.items():
         if isinstance(value, str) and value.startswith('http'):
             if any(ext in value.lower() for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac']):
-                logger.debug(f"🔍 Found audio recording URL in {key}: {value[:50]}...")
+                logger.info(f"🔍 Found audio recording URL in {key}: {value[:50]}...")
                 return value
 
     # Use recursive search as a last resort
@@ -415,7 +451,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
 
     fallback_result = find_any_recording_url(data)
     if fallback_result:
-        logger.debug(f"🔍 Found recording URL via fallback search: {fallback_result[:50]}...")
+        logger.info(f"🔍 Found recording URL via fallback search: {fallback_result[:50]}...")
         return fallback_result
 
     # Even more extensive search: Check for nested objects that might contain recording URLs
@@ -423,7 +459,7 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
         if isinstance(obj, str) and obj.startswith('http'):
             # Look for URLs that might be recordings even without explicit keywords
             if any(ext in obj.lower() for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac']):
-                logger.debug(f"🔍 Found audio file URL via deep search at {path}: {obj[:50]}...")
+                logger.info(f"🔍 Found audio file URL via deep search at {path}: {obj[:50]}...")
                 return obj
         elif isinstance(obj, dict):
             for key, value in obj.items():
@@ -443,7 +479,33 @@ def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[st
     if deep_result:
         return deep_result
 
-    logger.debug("🔍 No recording URL found in ElevenLabs response")
+    # Additional search for file objects that might contain audio URLs
+    def search_file_objects(obj, path=""):
+        if isinstance(obj, dict):
+            # Check if this looks like a file object with URL
+            if 'url' in obj and 'name' in obj and isinstance(obj['url'], str) and obj['url'].startswith('http'):
+                if any(ext in obj['name'].lower() for ext in ['.mp3', '.wav', '.m4a', '.flac', '.aac']):
+                    logger.info(f"🔍 Found audio file object at {path}: {obj['name']} -> {obj['url'][:50]}...")
+                    return obj['url']
+
+            for key, value in obj.items():
+                new_path = f"{path}.{key}" if path else key
+                result = search_file_objects(value, new_path)
+                if result:
+                    return result
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                new_path = f"{path}[{i}]" if path else f"[{i}]"
+                result = search_file_objects(item, new_path)
+                if result:
+                    return result
+        return None
+
+    file_result = search_file_objects(data)
+    if file_result:
+        return file_result
+
+    logger.info(f"🔍 No recording URL found in ElevenLabs response for conversation {conversation_id}")
     return None
 
 def check_transcript_availability(data: Dict[str, Any]) -> bool:
