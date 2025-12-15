@@ -1,28 +1,163 @@
-INFO:     172.22.0.4:56426 - "GET /campaigns HTTP/1.1" 200 OK
-INFO:app.services.voice.session_service:📞 Session Started: vs_06aacbf50cf090f6 (Agent: support)
-INFO:     172.22.0.4:56916 - "POST /voice/sessions HTTP/1.1" 200 OK
+INFO:     172.22.0.4:46452 - "GET /calls HTTP/1.1" 200 OK
+INFO:app.services.voice.session_service:📞 Session Started: vs_1bc285e4517c80d1 (Agent: support)
+INFO:     172.22.0.4:43824 - "POST /voice/sessions HTTP/1.1" 200 OK
 INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
 WARNING:app.api.routes.voice:⚠️ Invalid ElevenLabs Signature! Processing anyway for safety.
-INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_1001kccj6zz4egca84w2drtyprnp
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_9101kccx1z8repdv0we9ey1rnwp6
 INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
-INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688028', RefID=''
-WARNING:app.services.voice.webhook_service:👻 Session not found for conv_1001kccj6zz4egca84w2drtyprnp. Initiating Context Recovery...
+INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688628', RefID=''
+WARNING:app.services.voice.webhook_service:👻 Session not found for conv_9101kccx1z8repdv0we9ey1rnwp6. Initiating Context Recovery...
 INFO:app.services.voice.webhook_service:⚠️ No context found. Creating new customer in demo-tenant
-INFO:app.services.voice.customer_service:🆕 Created Customer: عمر (+201154688028)
+INFO:app.services.voice.customer_service:🆕 Created Customer: عمر المحمدي (+201154688628)
 INFO:app.services.voice.action_service:🧠 Action Routing: Intent='raise_ticket'
-INFO:app.services.voice.action_service:🎫 Creating Ticket for: عمر
-INFO:app.services.voice.action_service:✅ Ticket Created: tkt_6d875b189a64a3ec (Priority: high)
-INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for عمر (Tenant: demo-tenant)
-INFO:     172.22.0.4:53420 - "POST /voice/post_call HTTP/1.1" 200 OK
+INFO:app.services.voice.action_service:🎫 Creating Ticket for: عمر المحمدي
+INFO:app.services.voice.action_service:✅ Ticket Created: tkt_dfa815ce61cedeb4 (Priority: high)
+INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for عمر المحمدي (Tenant: demo-tenant)
+INFO:     172.22.0.4:51052 - "POST /voice/post_call HTTP/1.1" 200 OK
 WARNING:app.api.routes.voice:⚠️ Invalid ElevenLabs Signature! Processing anyway for safety.
-INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_1001kccj6zz4egca84w2drtyprnp
-INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688028', RefID=''
-WARNING:app.services.voice.webhook_service:👻 Session not found for conv_1001kccj6zz4egca84w2drtyprnp. Initiating Context Recovery...
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_9101kccx1z8repdv0we9ey1rnwp6
+INFO:app.services.voice.webhook_service:ℹ️ Conversation conv_9101kccx1z8repdv0we9ey1rnwp6 already processed,  skipping duplicate webhook.
+INFO:     172.22.0.4:51054 - "POST /voice/post_call HTTP/1.1" 200 OK
+
+
+
+front end 
+[Omar_achraf@ip-172-31-44-98 voice_agent]$ docker logs -f agentic_portal_frontend --tail 100
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+    at rT (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async rE (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+    at async r7 (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+    at async doRender (/app/node_modules/next/dist/server/base-server.js:1427:30)
+    at async cacheEntry.responseCache.get.routeKind (/app/node_modules/next/dist/server/base-server.js:1588:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+    at rT (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async rE (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+    at async r7 (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+    at async doRender (/app/node_modules/next/dist/server/base-server.js:1427:30)
+    at async cacheEntry.responseCache.get.routeKind (/app/node_modules/next/dist/server/base-server.js:1588:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)      
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+    at rT (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async rE (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+    at async r7 (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+    at async doRender (/app/node_modules/next/dist/server/base-server.js:1427:30)
+    at async cacheEntry.responseCache.get.routeKind (/app/node_modules/next/dist/server/base-server.js:1588:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)      
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+    at rT (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async rE (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+    at async r7 (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+    at async doRender (/app/node_modules/next/dist/server/base-server.js:1427:30)
+    at async cacheEntry.responseCache.get.routeKind (/app/node_modules/next/dist/server/base-server.js:1588:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)      
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Error: Failed to find Server Action "x". This request might be from an older or newer deployment. Original error: Cannot read properties of undefined (reading 'workers')
+    at rT (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:1766)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:16:303
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async rE (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:15:8146)
+    at async r7 (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:18:1144)
+    at async doRender (/app/node_modules/next/dist/server/base-server.js:1427:30)
+    at async cacheEntry.responseCache.get.routeKind (/app/node_modules/next/dist/server/base-server.js:1588:28)
+    at async NextNodeServer.renderToResponseWithComponentsImpl (/app/node_modules/next/dist/server/base-server.js:1496:28)      
+    at async NextNodeServer.renderPageComponent (/app/node_modules/next/dist/server/base-server.js:1924:24)
+    at async NextNodeServer.renderToResponseImpl (/app/node_modules/next/dist/server/base-server.js:1962:32)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+TypeError: Cannot read properties of null (reading 'digest')
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:13:19722
+    at AsyncLocalStorage.run (node:async_hooks:338:14)
+    at e_ (/app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:141421)
+    at /app/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:138763
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+
+
+backend logs
+
+INFO:     172.22.0.4:57002 - "GET /campaigns HTTP/1.1" 200 OK
+INFO:app.services.voice.session_service:📞 Session Started: vs_94a364b93ebd8585 (Agent: support)
+INFO:     172.22.0.4:57002 - "POST /voice/sessions HTTP/1.1" 200 OK
+INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
+WARNING:app.api.routes.voice:⚠️ Invalid ElevenLabs Signature! Processing anyway for safety.
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_1201kcgvwzfbepzvpn7faf1c5raw
+INFO:app.services.voice.webhook_service:🔍 Extracted: Intent='raise_ticket', Phone='01154688629', RefID=''
+WARNING:app.services.voice.webhook_service:👻 Session not found for conv_1201kcgvwzfbepzvpn7faf1c5raw. Initiating Context Recovery...
 INFO:app.services.voice.webhook_service:⚠️ No context found. Creating new customer in demo-tenant
-INFO:app.services.voice.action_service:ℹ️ Call record already exists for conversation conv_1001kccj6zz4egca84w2drtyprnp
+INFO:app.services.voice.customer_service:🆕 Created Customer: علاء (+201154688629)
 INFO:app.services.voice.action_service:🧠 Action Routing: Intent='raise_ticket'
-INFO:app.services.voice.action_service:🎫 Creating Ticket for: عمر
-INFO:app.services.voice.action_service:✅ Ticket Created: tkt_16803c8b0aaad2df (Priority: high)
-INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for عمر (Tenant: demo-tenant)
-INFO:     172.22.0.4:53424 - "POST /voice/post_call HTTP/1.1" 200 OK
-INFO:     172.22.0.4:52976 - "GET /dashboard/kpis HTTP/1.1" 200 OK
+INFO:app.services.voice.action_service:🎫 Creating Ticket for: علاء
+INFO:app.services.voice.action_service:✅ Ticket Created: tkt_24f2c7a86ee95479 (Priority: high)
+INFO:app.services.voice.webhook_service:🚀 SUCCESS: Webhook processed for علاء (Tenant: demo-tenant)
+INFO:     172.22.0.4:51816 - "POST /voice/post_call HTTP/1.1" 200 OK
+INFO:app.api.routes.voice:📡 WEBHOOK RECEIVED: /voice/post_call
+WARNING:app.api.routes.voice:⚠️ Invalid ElevenLabs Signature! Processing anyway for safety.
+INFO:app.services.voice.webhook_service:🤖 Processing Webhook for ElevenLabs ID: conv_1201kcgvwzfbepzvpn7faf1c5raw
+INFO:app.services.voice.webhook_service:ℹ️ Conversation conv_1201kcgvwzfbepzvpn7faf1c5raw already processed, skipping duplicate  webhook.
+INFO:     172.22.0.4:51822 - "POST /voice/post_call HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38502 - "GET /conversations HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38510 - "GET /customers HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38502 - "GET /voice/sessions HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38510 - "GET /calls HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38502 - "GET /customers HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38502 - "GET /transcripts/conv_1201kcgvwzfbepzvpn7faf1c5raw HTTP/1.1" 200 OK
+INFO:     172.22.0.4:38502 - "GET /tickets/recent HTTP/1.1" 200 OK
+INFO:     172.22.0.4:42656 - "GET /customers HTTP/1.1" 200 OK
+INFO:     172.22.0.4:47378 - "GET /calls HTTP/1.1" 200 OK
+INFO:     172.22.0.4:47388 - "GET /customers HTTP/1.1" 200 OK
+INFO:     172.22.0.4:47378 - "GET /voice/sessions HTTP/1.1" 200 OK
+INFO:     172.22.0.4:47378 - "GET /transcripts/conv_1201kcgvwzfbepzvpn7faf1c5raw HTTP/1.1" 200 OK
+INFO:     172.22.0.4:58506 - "GET /transcripts/conv_1201kcgvwzfbepzvpn7faf1c5raw HTTP/1.1" 200 OK

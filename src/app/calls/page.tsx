@@ -19,9 +19,9 @@ export default function CallsPage() {
   const [transcriptModalOpen, setTranscriptModalOpen] = useState(false);
 
   const { calls, setCalls, setCallsLoading, customers, setCustomers, setCustomersLoading } = useAppStore();
-  const { getCalls, getCustomers, getVoiceSessions, getTranscript, isAuthenticated } = useAuthApi();
+  const { getCalls, getCustomers, getTranscript, isAuthenticated } = useAuthApi();
 
-  // Fetch calls, voice sessions and customers
+  // Fetch calls and customers (calls API now includes voice session data)
   useEffect(() => {
     if (isAuthenticated) {
       const fetchData = async () => {
@@ -29,36 +29,15 @@ export default function CallsPage() {
           setCallsLoading(true);
           setCustomersLoading(true);
 
-          const [callsData, customersData, voiceSessionsData] = await Promise.all([
-            getCalls(),
-            getCustomers(),
-            getVoiceSessions()
+          const [callsData, customersData] = await Promise.all([
+            getCalls(), // This now includes voice session data from backend
+            getCustomers()
           ]);
 
-          // Combine calls with voice session data
-          const enhancedCalls = callsData.map(call => {
-            // Find matching voice session by conversation ID or other correlation
-            const matchingVoiceSession = voiceSessionsData.find(vs =>
-              vs.conversation_id === call.conversationId || vs.id === call.voiceSessionId
-            );
-
-            if (matchingVoiceSession) {
-              return {
-                ...call,
-                voiceSessionId: matchingVoiceSession.id,
-                extractedIntent: matchingVoiceSession.extracted_intent,
-                sessionSummary: matchingVoiceSession.summary,
-                agentName: matchingVoiceSession.agent_name,
-                sessionStatus: matchingVoiceSession.status
-              };
-            }
-            return call;
-          });
-
-          setCalls(enhancedCalls);
+          setCalls(callsData);
           setCustomers(customersData);
         } catch (error) {
-          console.error('Error fetching calls, voice sessions and customers:', error);
+          console.error('Error fetching calls and customers:', error);
         } finally {
           setCallsLoading(false);
           setCustomersLoading(false);
@@ -66,7 +45,7 @@ export default function CallsPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getCalls, getCustomers, getVoiceSessions, setCalls, setCustomers, setCallsLoading, setCustomersLoading]);
+  }, [isAuthenticated, getCalls, getCustomers, setCalls, setCustomers, setCallsLoading, setCustomersLoading]);
 
   const getCustomerName = (id: string) => {
     // Find customer by id in the customers array
@@ -100,36 +79,15 @@ export default function CallsPage() {
                   setCallsLoading(true);
                   setCustomersLoading(true);
 
-                  const [callsData, customersData, voiceSessionsData] = await Promise.all([
-                    getCalls(),
-                    getCustomers(),
-                    getVoiceSessions()
+                  const [callsData, customersData] = await Promise.all([
+                    getCalls(), // This now includes voice session data from backend
+                    getCustomers()
                   ]);
 
-                  // Combine calls with voice session data
-                  const enhancedCalls = callsData.map(call => {
-                    // Find matching voice session by conversation ID or other correlation
-                    const matchingVoiceSession = voiceSessionsData.find(vs =>
-                      vs.conversation_id === call.conversationId || vs.id === call.voiceSessionId
-                    );
-
-                    if (matchingVoiceSession) {
-                      return {
-                        ...call,
-                        voiceSessionId: matchingVoiceSession.id,
-                        extractedIntent: matchingVoiceSession.extracted_intent,
-                        sessionSummary: matchingVoiceSession.summary,
-                        agentName: matchingVoiceSession.agent_name,
-                        sessionStatus: matchingVoiceSession.status
-                      };
-                    }
-                    return call;
-                  });
-
-                  setCalls(enhancedCalls);
+                  setCalls(callsData);
                   setCustomers(customersData);
                 } catch (error) {
-                  console.error('Error refreshing calls, voice sessions and customers:', error);
+                  console.error('Error refreshing calls and customers:', error);
                 } finally {
                   setCallsLoading(false);
                   setCustomersLoading(false);

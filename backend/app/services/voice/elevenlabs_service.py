@@ -173,6 +173,53 @@ def extract_transcript_from_conversation(data: Dict[str, Any]) -> List[Dict[str,
 
     return transcript
 
+def extract_recording_url_from_conversation(data: Dict[str, Any]) -> Optional[str]:
+    """
+    Extracts recording URL from ElevenLabs conversation data.
+    Returns: Recording URL string or None if not available
+    """
+    # Try different possible locations for recording URL in ElevenLabs response
+    recording_url = data.get("recording_url")
+    if recording_url:
+        return recording_url
+
+    # Check in metadata
+    metadata = data.get("metadata", {})
+    if metadata:
+        recording_url = metadata.get("recording_url")
+        if recording_url:
+            return recording_url
+
+    # Check in analysis section
+    analysis = data.get("analysis", {})
+    if analysis:
+        recording_url = analysis.get("recording_url")
+        if recording_url:
+            return recording_url
+
+    # Check in conversation section
+    conversation_data = data.get("conversation", {})
+    if conversation_data:
+        recording_url = conversation_data.get("recording_url")
+        if recording_url:
+            return recording_url
+
+    # Some ElevenLabs responses might have it in 'download_url' or similar keys
+    download_url = data.get("download_url")
+    if download_url:
+        return download_url
+
+    # Check in conversation data for other possible recording-related fields
+    if conversation_data:
+        # Look for any field with 'recording' or 'url' in the name
+        for key, value in conversation_data.items():
+            if 'recording' in key.lower() and isinstance(value, str) and value.startswith('http'):
+                return value
+            elif 'url' in key.lower() and isinstance(value, str) and value.startswith('http'):
+                return value
+
+    return None
+
 def check_transcript_availability(data: Dict[str, Any]) -> bool:
     """
     Checks if transcript is available in the ElevenLabs conversation data.

@@ -8,7 +8,9 @@ from app import models
 from .elevenlabs_service import (
     fetch_conversation_from_elevenlabs,
     extract_conversation_data,
-    extract_conversation_id_from_payload
+    extract_conversation_id_from_payload,
+    extract_recording_url_from_conversation,
+    extract_transcript_from_conversation
 )
 from .customer_service import upsert_customer
 from .action_service import create_full_interaction_record
@@ -47,7 +49,15 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
         return {"status": "error", "message": str(e)}
 
     data_dict, intent, phone, summary, name, client_ref_id = extract_conversation_data(data)
-    logger.info(f"🔍 Extracted: Intent='{intent}', Phone='{phone}', RefID='{client_ref_id}'")
+
+    # Extract recording URL from ElevenLabs response
+    recording_url = extract_recording_url_from_conversation(data)
+
+    # Extract transcript data for debugging
+    transcript_data = extract_transcript_from_conversation(data)
+    transcript_count = len(transcript_data) if transcript_data else 0
+
+    logger.info(f"🔍 Extracted: Intent='{intent}', Phone='{phone}', RefID='{client_ref_id}', Recording URL: {recording_url is not None}, Transcript Entries: {transcript_count}")
 
     # 2. Session Discovery
     session = None
@@ -137,6 +147,31 @@ async def process_webhook_payload(db: Session, payload: Dict[str, Any]) -> Dict[
                 if call_record:
                     call_record.handle_sec = int(duration_seconds)
                     db.add(call_record)
+
+        # Update recording URL for both the conversation and call records if available
+        if recording_url and hasattr(session, 'conversation_id'):
+            # Update Conversation record with recording URL
+            conversation_record = db.query(models.Conversation).filter(
+                models.Conversation.id == session.conversation_id
+            ).first()
+            if conversation_record:
+                old_recording_url = conversation_record.recording_url
+                conversation_record.recording_url = recording_url
+                db.add(conversation_record)
+                logger.info(f"💾 Conversation recording URL updated: {old_recording_url is None} -> {recording_url is not None} for conversation {session.conversation_id}")
+
+            # Also update the Call record with the same recording URL
+            call_record = db.query(models.Call).filter(
+                models.Call.conversation_id == session.conversation_id
+            ).first()
+            if call_record:
+                old_call_recording_url = call_record.recording_url
+                call_record.recording_url = recording_url
+                db.add(call_record)
+                logger.info(f"💾 Call recording URL updated: {old_call_recording_url is None} -> {recording_url is not None} for call {call_record.id}")
+
+        # Debug logging for transcript data storage (transcript is stored via create_full_interaction_record)
+        logger.info(f"📝 Transcript entries processed: {transcript_count} entries for conversation {session.conversation_id if hasattr(session, 'conversation_id') else 'unknown'}")
 
         # Determine if we are committing a real SQLAlchemy object or just the side-effects
         if hasattr(session, "_sa_instance_state"):

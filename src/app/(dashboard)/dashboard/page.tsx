@@ -237,29 +237,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>الإيرادات مقابل الهدف</CardTitle>
-              <TrendingUp className="w-5 h-5 text-slate-400" />
-            </CardHeader>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">الهدف الشهري</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{dashboardKPIs.monthlyTarget ? formatSAR(dashboardKPIs.monthlyTarget) : '-'}</span>
-              </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${dashboardKPIs.monthlyTarget ? Math.min(100, Math.round((dashboardKPIs.revenue / dashboardKPIs.monthlyTarget) * 100)) : 0}%` }}></div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-600 dark:text-slate-400">الإيرادات الفعلية</span>
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{formatSAR(dashboardKPIs.revenue)}</span>
-              </div>
-              <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                <div className="text-2xl font-bold text-emerald-600">{dashboardKPIs.monthlyTarget ? Math.round((dashboardKPIs.revenue / dashboardKPIs.monthlyTarget) * 100) : 0}%</div>
-                <div className="text-sm text-slate-600 dark:text-slate-400">من الهدف</div>
-              </div>
-            </div>
-          </Card>
         </div>
 
         <Card>

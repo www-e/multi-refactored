@@ -169,13 +169,23 @@ docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) F
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM voice_sessions;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM bookings;"
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM tickets;"
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) FROM users;"
 
 
 # live watch
 docker logs -f agentic_portal_backend --tail 50
-docker logs -f agentic_portal_frontend --tail 50
+docker logs -f agentic_portal_frontend --tail 100
 
 
 
 # changing all users to specfici tenant
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "UPDATE users SET tenant_id = 'demo-tenant';"
+
+
+
+# truncate all tables except users
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE alembic_version, approvals, bookings, calls, campaign_metrics, campaigns, conversations, customers, events, handoffs, messages, organizations, tickets, voice_sessions RESTART IDENTITY CASCADE;"
+
+
+# list all tables
+docker exec -it agentic_portal_db psql -U navaia -d navaia -c "\dt"

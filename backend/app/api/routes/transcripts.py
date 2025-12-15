@@ -30,6 +30,7 @@ async def get_transcript(
     """
     Retrieve transcript for a specific conversation from ElevenLabs
     """
+    logger.info(f"🔄 Transcript request received for conversation: {conversation_id}")
     try:
         # Fetch conversation data from ElevenLabs
         elevenlabs_data = await fetch_conversation_from_elevenlabs(conversation_id)
@@ -39,6 +40,9 @@ async def get_transcript(
 
         # Extract transcript if available
         transcript = extract_transcript_from_conversation(elevenlabs_data) if is_available else []
+        transcript_length = len(transcript)
+
+        logger.info(f"📋 Transcript data: Available={is_available}, Entries={transcript_length} for conversation {conversation_id}")
 
         # Get summary and intent from analysis
         analysis = elevenlabs_data.get("analysis", {})
@@ -52,16 +56,30 @@ async def get_transcript(
         else:
             extracted_intent = raw_intent
 
-        return TranscriptResponse(
+        response = TranscriptResponse(
             conversation_id=conversation_id,
             transcript=transcript,
             summary=summary,
             extracted_intent=extracted_intent,
             is_available=is_available
         )
+
+        logger.info(f"✅ Transcript response prepared: {transcript_length} entries, available={is_available} for conversation {conversation_id}")
+        return response
+    except HTTPException:
+        logger.warning(f"⚠️ HTTP exception for transcript {conversation_id}: {str(HTTPException)}")
+        # Re-raise HTTP exceptions (like 404 from ElevenLabs API) directly
+        raise
     except Exception as e:
         logger.error(f"❌ Failed to retrieve transcript for conversation {conversation_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve transcript: {str(e)}")
+        # Provide more specific error handling based on the type of error
+        error_msg = str(e)
+        if "404" in error_msg or "not found" in error_msg.lower():
+            logger.info(f"📝 Transcript not found for conversation {conversation_id}")
+            raise HTTPException(status_code=404, detail="Transcript not available for this conversation")
+        else:
+            logger.error(f"❌ Transcript retrieval error for {conversation_id}: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve transcript: {error_msg}")
 
 @router.get("/transcripts/{conversation_id}/text")
 async def get_transcript_text(
@@ -93,6 +111,14 @@ async def get_transcript_text(
             text_lines.append(f"[{entry.get('timestamp', 0)}s] {role}: {entry.get('text', '')}")
 
         return {"text": "\n".join(text_lines), "is_available": True}
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404 from ElevenLabs API) directly
+        raise
     except Exception as e:
         logger.error(f"❌ Failed to retrieve transcript text for conversation {conversation_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve transcript: {str(e)}")
+        # Provide more specific error handling based on the type of error
+        error_msg = str(e)
+        if "404" in error_msg or "not found" in error_msg.lower():
+            raise HTTPException(status_code=404, detail="Transcript not available for this conversation")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve transcript: {error_msg}")
