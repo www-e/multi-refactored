@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
 
         {activeTab === 'operations' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatsCard
                 label="حجم المكالمات"
                 value={safeVal(dashboardKPIs.totalCalls).toLocaleString()}
@@ -174,7 +174,7 @@ export default function AnalyticsPage() {
 
         {activeTab === 'qa' && (
           <div className="space-y-6">
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <Card className="text-center p-6">
                     <div className="text-3xl font-bold text-primary mb-2">{safeVal(dashboardKPIs.aiAccuracy)}%</div>
                     <div className="text-sm text-slate-600">دقة الذكاء الاصطناعي</div>

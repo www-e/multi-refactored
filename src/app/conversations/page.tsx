@@ -115,9 +115,9 @@ export default function ConversationsPage() {
             }} />
         </PageHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
             {/* List */}
-            <div className="lg:col-span-1 space-y-4">
+            <div className="space-y-4">
                 <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث..." onFilterClick={() => {}} />
                 <div className="space-y-2 h-[600px] overflow-y-auto">
                     {filteredConversations.map(conv => (
@@ -126,17 +126,17 @@ export default function ConversationsPage() {
                             className={`p-4 cursor-pointer transition-all hover:shadow-md ${selectedId === conv.id ? 'border-primary ring-1 ring-primary' : ''}`}
                             onClick={() => setSelectedId(conv.id)}
                         >
-                            <div className="flex justify-between items-start">
-                                <div className="flex gap-3">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                <div className="flex gap-3 flex-1 min-w-0">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${conv.type === 'صوت' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
                                         {conv.type === 'صوت' ? <Phone size={18} /> : <MessageSquare size={18} />}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0 flex-1">
                                         <h4 className="font-semibold text-sm">{getCustomerName(conv.customerId)}</h4>
-                                        <p className="text-xs text-slate-500 line-clamp-1">{conv.summary}</p>
+                                        <p className="text-xs text-slate-500 line-clamp-1 truncate">{conv.summary}</p>
                                     </div>
                                 </div>
-                                <span className="text-xs text-slate-400">{formatDate(conv.createdAt)}</span>
+                                <span className="text-xs text-slate-400 self-start sm:self-auto">{formatDate(conv.createdAt)}</span>
                             </div>
                         </Card>
                     ))}
@@ -147,16 +147,16 @@ export default function ConversationsPage() {
             </div>
 
             {/* Detail / Chat View */}
-            <div className="lg:col-span-2">
+            <div>
                 {selectedConversation ? (
                     <Card className="h-[600px] flex flex-col">
                         {/* Header */}
-                        <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
-                            <div>
+                        <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
+                            <div className="min-w-0">
                                 <h3 className="font-bold">{getCustomerName(selectedConversation.customerId)}</h3>
                                 <span className="text-xs text-slate-500">{selectedConversation.id}</span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mt-2 sm:mt-0">
                               {/* Always show AudioPlayer for debugging - it will show appropriate message if no URL */}
                               <AudioPlayer src={selectedConversation.recordingUrl || ''} />
                               {selectedConversation.id && (

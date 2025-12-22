@@ -244,137 +244,139 @@ export default function CustomersPage() {
             </div>
         ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <table className="w-full">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50">
-                        <tr>
-                            <th className="p-4 w-12 text-center font-semibold text-slate-900 dark:text-slate-100">#</th>
-                            {isSelectMode && (
-                                <th className="p-4 w-12">
-                                    <button
-                                        onClick={toggleSelectAll}
-                                        className="w-6 h-6 rounded-full border flex items-center justify-center border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
-                                        aria-label="تحديد الكل"
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-800/50">
+                            <tr>
+                                <th className="p-4 w-12 text-center font-semibold text-slate-900 dark:text-slate-100">#</th>
+                                {isSelectMode && (
+                                    <th className="p-4 w-12">
+                                        <button
+                                            onClick={toggleSelectAll}
+                                            className="w-6 h-6 rounded-full border flex items-center justify-center border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"
+                                            aria-label="تحديد الكل"
+                                        >
+                                            {selectedCustomerIds.length === filteredCustomers.length && <Check size={14} />}
+                                        </button>
+                                    </th>
+                                )}
+                                <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">العميل</th>
+                                <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الهاتف</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">البريد الإلكتروني</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المنطقة</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحالة</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المحادثات</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">التذاكر</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحجوزات</th>
+                                <th className="hidden md:table-cell text-right p-4 font-semibold text-slate-900 dark:text-slate-100">تاريخ الإنشاء</th>
+                                <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {filteredCustomers.map((customer, index) => {
+                                const stats = getCustomerStats(customer.id);
+                                const isSelected = selectedCustomerIds.includes(customer.id);
+                                return (
+                                    <tr
+                                        key={customer.id}
+                                        className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/10' : ''}`}
                                     >
-                                        {selectedCustomerIds.length === filteredCustomers.length && <Check size={14} />}
-                                    </button>
-                                </th>
-                            )}
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">العميل</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الهاتف</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">البريد الإلكتروني</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المنطقة</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحالة</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">المحادثات</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">التذاكر</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الحجوزات</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">تاريخ الإنشاء</th>
-                            <th className="text-right p-4 font-semibold text-slate-900 dark:text-slate-100">الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                        {filteredCustomers.map((customer, index) => {
-                            const stats = getCustomerStats(customer.id);
-                            const isSelected = selectedCustomerIds.includes(customer.id);
-                            return (
-                                <tr
-                                    key={customer.id}
-                                    className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/10' : ''}`}
-                                >
-                                    <td className="p-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
-                                    {isSelectMode && (
+                                        <td className="p-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
+                                        {isSelectMode && (
+                                            <td className="p-4">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleCustomerSelection(customer.id);
+                                                    }}
+                                                    className={`w-6 h-6 rounded-full border flex items-center justify-center ${
+                                                        isSelected
+                                                            ? 'bg-primary border-primary text-white'
+                                                            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                                    }`}
+                                                    aria-label={isSelected ? `إلغاء تحديد ${customer.name}` : `تحديد ${customer.name}`}
+                                                >
+                                                    {isSelected && <Check size={14} />}
+                                                </button>
+                                            </td>
+                                        )}
                                         <td className="p-4">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleCustomerSelection(customer.id);
-                                                }}
-                                                className={`w-6 h-6 rounded-full border flex items-center justify-center ${
-                                                    isSelected
-                                                        ? 'bg-primary border-primary text-white'
-                                                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                                                }`}
-                                                aria-label={isSelected ? `إلغاء تحديد ${customer.name}` : `تحديد ${customer.name}`}
-                                            >
-                                                {isSelected && <Check size={14} />}
-                                            </button>
+                                            <div className="flex items-center gap-3">
+                                                <div>
+                                                    <div className="font-medium">{customer.name}</div>
+                                                </div>
+                                            </div>
                                         </td>
-                                    )}
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div>
-                                                <div className="font-medium">{customer.name}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <Phone size={16}/>
-                                            {customer.phone}
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        {customer.email && (
+                                        <td className="p-4">
                                             <div className="flex items-center gap-2">
-                                                <Mail size={16}/>
-                                                {customer.email}
+                                                <Phone size={16}/>
+                                                {customer.phone}
                                             </div>
-                                        )}
-                                    </td>
-                                    <td className="p-4">
-                                        {customer.neighborhoods?.[0] && (
-                                            <div className="flex items-center gap-2">
-                                                <MapPin size={16}/>
-                                                {customer.neighborhoods[0]}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="p-4">
-                                        <StatusBadge status={customer.stage as any || 'جديد'} />
-                                    </td>
-                                    <td className="p-4 text-center font-bold">{stats.calls}</td>
-                                    <td className="p-4 text-center font-bold">{stats.tickets}</td>
-                                    <td className="p-4 text-center font-bold">{stats.bookings}</td>
-                                    <td className="p-4 text-sm text-slate-500">
-                                        {formatDate(customer.createdAt)}
-                                    </td>
-                                    <td className="p-4">
-                                        <ActionMenu
-                                            actions={[
-                                                {
-                                                    label: 'اتصال',
-                                                    icon: <PhoneCall size={16} />,
-                                                    onClick: () => handleCustomerCall(customer.phone, customer.id),
-                                                    color: 'text-primary'
-                                                },
-                                                {
-                                                    label: 'مراسلة',
-                                                    icon: <MessageSquare size={16} />,
-                                                    onClick: () => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email),
-                                                    color: 'text-slate-600 dark:text-slate-400'
-                                                },
-                                                {
-                                                    label: 'تعديل',
-                                                    icon: <Edit size={16} />,
-                                                    onClick: () => {
-                                                      setCustomerToEdit(customer);
-                                                      setIsEditModalOpen(true);
+                                        </td>
+                                        <td className="hidden md:table-cell p-4">
+                                            {customer.email && (
+                                                <div className="flex items-center gap-2">
+                                                    <Mail size={16}/>
+                                                    {customer.email}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="hidden md:table-cell p-4">
+                                            {customer.neighborhoods?.[0] && (
+                                                <div className="flex items-center gap-2">
+                                                    <MapPin size={16}/>
+                                                    {customer.neighborhoods[0]}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="hidden md:table-cell p-4">
+                                            <StatusBadge status={customer.stage as any || 'جديد'} />
+                                        </td>
+                                        <td className="hidden md:table-cell p-4 text-center font-bold">{stats.calls}</td>
+                                        <td className="hidden md:table-cell p-4 text-center font-bold">{stats.tickets}</td>
+                                        <td className="hidden md:table-cell p-4 text-center font-bold">{stats.bookings}</td>
+                                        <td className="hidden md:table-cell p-4 text-sm text-slate-500">
+                                            {formatDate(customer.createdAt)}
+                                        </td>
+                                        <td className="p-4">
+                                            <ActionMenu
+                                                actions={[
+                                                    {
+                                                        label: 'اتصال',
+                                                        icon: <PhoneCall size={16} />,
+                                                        onClick: () => handleCustomerCall(customer.phone, customer.id),
+                                                        color: 'text-primary'
                                                     },
-                                                    color: 'text-slate-600 dark:text-slate-400'
-                                                },
-                                                {
-                                                    label: 'حذف',
-                                                    icon: <Trash2 size={16} />,
-                                                    onClick: () => handleDeleteCustomer({id: customer.id, name: customer.name}),
-                                                    color: 'text-destructive'
-                                                }
-                                            ]}
-                                        />
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                                                    {
+                                                        label: 'مراسلة',
+                                                        icon: <MessageSquare size={16} />,
+                                                        onClick: () => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email),
+                                                        color: 'text-slate-600 dark:text-slate-400'
+                                                    },
+                                                    {
+                                                        label: 'تعديل',
+                                                        icon: <Edit size={16} />,
+                                                        onClick: () => {
+                                                          setCustomerToEdit(customer);
+                                                          setIsEditModalOpen(true);
+                                                        },
+                                                        color: 'text-slate-600 dark:text-slate-400'
+                                                    },
+                                                    {
+                                                        label: 'حذف',
+                                                        icon: <Trash2 size={16} />,
+                                                        onClick: () => handleDeleteCustomer({id: customer.id, name: customer.name}),
+                                                        color: 'text-destructive'
+                                                    }
+                                                ]}
+                                            />
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         )}
 

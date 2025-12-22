@@ -125,7 +125,7 @@ export default function TicketsPage() {
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="بحث بالعميل أو المشكلة..." onFilterClick={() => {}} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {statusOptions.map(option => (
                 <button
                   key={option.value}
@@ -144,15 +144,15 @@ export default function TicketsPage() {
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                 <tr>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-12">#</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">العميل</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشكلة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الفئة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الأولوية</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الحالة</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشروع</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">التاريخ</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الإجراءات</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider w-12">#</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">العميل</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشكلة</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الفئة</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الأولوية</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الحالة</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">المشروع</th>
+                  <th className="hidden md:table-cell px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">التاريخ</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -170,25 +170,25 @@ export default function TicketsPage() {
                         key={ticket.id}
                         className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                       >
-                        <td className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 text-center text-slate-500 dark:text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center">
                             <User className="w-4 h-4 text-slate-400 ml-2" />
                             <span className="font-medium">{customerName}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-3">
                           <div className="text-sm text-slate-900 dark:text-slate-100 line-clamp-2 max-w-xs">
                             {ticket.issue}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 dark:text-slate-300">
                           {ticket.category}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="hidden md:table-cell px-4 py-3">
                           <StatusBadge status={ticket.priority} />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             ticket.status === 'open' ? 'bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300' :
                             ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300' :
@@ -197,13 +197,13 @@ export default function TicketsPage() {
                             {getStatusLabel(ticket.status)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 dark:text-slate-300">
                           {ticket.project || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-300">
+                        <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 dark:text-slate-300">
                           {formatDate(ticket.createdAt)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-4 py-3">
                           <ActionMenu
                             position="left"
                             actions={[

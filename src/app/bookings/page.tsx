@@ -108,22 +108,22 @@ export default function BookingsPage() {
     const custName = getCustomerName(booking).toLowerCase();
     const propName = getPropertyDisplay(booking).toLowerCase();
     const query = searchQuery.toLowerCase();
-    
+
     const matchesSearch = !searchQuery || (
       custName.includes(query) ||
       propName.includes(query)
     );
-    
+
     const isStatusMatch = matchesStatus(booking.status, statusFilter);
 
     return matchesSearch && isStatusMatch;
   });
 
   const isPending = (status: string) => ['pending', 'معلق'].includes(status.toLowerCase());
-  
+
   // Also fix pending filter for the "Needs Approval" cards
-  const pendingBookings = bookings.filter(b => 
-    isPending(b.status) && 
+  const pendingBookings = bookings.filter(b =>
+    isPending(b.status) &&
     (statusFilter === 'all' || matchesStatus(b.status, statusFilter))
   );
 
@@ -165,7 +165,7 @@ export default function BookingsPage() {
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <SearchFilterBar searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder="البحث في الحجوزات..." onFilterClick={() => {}} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {['all', 'معلق', 'مؤكد', 'ملغي', 'مكتمل'].map(status => (
                 <button
                   key={status}
@@ -181,26 +181,26 @@ export default function BookingsPage() {
         {pendingBookings.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold mb-4">طلبات في انتظار الموافقة ({pendingBookings.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {pendingBookings.map(booking => {
                 const customerName = getCustomerName(booking);
                 const propDisplay = getPropertyDisplay(booking);
                 return (
                   <Card key={booking.id} className="p-4">
-                    <div className="flex justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                         <StatusBadge status={booking.createdBy} />
                         <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
                     </div>
                     <div className="space-y-2 mb-4">
                         <h4 className="font-semibold">{customerName}</h4>
                         <p className="text-sm text-slate-600">{propDisplay}</p>
-                        <div className="text-sm">
+                        <div className="text-sm space-y-1">
                             <p className="text-slate-600">موعد الحجز: {formatDate(booking.startDate)}</p>
                             <p className="text-slate-600">تاريخ الإنشاء: {formatDate(booking.createdAt)}</p>
                         </div>
                         <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                         <button onClick={() => handleAction(booking.id, 'confirmed')} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
                         <button onClick={() => handleAction(booking.id, 'canceled')} className="flex-1 bg-destructive text-white p-2 rounded-lg hover:bg-destructive/90 text-sm flex items-center justify-center gap-2"><XCircle size={16}/> رفض</button>
                     </div>

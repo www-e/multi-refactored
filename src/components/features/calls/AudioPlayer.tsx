@@ -25,8 +25,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     formatTime
   } = useAudioPlayer(src);
 
-  // Validate URL format
-  const isValidUrl = src && typeof src === 'string' && (src.startsWith('http://') || src.startsWith('https://'));
+  // Validate URL format (Allow http, https, AND relative paths for our proxy)
+  const isValidUrl = src && typeof src === 'string' && (
+    src.startsWith('http://') || 
+    src.startsWith('https://') || 
+    src.startsWith('/api/')
+  );
 
   if (!src) {
     return (
@@ -62,7 +66,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   return (
     <div className={`bg-white dark:bg-slate-800 p-4 rounded-lg border ${className}`}>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center gap-3">
         {/* Play/Pause Button */}
         <button
           onClick={() => {
@@ -84,17 +88,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </button>
 
         {/* Progress Bar */}
-        <div className="flex-1">
-          <div 
+        <div className="flex-1 min-w-0">
+          <div
             className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full cursor-pointer"
             onClick={handleProgressClick}
           >
-            <div 
+            <div
               className="h-full bg-primary rounded-full"
               style={{ width: `${(state.currentTime / state.duration) * 100}%` }}
             />
           </div>
-          
+
           {/* Time Info */}
           <div className="flex justify-between text-xs text-slate-500 mt-1">
             <span>{formatTime(state.currentTime)}</span>
@@ -111,7 +115,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             {state.volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
-          
+
           <input
             type="range"
             min="0"
@@ -119,7 +123,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             step="0.01"
             value={state.volume}
             onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="w-16"
+            className="w-16 sm:w-24"
             aria-label="التحكم في الصوت"
           />
         </div>

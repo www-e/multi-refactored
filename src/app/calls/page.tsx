@@ -98,9 +98,9 @@ export default function CallsPage() {
           />
         </PageHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Calls List */}
-          <div className="lg:col-span-1 space-y-4">
+          <div className="space-y-4">
             <SearchFilterBar
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
@@ -116,15 +116,15 @@ export default function CallsPage() {
                   }`}
                   onClick={() => setSelectedId(call.id)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex gap-3 flex-1 min-w-0">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                         call.direction === 'صادر' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
                       }`}>
                         <Phone size={18} />
                       </div>
-                      <div>
-                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-sm flex items-center gap-2 flex-wrap">
                           {call.customerName || getCustomerName(call.customerId || '')}
                           {(() => {
                             // Find the original customer data to see if name was updated from "Unknown Customer"
@@ -143,15 +143,15 @@ export default function CallsPage() {
                             return null;
                           })()}
                         </h4>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
                           <span>{call.direction}</span>
                           <span>•</span>
                           <span>{call.status}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-1 min-w-0">
+                      <div className="flex flex-wrap gap-1 justify-end">
                         <StatusBadge status={call.status as any || 'unknown' as any} />
                         {call.outcome && (
                           <StatusBadge
@@ -173,7 +173,7 @@ export default function CallsPage() {
                           />
                         )}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-slate-400 mt-1 text-right">
                         {formatDate(call.createdAt)}
                       </p>
                     </div>
@@ -187,13 +187,13 @@ export default function CallsPage() {
           </div>
 
           {/* Call Detail View */}
-          <div className="lg:col-span-2">
+          <div>
             {selectedCall ? (
               <Card className="h-[600px] flex flex-col">
                 {/* Header */}
-                <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
-                  <div>
-                    <h3 className="font-bold flex items-center gap-2">
+                <div className="p-4 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
+                  <div className="min-w-0">
+                    <h3 className="font-bold flex items-center gap-2 flex-wrap">
                       {selectedCall.customerName || getCustomerName(selectedCall.customerId || '')}
                       {(() => {
                         // Find the original customer data to see if name was updated from "Unknown Customer"
@@ -219,7 +219,7 @@ export default function CallsPage() {
 
                 {/* Details */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">رقم المكالمة</h4>
                       <p className="font-medium">{selectedCall.id}</p>
@@ -275,13 +275,13 @@ export default function CallsPage() {
                       </div>
                     )}
                     {selectedCall.extractedIntent && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <h4 className="text-sm font-medium text-slate-500 mb-1">النوع المستخرج</h4>
                         <p className="font-medium">{selectedCall.extractedIntent}</p>
                       </div>
                     )}
                     {selectedCall.sessionSummary && (
-                      <div className="col-span-2">
+                      <div className="sm:col-span-2">
                         <h4 className="text-sm font-medium text-slate-500 mb-1">ملخص الجلسة</h4>
                         <p className="font-medium">{selectedCall.sessionSummary}</p>
                       </div>
@@ -291,7 +291,7 @@ export default function CallsPage() {
                   {selectedCall.outcome && (
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">النتيجة</h4>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge
                           status={(() => {
                             // Map outcome to a status that has proper styling
@@ -333,7 +333,7 @@ export default function CallsPage() {
                   {selectedCall.extractedIntent && (
                     <div>
                       <h4 className="text-sm font-medium text-slate-500 mb-1">نوع المكالمة</h4>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge
                           status={(() => {
                             switch(selectedCall.extractedIntent) {

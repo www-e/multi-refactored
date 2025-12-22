@@ -89,7 +89,7 @@ export default function DashboardPage() {
           <DashboardStatsGrid kpis={dashboardKPIs} isLoading={dashboardLoading} />
         </ErrorBoundary>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <Card className="text-center">
             <div className="text-3xl font-bold text-primary mb-2">{dashboardKPIs.roas}x</div>
             <div className="text-sm text-slate-600 dark:text-slate-400">ROAS</div>
@@ -241,34 +241,34 @@ export default function DashboardPage() {
 
         <Card>
           <CardTitle className="mb-6">إجراءات سريعة</CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <button
               onClick={() => router.push('/calls')}
               className="flex flex-col items-center p-4 bg-gradient-to-r from-primary to-purple-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
             >
               <Phone className="w-8 h-8 mb-2" />
-              <span className="font-medium">محاكاة مكالمة</span>
+              <span className="font-medium text-sm">محاكاة مكالمة</span>
             </button>
             <button
               onClick={() => router.push('/conversations')}
               className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
             >
               <MessageSquare className="w-8 h-8 mb-2" />
-              <span className="font-medium">محاكاة رسالة</span>
+              <span className="font-medium text-sm">محاكاة رسالة</span>
             </button>
             <button
               onClick={() => router.push('/customers')}
               className="flex flex-col items-center p-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
             >
               <Users className="w-8 h-8 mb-2" />
-              <span className="font-medium">إضافة عميل</span>
+              <span className="font-medium text-sm">إضافة عميل</span>
             </button>
             <button
               onClick={() => router.push('/analytics')}
               className="flex flex-col items-center p-4 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
             >
               <BarChart3 className="w-8 h-8 mb-2" />
-              <span className="font-medium">تقرير جديد</span>
+              <span className="font-medium text-sm">تقرير جديد</span>
             </button>
           </div>
         </Card>
