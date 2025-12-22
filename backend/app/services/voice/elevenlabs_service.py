@@ -597,10 +597,8 @@ async def start_text_conversation(agent_type: str, session_id: Optional[str] = N
 
 async def fetch_conversation_recording(conversation_id: str) -> Optional[str]:
     """
-    Constructs the standard ElevenLabs audio URL.
-    Does NOT verify existence via HEAD request because the API returns 405 Method Not Allowed.
-    Trusts the frontend/proxy to handle 404s if the audio isn't ready.
+    Constructs the standard ElevenLabs audio URL directly.
+    Bypasses HEAD check because ElevenLabs API returns 405 Method Not Allowed,
+    which caused valid recordings to be discarded.
     """
-    # Standard endpoint for conversational AI audio
-    # Note: Accessing this URL requires 'xi-api-key' header
     return f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/audio"

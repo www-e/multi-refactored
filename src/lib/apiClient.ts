@@ -1,18 +1,21 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, Customer, EnhancedCampaign } from "@/app/(shared)/types";
 import { mapCallStatusToArabic } from "@/lib/statusMapper";
 
-// Helper to proxy ElevenLabs URLs
+// Helper to proxy ElevenLabs URLs through our secure backend endpoint
 const proxifyElevenLabsUrl = (url?: string | null, conversationId?: string) => {
-  if (!url) {
-    // Fallback: If no URL but we have a conversation ID, try the proxy anyway
-    // This fixes "ghost" calls where the backend might have failed to save the URL previously
-    return conversationId ? `/api/voice/audio/${conversationId}` : null;
+  // If we have a direct ElevenLabs URL, we MUST proxy it
+  if (url && url.includes('api.elevenlabs.io') && conversationId) {
+    return `/api/voice/audio/${conversationId}`;
   }
-  if (url.includes('api.elevenlabs.io') && conversationId) {
+  // Fallback: If no URL is present but we have a conversation ID,
+  // we assume the backend has the recording (or will have it) and try the proxy.
+  // This fixes "ghost" calls where the URL save might have failed or is pending.
+  if (!url && conversationId) {
     return `/api/voice/audio/${conversationId}`;
   }
   return url;
 };
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -67,8 +70,30 @@ async function clientFetch<T>(
 export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs }> =>
   clientFetch('/dashboard/kpis', token);
 
+const transformBooking = (booking: any): EnhancedBooking => ({
+  ...booking,
+  startDate: booking.appointmentDate || booking.startDate,
+  appointmentTime: booking.appointmentTime,
+  id: booking.id,
+  customerId: booking.customerId,
+  customerName: booking.customerName,
+  phone: booking.phone,
+  propertyId: booking.propertyId,
+  project: booking.project,
+  endDate: booking.endDate,
+  status: booking.status,
+  price: booking.price,
+  source: booking.source,
+  createdBy: booking.createdBy,
+  createdAt: booking.createdAt,
+  updatedAt: booking.updatedAt
+});
+
 export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
-  clientFetch('/bookings/recent', token);
+  clientFetch('/bookings/recent', token).then((data: unknown) => {
+    const bookings = Array.isArray(data) ? data : [];
+    return bookings.map(transformBooking);
+  });
 
 export const getTickets = (token: string): Promise<EnhancedTicket[]> =>
   clientFetch('/tickets/recent', token);
@@ -350,17 +375,13 @@ export const sendCustomerMessage = (
   },
   token: string
 ): Promise<{ response: string; conversationId?: string }> => {
-  // Validate required fields before sending
   if (!data.customer_id || !data.message) {
     return Promise.reject(new ApiError('Customer ID and message are required'));
   }
-
-  // Ensure message is trimmed
   const requestData = {
     ...data,
     message: data.message.trim()
   };
-
   return clientFetch('/chat/customer', token, {
     method: 'POST',
     body: JSON.stringify(requestData),
@@ -378,7 +399,7 @@ export const getConversations = (token: string): Promise<any[]> => {
       transcript: conv.transcript || [],
       entities: conv.entities || {},
       sentiment: conv.sentiment || 'محايد',
-      recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id), // ✅ Apply Proxy Logic
+      recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id),
       status: conv.status || 'مفتوحة',
       assignedTo: conv.assigned_to,
       updatedAt: conv.updated_at || conv.created_at
@@ -386,23 +407,7 @@ export const getConversations = (token: string): Promise<any[]> => {
   });
 };
 
-
-const transformCall = (call: any) => {
-  // Logic to convert private ElevenLabs URLs to our secure local proxy
-  let finalRecordingUrl = call.recording_url;
-
-  // If the backend gave us a direct ElevenLabs API URL, we must proxy it
-  // because the browser cannot add the required 'xi-api-key' header to <audio> tags.
-  if (finalRecordingUrl && finalRecordingUrl.includes('api.elevenlabs.io') && call.conversation_id) {
-    finalRecordingUrl = `/api/voice/audio/${call.conversation_id}`;
-  }
-  // Fallback: If no URL but we have a conversation ID for an AI call, try the proxy anyway
-  // This helps with "ghost" calls where the backend URL save might have failed previously
-  else if (!finalRecordingUrl && call.conversation_id && (call.ai_or_human === 'AI' || call.ai_or_human === 'AI_AGENT')) {
-    finalRecordingUrl = `/api/voice/audio/${call.conversation_id}`;
-  }
-
-  return {
+const transformCall = (call: any) => ({
   ...call,
   customerId: call.customer_id,
   customerName: call.customer_name,
@@ -412,7 +417,8 @@ const transformCall = (call: any) => {
   outcome: call.outcome,
   handleSec: call.handle_sec,
   aiOrHuman: call.ai_or_human,
-  recordingUrl: proxifyElevenLabsUrl(call.recording_url, call.conversation_id || call.session_id), // ✅ Apply Proxy Logic
+  // Use the proxy helper for calls
+  recordingUrl: proxifyElevenLabsUrl(call.recording_url, call.conversation_id || call.session_id),
   createdAt: call.created_at,
   updatedAt: call.updated_at || call.created_at,
   voiceSessionId: call.voice_session_id || call.session_id,
@@ -420,7 +426,22 @@ const transformCall = (call: any) => {
   sessionSummary: call.summary,
   agentName: call.agent_name,
   sessionStatus: call.session_status
-  };
+});
+
+export const getConversation = (conversationId: string, token: string): Promise<any> => {
+  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
+    ...conv,
+    customerId: conv.customer_id,
+    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
+    createdAt: conv.created_at,
+    transcript: conv.transcript || [],
+    entities: conv.entities || {},
+    sentiment: conv.sentiment || 'محايد',
+    recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id),
+    status: conv.status || 'مفتوحة',
+    assignedTo: conv.assigned_to,
+    updatedAt: conv.updated_at || conv.created_at
+  }));
 };
 
 export const getCalls = (token: string): Promise<any[]> => {
@@ -436,7 +457,6 @@ export const getCall = (id: string, token: string): Promise<any> => {
   });
 };
 
-// ✅ FIXED: Correct definition and endpoint
 export interface VoiceSession {
   id: string;
   tenant_id: string;
@@ -452,7 +472,6 @@ export interface VoiceSession {
   extracted_intent?: string;
 }
 
-// ✅ FIXED: Pointing to /voice/sessions (plural, slash)
 export const getVoiceSessions = (token: string): Promise<VoiceSession[]> => {
   return clientFetch<VoiceSession[]>('/voice/sessions', token);
 };
@@ -482,20 +501,4 @@ export const getMessages = (token: string, conversationId?: string): Promise<any
     ? `/conversations/${conversationId}/messages`
     : '/messages';
   return clientFetch(endpoint, token);
-};
-
-export const getConversation = (conversationId: string, token: string): Promise<any> => {
-  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
-    ...conv,
-    customerId: conv.customer_id,
-    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
-    createdAt: conv.created_at,
-    transcript: conv.transcript || [],
-    entities: conv.entities || {},
-    sentiment: conv.sentiment || 'محايد',
-    recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id), // ✅ Apply Proxy Logic
-    status: conv.status || 'مفتوحة',
-    assignedTo: conv.assigned_to,
-    updatedAt: conv.updated_at || conv.created_at
-  }));
 };

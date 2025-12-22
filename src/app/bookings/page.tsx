@@ -194,6 +194,10 @@ export default function BookingsPage() {
                     <div className="space-y-2 mb-4">
                         <h4 className="font-semibold">{customerName}</h4>
                         <p className="text-sm text-slate-600">{propDisplay}</p>
+                        <div className="text-sm">
+                            <p className="text-slate-600">موعد الحجز: {formatDate(booking.startDate)}</p>
+                            <p className="text-slate-600">تاريخ الإنشاء: {formatDate(booking.createdAt)}</p>
+                        </div>
                         <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
                     </div>
                     <div className="flex gap-2">
@@ -216,7 +220,8 @@ export default function BookingsPage() {
                                 <th className="p-4 w-12 text-center font-semibold text-slate-900 dark:text-slate-100">#</th>
                                 <th className="text-right p-4">العميل</th>
                                 <th className="text-right p-4">العقار/المشروع</th>
-                                <th className="text-right p-4">التاريخ</th>
+                                <th className="text-right p-4">موعد الحجز</th>
+                                <th className="text-right p-4">تاريخ الإنشاء</th>
                                 <th className="text-right p-4">السعر</th>
                                 <th className="text-right p-4">المصدر</th>
                                 <th className="text-right p-4">الحالة</th>
@@ -245,6 +250,7 @@ export default function BookingsPage() {
                                             <p className="font-medium">{propDisplay}</p>
                                         </td>
                                         <td className="p-4 text-sm">{formatDate(booking.startDate)}</td>
+                                        <td className="p-4 text-sm">{formatDate(booking.createdAt)}</td>
                                         <td className="p-4 font-semibold text-primary">{formatSAR(booking.price || 0)}</td>
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>

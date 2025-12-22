@@ -6,12 +6,21 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Date formatting utility
-export function formatDate(date: string | Date, locale: string = 'ar-EG'): string {
+export function formatDate(date: string | Date | undefined | null, locale: string = 'ar-EG'): string {
+  if (!date) {
+    return 'غير محدد';
+  }
+
   try {
-    return new Date(date).toLocaleDateString(locale);
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      // If the date is invalid, return a meaningful message
+      return 'تاريخ غير صحيح';
+    }
+    return dateObj.toLocaleDateString(locale);
   } catch (error) {
     console.error('Error formatting date:', error);
-    return new Date().toLocaleDateString(locale);
+    return 'غير محدد';
   }
 }
 

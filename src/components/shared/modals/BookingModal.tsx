@@ -3,6 +3,7 @@ import { Customer } from '@/app/(shared)/types';
 import { FormField } from './GenericModal';
 import GenericModal from './GenericModal';
 import { mapChannelTypeToEnglish } from '@/lib/statusMapper';
+import { formatDate } from '@/lib/utils';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -116,7 +117,7 @@ export default function BookingModal({
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">تاريخ ووقت الحجز</label>
                 <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                  {new Date(booking.startDate).toLocaleString('ar-SA')}
+                  {formatDate(booking.startDate)}
                 </p>
               </div>
               <div>
@@ -142,7 +143,7 @@ export default function BookingModal({
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">تاريخ الإنشاء</label>
                 <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
-                  {new Date(booking.createdAt).toLocaleString('ar-SA')}
+                  {formatDate(booking.createdAt)}
                 </p>
               </div>
             </div>
