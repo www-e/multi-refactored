@@ -173,7 +173,7 @@ docker exec -it agentic_portal_db psql -U navaia -d navaia -c "SELECT COUNT(*) F
 
 
 # live watch
-docker logs -f agentic_portal_backend --tail 50
+docker logs -f agentic_portal_backend --tail 150
 docker logs -f agentic_portal_frontend --tail 100
 
 
