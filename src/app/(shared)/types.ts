@@ -57,6 +57,7 @@ export interface Call {
   id: string;
   conversationId: string;
   customerId: string;
+  customerName?: string;
   direction: 'وارد' | 'صادر';
   status: string;
   outcome?: string;

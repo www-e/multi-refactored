@@ -597,37 +597,10 @@ async def start_text_conversation(agent_type: str, session_id: Optional[str] = N
 
 async def fetch_conversation_recording(conversation_id: str) -> Optional[str]:
     """
-    Fetch conversation recording URL from ElevenLabs if available.
-    This is a fallback method when recording URL is not provided in webhook payload.
-
-    According to ElevenLabs documentation, the audio can be retrieved from:
-    GET https://api.elevenlabs.io/v1/convai/conversations/:conversation_id/audio
+    Constructs the standard ElevenLabs audio URL.
+    Does NOT verify existence via HEAD request because the API returns 405 Method Not Allowed.
+    Trusts the frontend/proxy to handle 404s if the audio isn't ready.
     """
-    headers = get_elevenlabs_headers()
-
-    # The correct endpoint according to ElevenLabs API documentation
-    audio_url = f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/audio"
-
-    try:
-        # Check if audio is available by making a HEAD request first to avoid downloading large files unnecessarily
-        async with aiohttp.ClientSession() as session:
-            async with session.head(audio_url, headers=headers) as response:
-                if response.status == 200:
-                    # Audio is available, return the download URL
-                    logger.info(f"✅ Found conversation audio at official endpoint: {conversation_id}")
-                    return audio_url
-                elif response.status == 422:
-                    # The request wasn't processable, may not have audio available
-                    logger.debug(f"⚠️ No audio available for conversation {conversation_id} (422 error)")
-                elif response.status == 404:
-                    # Audio endpoint doesn't exist or no recording available
-                    logger.debug(f"⚠️ Audio endpoint not found for conversation {conversation_id}")
-                else:
-                    logger.warning(f"⚠️ Unexpected status from audio endpoint {response.status} for {conversation_id}")
-
-    except Exception as e:
-        logger.debug(f"ℹ️ Audio endpoint not available for {conversation_id}, error: {e}")
-
-    # If no recording found through the official endpoint, return None
-    logger.info(f"ℹ️ No recording found for conversation {conversation_id} at official audio endpoint")
-    return None
+    # Standard endpoint for conversational AI audio
+    # Note: Accessing this URL requires 'xi-api-key' header
+    return f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/audio"

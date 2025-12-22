@@ -125,7 +125,7 @@ export default function CallsPage() {
                       </div>
                       <div>
                         <h4 className="font-semibold text-sm flex items-center gap-2">
-                          {getCustomerName(call.customerId || '')}
+                          {call.customerName || getCustomerName(call.customerId || '')}
                           {(() => {
                             // Find the original customer data to see if name was updated from "Unknown Customer"
                             const originalCustomer = customers.find(c => c.id === call.customerId);
@@ -194,7 +194,7 @@ export default function CallsPage() {
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-2xl">
                   <div>
                     <h3 className="font-bold flex items-center gap-2">
-                      {getCustomerName(selectedCall.customerId || '')}
+                      {selectedCall.customerName || getCustomerName(selectedCall.customerId || '')}
                       {(() => {
                         // Find the original customer data to see if name was updated from "Unknown Customer"
                         const originalCustomer = customers.find(c => c.id === selectedCall.customerId);

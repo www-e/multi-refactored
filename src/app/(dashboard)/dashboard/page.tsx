@@ -158,7 +158,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-medium text-slate-900 dark:text-slate-100">
-                        {call.customerId ? `مكالمة مع عميل` : 'مكالمة'}
+                        {call.customerName ? call.customerName : (call.customerId ? `مكالمة مع عميل` : 'مكالمة')}
                       </p>
                       <div className="flex items-center gap-2 text-xs text-slate-500">
                         <span>{call.direction}</span>

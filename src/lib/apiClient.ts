@@ -1,6 +1,18 @@
 import { EnhancedBooking, EnhancedTicket, DashboardKPIs, Customer, EnhancedCampaign } from "@/app/(shared)/types";
 import { mapCallStatusToArabic } from "@/lib/statusMapper";
 
+// Helper to proxy ElevenLabs URLs
+const proxifyElevenLabsUrl = (url?: string | null, conversationId?: string) => {
+  if (!url) {
+    // Fallback: If no URL but we have a conversation ID, try the proxy anyway
+    // This fixes "ghost" calls where the backend might have failed to save the URL previously
+    return conversationId ? `/api/voice/audio/${conversationId}` : null;
+  }
+  if (url.includes('api.elevenlabs.io') && conversationId) {
+    return `/api/voice/audio/${conversationId}`;
+  }
+  return url;
+};
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -53,7 +65,7 @@ async function clientFetch<T>(
 }
 
 export const getDashboardKpis = (token: string): Promise<{ kpis: DashboardKPIs }> =>
-  clientFetch('/dashboard', token);
+  clientFetch('/dashboard/kpis', token);
 
 export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
   clientFetch('/bookings/recent', token);
@@ -366,7 +378,7 @@ export const getConversations = (token: string): Promise<any[]> => {
       transcript: conv.transcript || [],
       entities: conv.entities || {},
       sentiment: conv.sentiment || 'محايد',
-      recordingUrl: conv.recording_url,
+      recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id), // ✅ Apply Proxy Logic
       status: conv.status || 'مفتوحة',
       assignedTo: conv.assigned_to,
       updatedAt: conv.updated_at || conv.created_at
@@ -375,16 +387,32 @@ export const getConversations = (token: string): Promise<any[]> => {
 };
 
 
-const transformCall = (call: any) => ({
+const transformCall = (call: any) => {
+  // Logic to convert private ElevenLabs URLs to our secure local proxy
+  let finalRecordingUrl = call.recording_url;
+
+  // If the backend gave us a direct ElevenLabs API URL, we must proxy it
+  // because the browser cannot add the required 'xi-api-key' header to <audio> tags.
+  if (finalRecordingUrl && finalRecordingUrl.includes('api.elevenlabs.io') && call.conversation_id) {
+    finalRecordingUrl = `/api/voice/audio/${call.conversation_id}`;
+  }
+  // Fallback: If no URL but we have a conversation ID for an AI call, try the proxy anyway
+  // This helps with "ghost" calls where the backend URL save might have failed previously
+  else if (!finalRecordingUrl && call.conversation_id && (call.ai_or_human === 'AI' || call.ai_or_human === 'AI_AGENT')) {
+    finalRecordingUrl = `/api/voice/audio/${call.conversation_id}`;
+  }
+
+  return {
   ...call,
   customerId: call.customer_id,
+  customerName: call.customer_name,
   conversationId: call.conversation_id,
   direction: call.direction === 'outbound' ? 'صادر' : 'وارد',
   status: mapCallStatusToArabic(call.status || 'unknown'),
   outcome: call.outcome,
   handleSec: call.handle_sec,
   aiOrHuman: call.ai_or_human,
-  recordingUrl: call.recording_url,
+  recordingUrl: proxifyElevenLabsUrl(call.recording_url, call.conversation_id || call.session_id), // ✅ Apply Proxy Logic
   createdAt: call.created_at,
   updatedAt: call.updated_at || call.created_at,
   voiceSessionId: call.voice_session_id || call.session_id,
@@ -392,7 +420,8 @@ const transformCall = (call: any) => ({
   sessionSummary: call.summary,
   agentName: call.agent_name,
   sessionStatus: call.session_status
-});
+  };
+};
 
 export const getCalls = (token: string): Promise<any[]> => {
   return clientFetch('/calls', token).then((calls: unknown) => {
@@ -464,7 +493,7 @@ export const getConversation = (conversationId: string, token: string): Promise<
     transcript: conv.transcript || [],
     entities: conv.entities || {},
     sentiment: conv.sentiment || 'محايد',
-    recordingUrl: conv.recording_url,
+    recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id), // ✅ Apply Proxy Logic
     status: conv.status || 'مفتوحة',
     assignedTo: conv.assigned_to,
     updatedAt: conv.updated_at || conv.created_at

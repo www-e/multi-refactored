@@ -28,6 +28,7 @@ class CallResponse(BaseModel):
     id: str
     conversation_id: str
     customer_id: Optional[str]
+    customer_name: Optional[str] = None
     direction: str
     status: str
     outcome: Optional[str]
@@ -150,8 +151,9 @@ def get_call(
 ):
     logger.info(f"📞 Fetching specific call: {call_id} for tenant {tenant_id}")
     # Find the call by ID and join with conversation to get customer_id and voice session for additional data
-    call_result = db_session.query(models.Call, models.Conversation.customer_id, models.VoiceSession)\
+    call_result = db_session.query(models.Call, models.Conversation.customer_id, models.Customer.name, models.VoiceSession)\
         .outerjoin(models.Conversation, models.Call.conversation_id == models.Conversation.id)\
+        .outerjoin(models.Customer, models.Conversation.customer_id == models.Customer.id)\
         .outerjoin(models.VoiceSession, models.Call.conversation_id == models.VoiceSession.conversation_id)\
         .filter(models.Call.id == call_id, models.Call.tenant_id == tenant_id)\
         .first()
@@ -160,7 +162,7 @@ def get_call(
         logger.warning(f"❌ Call {call_id} not found for tenant {tenant_id}")
         raise HTTPException(status_code=404, detail="Call not found")
 
-    c, customer_id, vs = call_result
+    c, customer_id, customer_name, vs = call_result
 
     has_recording = bool(c.recording_url or (vs.recording_url if vs else None))
     logger.info(f"📋 Call {call_id} data - Recording: {has_recording}, Voice Session: {bool(vs)}, Intent: {vs.extracted_intent if vs else 'None'}")
@@ -169,6 +171,7 @@ def get_call(
         id=c.id,
         conversation_id=c.conversation_id,
         customer_id=customer_id,
+        customer_name=customer_name,
         direction=c.direction.value if hasattr(c.direction, 'value') else str(c.direction),
         status=c.status.value if hasattr(c.status, 'value') else str(c.status),
         outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
@@ -194,15 +197,16 @@ def get_calls(
     limit: int = 100
 ):
     logger.info(f"📞 Fetching calls for tenant {tenant_id}, limit: {limit}")
-    results = db_session.query(models.Call, models.Conversation.customer_id, models.VoiceSession)\
+    results = db_session.query(models.Call, models.Conversation.customer_id, models.Customer.name, models.VoiceSession)\
         .outerjoin(models.Conversation, models.Call.conversation_id == models.Conversation.id)\
+        .outerjoin(models.Customer, models.Conversation.customer_id == models.Customer.id)\
         .outerjoin(models.VoiceSession, models.Call.conversation_id == models.VoiceSession.conversation_id)\
         .filter(models.Call.tenant_id == tenant_id)\
         .order_by(models.Call.created_at.desc())\
         .offset(skip).limit(limit).all()
 
-    calls_with_recording = [c for c, _, _ in results if c.recording_url]
-    calls_with_voice_session = [c for c, _, vs in results if vs]
+    calls_with_recording = [c for c, _, _, _ in results if c.recording_url]
+    calls_with_voice_session = [c for c, _, _, vs in results if vs]
 
     logger.info(f"📊 Found {len(results)} calls total, {len(calls_with_recording)} with recording URLs, {len(calls_with_voice_session)} with voice session data")
 
@@ -211,6 +215,7 @@ def get_calls(
             id=c.id,
             conversation_id=c.conversation_id,
             customer_id=cid,
+            customer_name=cust_name,
             direction=c.direction.value if hasattr(c.direction, 'value') else str(c.direction),
             status=c.status.value if hasattr(c.status, 'value') else str(c.status),
             outcome=c.outcome.value if hasattr(c.outcome, 'value') and c.outcome else None,
@@ -223,7 +228,7 @@ def get_calls(
             agent_name=vs.agent_name if vs else None,
             session_status=vs.status.value if vs and hasattr(vs.status, 'value') else (vs.status if vs else None)
         )
-        for c, cid, vs in results
+        for c, cid, cust_name, vs in results
     ]
 
     logger.info(f"✅ Returning {len(call_responses)} call responses with various data points")
