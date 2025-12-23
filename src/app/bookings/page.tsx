@@ -29,6 +29,7 @@ export default function BookingsPage() {
   const [bookingToDelete, setBookingToDelete] = useState<{ id: string; customerName: string } | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bookingToEdit, setBookingToEdit] = useState<any>(null);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking, removeBooking } = useAppStore();
   const { getBookings, updateBookingStatus, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
@@ -178,36 +179,15 @@ export default function BookingsPage() {
           </div>
         </div>
 
+        {/* Button to open pending approvals modal */}
         {pendingBookings.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">طلبات في انتظار الموافقة ({pendingBookings.length})</h2>
-            <div className="grid grid-cols-1 gap-4">
-              {pendingBookings.map(booking => {
-                const customerName = getCustomerName(booking);
-                const propDisplay = getPropertyDisplay(booking);
-                return (
-                  <Card key={booking.id} className="p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
-                        <StatusBadge status={booking.createdBy} />
-                        <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
-                    </div>
-                    <div className="space-y-2 mb-4">
-                        <h4 className="font-semibold">{customerName}</h4>
-                        <p className="text-sm text-slate-600">{propDisplay}</p>
-                        <div className="text-sm space-y-1">
-                            <p className="text-slate-600">موعد الحجز: {formatDate(booking.startDate)}</p>
-                            <p className="text-slate-600">تاريخ الإنشاء: {formatDate(booking.createdAt)}</p>
-                        </div>
-                        <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <button onClick={() => handleAction(booking.id, 'confirmed')} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
-                        <button onClick={() => handleAction(booking.id, 'canceled')} className="flex-1 bg-destructive text-white p-2 rounded-lg hover:bg-destructive/90 text-sm flex items-center justify-center gap-2"><XCircle size={16}/> رفض</button>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+          <div className="mb-6">
+            <button
+              onClick={() => setIsApprovalModalOpen(true)}
+              className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            >
+              <span>طلبات في انتظار الموافقة ({pendingBookings.length})</span>
+            </button>
           </div>
         )}
 
@@ -350,6 +330,71 @@ export default function BookingsPage() {
             onSubmit={async () => {}} // Not used in view mode
             isSubmitting={false}
         />
+
+        {/* Approval Modal */}
+        <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 ${isApprovalModalOpen ? '' : 'hidden'}`}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                طلبات في انتظار الموافقة ({pendingBookings.length})
+              </h3>
+              <button
+                onClick={() => setIsApprovalModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl"
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                {pendingBookings.map(booking => {
+                  const customerName = getCustomerName(booking);
+                  const propDisplay = getPropertyDisplay(booking);
+                  return (
+                    <Card key={booking.id} className="p-4">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                          <StatusBadge status={booking.createdBy} />
+                          <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                          <h4 className="font-semibold">{customerName}</h4>
+                          <p className="text-sm text-slate-600">{propDisplay}</p>
+                          <div className="text-sm space-y-1">
+                              <p className="text-slate-600">موعد الحجز: {formatDate(booking.startDate)}</p>
+                              <p className="text-slate-600">تاريخ الإنشاء: {formatDate(booking.createdAt)}</p>
+                          </div>
+                          <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                          <button onClick={() => {
+                            handleAction(booking.id, 'confirmed');
+                            // Close modal if no more pending bookings
+                            if (pendingBookings.length <= 1) {
+                              setIsApprovalModalOpen(false);
+                            }
+                          }} className="flex-1 bg-success text-white p-2 rounded-lg hover:bg-success/90 text-sm flex items-center justify-center gap-2"><CheckCircle size={16}/> موافقة</button>
+                          <button onClick={() => {
+                            handleAction(booking.id, 'canceled');
+                            // Close modal if no more pending bookings
+                            if (pendingBookings.length <= 1) {
+                              setIsApprovalModalOpen(false);
+                            }
+                          }} className="flex-1 bg-destructive text-white p-2 rounded-lg hover:bg-destructive/90 text-sm flex items-center justify-center gap-2"><XCircle size={16}/> رفض</button>
+                      </div>
+                    </Card>
+                  );
+                })}
+                {pendingBookings.length === 0 && (
+                  <div className="text-center py-8 text-slate-500">
+                    لا توجد طلبات في انتظار الموافقة
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
