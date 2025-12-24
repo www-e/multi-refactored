@@ -32,7 +32,7 @@ export default function BookingsPage() {
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const { bookings, customers, properties, setBookings, setBookingsLoading, updateBooking: updateBookingInStore, addBooking, removeBooking } = useAppStore();
-  const { getBookings, updateBookingStatus, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
+  const { getBookings, updateBookingStatus, updateBookingStatusWithMapping, updateBooking, createBooking, deleteBooking, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   useEffect(() => {
@@ -129,9 +129,15 @@ export default function BookingsPage() {
   );
 
   const handleAction = async (id: string, action: 'confirmed' | 'canceled') => {
-    const arabicStatus = action === 'confirmed' ? 'مؤكد' : 'ملغي';
-    await updateBookingStatus(id, action);
-    updateBookingInStore(id, { status: arabicStatus }); // Optimistic update
+    // Map English action to Arabic status for API and storage
+    const statusMap = {
+      confirmed: 'مؤكد' as const,
+      canceled: 'ملغي' as const
+    };
+    const arabicStatus = statusMap[action];
+
+    await updateBookingStatusWithMapping(id, arabicStatus);
+    updateBookingInStore(id, { status: arabicStatus }); // Optimistic update with Arabic value
   };
 
   return (

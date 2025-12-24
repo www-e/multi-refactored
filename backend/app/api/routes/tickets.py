@@ -17,7 +17,7 @@ class TicketCreateRequest(BaseModel):
     priority: models.TicketPriorityEnum
     category: str
     issue: str
-    project: str
+    project: Optional[str] = None
 
 class TicketStatusUpdateRequest(BaseModel):
     status: models.TicketStatusEnum

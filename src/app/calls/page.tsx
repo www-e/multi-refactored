@@ -12,6 +12,7 @@ import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { AudioPlayer } from '@/components/features/calls/AudioPlayer';
 import { TranscriptModal } from '@/components/features/calls/TranscriptModal';
+import { mapCallStatusToArabic } from '@/lib/statusMapper';
 
 export default function CallsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,7 +151,7 @@ export default function CallsPage() {
                               <span>•</span>
                               <span>{call.direction}</span>
                               <span>•</span>
-                              <span>{call.status}</span>
+                              <span>{mapCallStatusToArabic(call.status)}</span>
                             </div>
                           </div>
                         </div>
@@ -224,7 +225,7 @@ export default function CallsPage() {
                               </div>
                               <div>
                                 <h4 className="text-sm font-medium text-slate-500 mb-1">الحالة</h4>
-                                <p className="font-medium">{selectedCall.status}</p>
+                                <p className="font-medium">{mapCallStatusToArabic(selectedCall.status)}</p>
                               </div>
                               <div>
                                 <h4 className="text-sm font-medium text-slate-500 mb-1">الاتجاه</h4>

@@ -12,6 +12,7 @@ import TicketModal from '@/components/shared/modals/TicketModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import { formatDate } from '@/lib/utils';
+import { mapTicketPriorityToArabic } from '@/lib/statusMapper';
 
 export default function TicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,7 +27,7 @@ export default function TicketsPage() {
   const [statusUpdateLoading, setStatusUpdateLoading] = useState<Record<string, 'idle' | 'in_progress' | 'resolved'>>({});
 
   const { tickets, setTickets, setTicketsLoading, customers, setCustomers, addTicket, removeTicket, updateTicket: updateTicketInStore } = useAppStore();
-  const { getTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
+  const { getAllTickets, getCustomers, createTicket, updateTicket, updateTicketStatus, deleteTicket, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function TicketsPage() {
         try {
           setTicketsLoading(true);
           await Promise.all([
-            getTickets().then(setTickets),
+            getAllTickets().then(setTickets),
             getCustomers().then(setCustomers)
           ]);
         } catch (error) {
@@ -46,7 +47,7 @@ export default function TicketsPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getTickets, setTickets, getCustomers, setCustomers, setTicketsLoading]);
+  }, [isAuthenticated, getAllTickets, setTickets, getCustomers, setCustomers, setTicketsLoading]);
 
   // Robust Name Resolution: Prefer snapshot name (AI extracted), fallback to lookup
   // FIX: Added safety check for null/undefined ticket to prevent build crashes
@@ -83,13 +84,7 @@ export default function TicketsPage() {
   };
 
   const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'low': return 'منخفض';
-      case 'med': return 'متوسط';
-      case 'high': return 'عالٍ';
-      case 'urgent': return 'عاجل';
-      default: return priority;
-    }
+    return mapTicketPriorityToArabic(priority);
   };
 
 
@@ -109,7 +104,7 @@ export default function TicketsPage() {
                   const fetchData = async () => {
                     try {
                       setTicketsLoading(true);
-                      const data = await getTickets();
+                      const data = await getAllTickets();
                       setTickets(data);
                     } catch (error) {
                       console.error('Error refreshing tickets:', error);
@@ -189,13 +184,7 @@ export default function TicketsPage() {
                           <StatusBadge status={ticket.priority} />
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            ticket.status === 'open' ? 'bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300' :
-                            ticket.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300' :
-                            'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300'
-                          }`}>
-                            {getStatusLabel(ticket.status)}
-                          </span>
+                          <StatusBadge status={ticket.status} />
                         </td>
                         <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 dark:text-slate-300">
                           {ticket.project || '-'}

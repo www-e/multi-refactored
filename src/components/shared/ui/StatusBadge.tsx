@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { TStatus } from './types';
 import { Phone, Mail } from 'lucide-react';
+import { mapTicketPriorityToArabic, mapTicketStatusToArabic, mapBookingStatusToArabic, mapCampaignStatusToArabic, mapCallStatusToArabic, mapChannelTypeToArabic } from '@/lib/statusMapper';
 
 interface StatusBadgeProps {
   status: TStatus;
@@ -79,6 +80,37 @@ export function StatusBadge({ status, type = 'pill' }: StatusBadgeProps) {
             </span>
         )
     }
+
+    // Translate the status to Arabic if it's a known status type
+    const getTranslatedStatus = (status: TStatus): string => {
+      // Check if it's a ticket priority
+      if (['low', 'med', 'high', 'urgent', 'منخفض', 'متوسط', 'عالٍ', 'عاجل'].includes(status)) {
+        return mapTicketPriorityToArabic(status);
+      }
+      // Check if it's a ticket status
+      if (['open', 'in_progress', 'resolved', 'closed', 'مفتوحة', 'قيد_المعالجة', 'محلولة', 'مغلقة'].includes(status)) {
+        return mapTicketStatusToArabic(status);
+      }
+      // Check if it's a booking status
+      if (['pending', 'confirmed', 'canceled', 'completed', 'معلق', 'مؤكد', 'ملغي', 'مكتمل'].includes(status)) {
+        return mapBookingStatusToArabic(status);
+      }
+      // Check if it's a campaign status
+      if (['active', 'paused', 'completed', 'نشطة', 'موقوفة', 'مكتملة'].includes(status)) {
+        return mapCampaignStatusToArabic(status);
+      }
+      // Check if it's a call status
+      if (['connected', 'no_answer', 'abandoned', 'unknown', 'متصل', 'لا_إجابة', 'متروك', 'غير_معروف'].includes(status)) {
+        return mapCallStatusToArabic(status);
+      }
+      // Check if it's a channel type
+      if (['voice', 'chat', 'صوت', 'رسالة'].includes(status)) {
+        return mapChannelTypeToArabic(status);
+      }
+      // If it's already in Arabic or not a known status, return as is
+      return status;
+    };
+
   return (
     <span
       className={cn(
@@ -86,7 +118,7 @@ export function StatusBadge({ status, type = 'pill' }: StatusBadgeProps) {
         statusStyles[status] || 'bg-gray-500 text-white'
       )}
     >
-      {status}
+      {getTranslatedStatus(status)}
     </span>
   );
 }

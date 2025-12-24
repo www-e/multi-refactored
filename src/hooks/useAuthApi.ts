@@ -72,6 +72,17 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  const getAllTickets = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getTickets', true);
+    try {
+      const result = await apiClient.getAllTickets(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getTickets', false);
+    }
+  }, [accessToken]);
+
   const getBookings = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('getBookings', true);
@@ -411,6 +422,7 @@ export const useAuthApi = () => {
 
     getDashboardKpis,
     getTickets,
+    getAllTickets,
     getBookings,
     getCustomers,
     createCustomer,

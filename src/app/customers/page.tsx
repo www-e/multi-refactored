@@ -17,6 +17,7 @@ import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal'
 import { useModalState } from '@/hooks/useModalState';
 import { Customer, EnhancedTicket, EnhancedBooking } from '@/app/(shared)/types';
 import { formatDate } from '@/lib/utils';
+import { mapCallStatusToArabic } from '@/lib/statusMapper';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,7 +124,7 @@ export default function CustomersPage() {
     if (confirm(`هل ترغب في الاتصال بالعميل على الرقم ${phone}?`)) {
       try {
         const result = await makeCall({ customer_id: customerId, phone });
-        alert(`تم بدء الاتصال بالعميل. الحالة: ${result.status}`);
+        alert(`تم بدء الاتصال بالعميل. الحالة: ${mapCallStatusToArabic(result.status)}`);
       } catch (error) {
         console.error('Error making call:', error);
         alert('فشل في الاتصال بالعميل. يرجى المحاولة مرة أخرى.');

@@ -159,8 +159,13 @@ export default function TicketModal({
   }
 
   // Format initial data for the ticket (edit/create mode)
+  // Ensure only valid form fields are included in initial data
   const initialData = ticket ? {
-    ...ticket
+    customerId: ticket.customerId || '',
+    category: ticket.category || '',
+    priority: ticket.priority || 'med',
+    project: ticket.project || '',
+    issue: ticket.issue || ''
   } : null;
 
   return (

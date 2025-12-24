@@ -98,6 +98,9 @@ export const getBookings = (token: string): Promise<EnhancedBooking[]> =>
 export const getTickets = (token: string): Promise<EnhancedTicket[]> =>
   clientFetch('/tickets/recent', token);
 
+export const getAllTickets = (token: string): Promise<EnhancedTicket[]> =>
+  clientFetch('/tickets', token);
+
 const transformCustomer = (customer: any): Customer => ({
   id: customer.id,
   name: customer.name,

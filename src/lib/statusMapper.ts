@@ -183,3 +183,32 @@ export const mapCallStatusToEnglish = (status: string): string => {
   };
   return mapping[status] || status;
 };
+
+// Ticket priority mapping
+export const mapTicketPriorityToArabic = (priority: string): string => {
+  const mapping: Record<string, string> = {
+    'low': 'منخفض',
+    'med': 'متوسط',
+    'high': 'عالٍ',
+    'urgent': 'عاجل',
+    'منخفض': 'منخفض',
+    'متوسط': 'متوسط',
+    'عالٍ': 'عالٍ',
+    'عاجل': 'عاجل',
+  };
+  return mapping[priority] || priority;
+};
+
+export const mapTicketPriorityToEnglish = (priority: string): string => {
+  const mapping: Record<string, string> = {
+    'low': 'low',
+    'med': 'med',
+    'high': 'high',
+    'urgent': 'urgent',
+    'منخفض': 'low',
+    'متوسط': 'med',
+    'عالٍ': 'high',
+    'عاجل': 'urgent',
+  };
+  return mapping[priority] || priority;
+};

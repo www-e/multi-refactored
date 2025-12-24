@@ -1,6 +1,7 @@
 'use client';
 import { Customer, EnhancedTicket, EnhancedBooking, EnhancedCampaign } from '@/app/(shared)/types';
 import { Modal } from '../ui/Modal';
+import { StatusBadge } from '../ui/StatusBadge';
 import { formatDate } from '@/lib/utils';
 
 interface CustomerDetailModalProps {
@@ -153,15 +154,7 @@ export default function CustomerDetailModal({
                 <div key={ticket.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                   <div className="flex justify-between">
                     <span className="font-medium">{ticket.category}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      ticket.status === 'open' ? 'bg-yellow-100 text-yellow-800' :
-                      ticket.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
-                      {ticket.status === 'open' ? 'مفتوحة' :
-                       ticket.status === 'in_progress' ? 'قيد المعالجة' :
-                       'محلولة'}
-                    </span>
+                    <StatusBadge status={ticket.status} />
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{ticket.issue}</p>
                 </div>
@@ -181,14 +174,7 @@ export default function CustomerDetailModal({
                 <div key={booking.id} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                   <div className="flex justify-between">
                     <span className="font-medium">الحجز #{booking.id.substring(0, 8)}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      booking.status === 'معلق' ? 'bg-yellow-100 text-yellow-800' :
-                      booking.status === 'مؤكد' ? 'bg-green-100 text-green-800' :
-                      booking.status === 'ملغي' ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {booking.status}
-                    </span>
+                    <StatusBadge status={booking.status} />
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     {formatDate(booking.startDate)} - {booking.price} ر.س

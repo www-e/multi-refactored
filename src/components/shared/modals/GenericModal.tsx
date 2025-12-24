@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useFormHandler } from '@/hooks/useFormHandler';
 import ModalFormLayout from './ModalFormLayout';
 
@@ -52,14 +52,14 @@ export default function GenericModal<T extends Record<string, any>>({
   customContent
 }: GenericModalProps<T>) {
   // Initialize form data based on fields and initialData (only when not in view mode)
-  const initializeFormData = () => {
+  const initializeFormData = useCallback(() => {
     const formData: Record<string, any> = {};
     fields.forEach(field => {
       const value = initialData?.[field.name as keyof T];
       formData[field.name] = value !== undefined ? value : field.defaultValue || '';
     });
     return formData;
-  };
+  }, [fields, initialData]);
 
   const [formData, setFormData] = useState<Record<string, any>>(initializeFormData);
 
