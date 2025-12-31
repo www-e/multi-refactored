@@ -7,7 +7,7 @@ interface DeleteConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  title: string;
+  title?: string; // Made optional since it's not always provided
   message: string;
   itemName?: string;
   isSubmitting?: boolean;
@@ -51,7 +51,7 @@ export default function DeleteConfirmModal({
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
             )}
-            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title || 'تأكيد الحذف'}</h2>
           </div>
         </div>
         

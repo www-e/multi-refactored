@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 
 interface ModalFormLayoutProps {
   title: string;
+  description?: string; // Added description prop
   children: React.ReactNode;
   error?: string;
   isSubmitting?: boolean;
@@ -20,6 +21,7 @@ interface ModalFormLayoutProps {
 
 export default function ModalFormLayout({
   title,
+  description,
   children,
   error,
   isSubmitting = false,
@@ -49,6 +51,9 @@ export default function ModalFormLayout({
         {/* Header */}
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+          {description && (
+            <p className="text-slate-600 dark:text-slate-400 mt-1">{description}</p>
+          )}
         </div>
 
         {/* Form Content */}

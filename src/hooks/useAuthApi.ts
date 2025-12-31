@@ -44,6 +44,10 @@ export const useAuthApi = () => {
     getVoiceSessions: false,
     getTranscript: false,
     getMessages: false,
+    getUsers: false,
+    createUser: false,
+    updateUser: false,
+    deleteUser: false,
   });
 
   const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
@@ -414,6 +418,51 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  // Admin User Management functions
+  const getUsers = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getUsers', true);
+    try {
+      const result = await apiClient.getUsers(accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getUsers', false);
+    }
+  }, [accessToken]);
+
+  const createUser = useCallback(async (data: { email: string; password: string; name: string; role?: string }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('createUser', true);
+    try {
+      const result = await apiClient.createUser(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('createUser', false);
+    }
+  }, [accessToken]);
+
+  const updateUser = useCallback(async (userId: string, data: { name?: string; role?: string; is_active?: boolean }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('updateUser', true);
+    try {
+      const result = await apiClient.updateUser(userId, data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('updateUser', false);
+    }
+  }, [accessToken]);
+
+  const deleteUser = useCallback(async (userId: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('deleteUser', true);
+    try {
+      const result = await apiClient.deleteUser(userId, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('deleteUser', false);
+    }
+  }, [accessToken]);
+
   return {
     loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
@@ -453,5 +502,11 @@ export const useAuthApi = () => {
     getTranscript,
     getMessages,
     getConversation,
+
+    // Admin User Management
+    getUsers,
+    createUser,
+    updateUser,
+    deleteUser,
   };
 };

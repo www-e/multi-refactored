@@ -117,6 +117,17 @@ const navigation = [
         description: 'تخصيص النظام'
       }
     ]
+  },
+  {
+    name: 'الإدارة',
+    items: [
+      {
+        name: 'إدارة المستخدمين',
+        href: '/admin/users',
+        icon: Users,
+        description: 'إدارة حسابات المستخدمين'
+      }
+    ]
   }
 ]
 
@@ -294,6 +305,7 @@ function UserProfile({ isCollapsed }: { isCollapsed: boolean }) {
 
 export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isMobile, setIsMobile] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -458,6 +470,58 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
             />
           ))}
         </nav>
+
+        {/* Admin Section - Only show to admin users */}
+        {session?.user?.role === 'admin' && (
+          <nav className={`p-2 ${isCollapsed && !isMobile ? 'p-1' : 'p-4'} border-t border-slate-200/50 dark:border-slate-700/50`} aria-label="قائمة الإدارة">
+            <h3 className={`text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${
+              isCollapsed && !isMobile ? 'hidden' : 'mb-2'
+            }`}>
+              الإدارة
+            </h3>
+            <div className="space-y-1">
+              <Link
+                href="/admin/users"
+                onClick={() => isMobile && setIsOpen(false)}
+                className={`group flex items-center space-x-3 space-x-reverse p-3 rounded-lg transition-all duration-200 relative ${
+                  pathname === '/admin/users'
+                    ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-100'
+                }`}
+                title={isCollapsed && !isMobile ? 'إدارة المستخدمين' : undefined}
+                aria-current={pathname === '/admin/users' ? 'page' : undefined}
+              >
+                <Users className={`w-5 h-5 ${
+                  isCollapsed && !isMobile ? 'mx-auto' : ''
+                } ${
+                  pathname === '/admin/users' ? 'text-white' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+                }`} />
+
+                {(!isCollapsed || isMobile) && (
+                  <div className="flex-1 text-right min-w-0">
+                    <div className="font-medium truncate">إدارة المستخدمين</div>
+                    <div className={`text-xs truncate ${
+                      pathname === '/admin/users' ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'
+                    }`}>
+                      إدارة حسابات المستخدمين
+                    </div>
+                  </div>
+                )}
+
+                {/* Touch-friendly tooltip for collapsed state */}
+                {isCollapsed && !isMobile && (
+                  <div className="fixed inset-0 z-50 hidden group-hover:flex pointer-events-none">
+                    <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm px-3 py-2 rounded-lg whitespace-nowrap z-60">
+                      <div className="font-medium">إدارة المستخدمين</div>
+                      <div className="text-xs opacity-80">إدارة حسابات المستخدمين</div>
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 dark:bg-slate-100 rotate-45"></div>
+                    </div>
+                  </div>
+                )}
+              </Link>
+            </div>
+          </nav>
+        )}
 
         {/* Quick Actions */}
         {(!isCollapsed || isMobile) && (

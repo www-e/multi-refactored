@@ -21,9 +21,10 @@ export interface FormField {
 export interface GenericModalProps<T> {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: T) => Promise<void>;
+  onSubmit?: (data: T) => Promise<void>; // Made optional since some modals don't need form submission
   title: string;
-  fields: FormField[];
+  description?: string; // Added description prop
+  fields?: FormField[]; // Made fields optional since some modals don't use them
   initialData?: Partial<T> | null;
   submitLabel?: string;
   isSubmitting?: boolean;
@@ -40,6 +41,7 @@ export default function GenericModal<T extends Record<string, any>>({
   onClose,
   onSubmit,
   title,
+  description,
   fields,
   initialData = null,
   submitLabel = 'حفظ',
@@ -54,10 +56,12 @@ export default function GenericModal<T extends Record<string, any>>({
   // Initialize form data based on fields and initialData (only when not in view mode)
   const initializeFormData = useCallback(() => {
     const formData: Record<string, any> = {};
-    fields.forEach(field => {
-      const value = initialData?.[field.name as keyof T];
-      formData[field.name] = value !== undefined ? value : field.defaultValue || '';
-    });
+    if (fields) { // Only process fields if they exist
+      fields.forEach(field => {
+        const value = initialData?.[field.name as keyof T];
+        formData[field.name] = value !== undefined ? value : field.defaultValue || '';
+      });
+    }
     return formData;
   }, [fields, initialData]);
 
@@ -65,7 +69,9 @@ export default function GenericModal<T extends Record<string, any>>({
 
   // Create a version of onSubmit that works with Record<string, any>
   const handleSubmitForm = async (data: Record<string, any>) => {
-    return onSubmit(data as T);
+    if (onSubmit) {
+      return onSubmit(data as T);
+    }
   };
 
   const { handleFormSubmit } = useFormHandler(handleSubmitForm, () => {
@@ -82,7 +88,12 @@ export default function GenericModal<T extends Record<string, any>>({
   }, [initialData, initializeFormData, viewMode]);
 
   const handleSubmit = () => {
-    handleFormSubmit(formData);
+    if (onSubmit) {
+      handleFormSubmit(formData);
+    } else {
+      // If no onSubmit function, just close the modal
+      onClose();
+    }
   };
 
   const handleFieldChange = (fieldName: string, value: any) => {
@@ -165,6 +176,7 @@ export default function GenericModal<T extends Record<string, any>>({
   return (
     <ModalFormLayout
       title={title}
+      description={description}
       isOpen={isOpen}
       error={error}
       isSubmitting={isSubmitting}
@@ -178,66 +190,68 @@ export default function GenericModal<T extends Record<string, any>>({
         customContent
       ) : (
         <>
-          {/* Group fields based on layout */}
-          {(() => {
-            const fullFields = fields.filter(f => f.layout !== 'half' && f.layout !== 'third');
-            const halfFields = fields.filter(f => f.layout === 'half');
-            const thirdFields = fields.filter(f => f.layout === 'third');
+          {fields && (
+            // Group fields based on layout
+            (() => {
+              const fullFields = fields.filter(f => f.layout !== 'half' && f.layout !== 'third');
+              const halfFields = fields.filter(f => f.layout === 'half');
+              const thirdFields = fields.filter(f => f.layout === 'third');
 
-            const elements = [];
+              const elements = [];
 
-            // Add full width fields
-            for (const field of fullFields) {
-              elements.push(
-                <div key={field.name}>
-                  <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                    {field.label} {field.required && '*'}
-                  </label>
-                  {renderField(field)}
-                </div>
-              );
-            }
-
-            // Add half width fields in pairs
-            if (halfFields.length > 0) {
-              for (let i = 0; i < halfFields.length; i += 2) {
-                const pair = halfFields.slice(i, i + 2);
+              // Add full width fields
+              for (const field of fullFields) {
                 elements.push(
-                  <div key={`half-group-${i}`} className="grid grid-cols-2 gap-4">
-                    {pair.map(field => (
-                      <div key={field.name}>
-                        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                          {field.label} {field.required && '*'}
-                        </label>
-                        {renderField(field)}
-                      </div>
-                    ))}
+                  <div key={field.name}>
+                    <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                      {field.label} {field.required && '*'}
+                    </label>
+                    {renderField(field)}
                   </div>
                 );
               }
-            }
 
-            // Add third width fields in triplets
-            if (thirdFields.length > 0) {
-              for (let i = 0; i < thirdFields.length; i += 3) {
-                const triplet = thirdFields.slice(i, i + 3);
-                elements.push(
-                  <div key={`third-group-${i}`} className="grid grid-cols-3 gap-4">
-                    {triplet.map(field => (
-                      <div key={field.name}>
-                        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-                          {field.label} {field.required && '*'}
-                        </label>
-                        {renderField(field)}
-                      </div>
-                    ))}
-                  </div>
-                );
+              // Add half width fields in pairs
+              if (halfFields.length > 0) {
+                for (let i = 0; i < halfFields.length; i += 2) {
+                  const pair = halfFields.slice(i, i + 2);
+                  elements.push(
+                    <div key={`half-group-${i}`} className="grid grid-cols-2 gap-4">
+                      {pair.map(field => (
+                        <div key={field.name}>
+                          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                            {field.label} {field.required && '*'}
+                          </label>
+                          {renderField(field)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
               }
-            }
 
-            return elements;
-          })()}
+              // Add third width fields in triplets
+              if (thirdFields.length > 0) {
+                for (let i = 0; i < thirdFields.length; i += 3) {
+                  const triplet = thirdFields.slice(i, i + 3);
+                  elements.push(
+                    <div key={`third-group-${i}`} className="grid grid-cols-3 gap-4">
+                      {triplet.map(field => (
+                        <div key={field.name}>
+                          <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
+                            {field.label} {field.required && '*'}
+                          </label>
+                          {renderField(field)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+              }
+
+              return elements;
+            })()
+          )}
 
           {children}
         </>

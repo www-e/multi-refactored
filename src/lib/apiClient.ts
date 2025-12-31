@@ -505,3 +505,61 @@ export const getMessages = (token: string, conversationId?: string): Promise<any
     : '/messages';
   return clientFetch(endpoint, token);
 };
+
+// Admin User Management API functions
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  is_active: boolean;
+  tenant_id: string;
+  created_at: string;
+}
+
+export interface CreateUserRequest {
+  email: string;
+  password: string;
+  name: string;
+  role?: string;
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  role?: string;
+  is_active?: boolean;
+}
+
+export const getUsers = (token: string): Promise<User[]> => {
+  return clientFetch('/admin/users', token);
+};
+
+export const createUser = (
+  data: CreateUserRequest,
+  token: string
+): Promise<User> => {
+  return clientFetch('/admin/users', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateUser = (
+  userId: string,
+  data: UpdateUserRequest,
+  token: string
+): Promise<User> => {
+  return clientFetch(`/admin/users/${userId}`, token, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteUser = (
+  userId: string,
+  token: string
+): Promise<{ message: string }> => {
+  return clientFetch(`/admin/users/${userId}`, token, {
+    method: 'DELETE',
+  });
+};

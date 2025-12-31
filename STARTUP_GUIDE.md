@@ -189,3 +189,9 @@ docker exec -it agentic_portal_db psql -U navaia -d navaia -c "TRUNCATE TABLE al
 
 # list all tables
 docker exec -it agentic_portal_db psql -U navaia -d navaia -c "\dt"
+
+
+
+# seed admin creds
+docker exec -it agentic_portal_backend python -m scripts.seed_admin
+docker-compose exec agentic_backend python -m scripts.seed_admin
