@@ -33,8 +33,8 @@ def seed_admin_user():
             return
         
         # Get admin credentials from environment variables or use defaults
-        admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@navaia.com")
+        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!Admin123!")
         admin_name = os.getenv("ADMIN_NAME", "Administrator")
         
         # Check if a user with this email already exists
