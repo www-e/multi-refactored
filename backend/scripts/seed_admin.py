@@ -44,7 +44,6 @@ def seed_admin_user():
             return
         
         # Create the admin user
-        from app.models import User
         import secrets
         
         user_id = f"usr_{secrets.token_hex(8)}"
