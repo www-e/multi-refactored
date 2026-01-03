@@ -50,8 +50,6 @@ const statusStyles: Partial<Record<TStatus, string>> = {
   'Human': 'bg-slate-600 text-white',
   'voice': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   'صوت': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-  'chat': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-  'رسالة': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   'web': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   'visit': 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
   // LiveOps Call Status (for current calls)
@@ -68,8 +66,6 @@ const statusStyles: Partial<Record<TStatus, string>> = {
 const iconMap: Partial<Record<TStatus, React.ReactNode>> = {
     'voice': <Phone className="w-4 h-4" />,
     'صوت': <Phone className="w-4 h-4" />,
-    'chat': <Mail className="w-4 h-4" />,
-    'رسالة': <Mail className="w-4 h-4" />,
 };
 
 export function StatusBadge({ status, type = 'pill' }: StatusBadgeProps) {
@@ -104,7 +100,7 @@ export function StatusBadge({ status, type = 'pill' }: StatusBadgeProps) {
         return mapCallStatusToArabic(status);
       }
       // Check if it's a channel type
-      if (['voice', 'chat', 'صوت', 'رسالة'].includes(status)) {
+      if (['voice', 'صوت'].includes(status)) {
         return mapChannelTypeToArabic(status);
       }
       // If it's already in Arabic or not a known status, return as is

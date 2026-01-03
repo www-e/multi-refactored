@@ -5,7 +5,7 @@ import { Modal } from '@/components/shared/ui/Modal';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/shared/ui/Card';
 import { useAuthApi } from '@/hooks/useAuthApi';
-import { Loader2, Download, MessageSquare } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 
 interface TranscriptModalProps {
   open: boolean;

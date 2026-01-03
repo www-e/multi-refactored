@@ -5,7 +5,7 @@
 ### Required Attributes
 1. **Basic Information**
    - Campaign Name
-   - Campaign Type (Voice/Chat)
+   - Campaign Type (Voice)
    - Campaign Objective (Bookings/Renewals/Lead Generation/Up-sell)
    - Start Date/Time
    - Duration/End Date

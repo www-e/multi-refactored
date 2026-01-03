@@ -76,7 +76,6 @@ export default function BookingModal({
       required: true,
       options: [
         { value: 'voice', label: 'مكالمة صوتية' },
-        { value: 'chat', label: 'محادثة' }
       ],
       layout: 'half'
     }
@@ -130,7 +129,6 @@ export default function BookingModal({
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">المصدر</label>
                 <p className="text-sm text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg">
                   {booking.source === 'voice' ? 'مكالمة صوتية' :
-                   booking.source === 'chat' ? 'محادثة' :
                    booking.source}
                 </p>
               </div>

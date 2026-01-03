@@ -42,12 +42,6 @@ const navigation = [
     name: 'الاتصالات',
     items: [
       {
-        name: 'المحادثات',
-        href: '/conversations',
-        icon: MessageSquare,
-        description: 'إدارة المكالمات والرسائل'
-      },
-      {
         name: 'المكالمات',
         href: '/calls',
         icon: Phone,

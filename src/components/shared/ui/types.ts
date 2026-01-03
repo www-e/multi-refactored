@@ -43,9 +43,7 @@ export type TStatus =
   | "بشري"
   | "Human"
   | "voice"
-  | "chat"
   | "صوت"
-  | "رسالة"
   | "web"   // CORRECTED: Added this missing type
   | "visit" // CORRECTED: Added this missing type
   // Call Status

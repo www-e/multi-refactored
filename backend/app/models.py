@@ -7,7 +7,6 @@ from .db import Base
 
 class ChannelEnum(str, enum.Enum):
     voice = "voice"
-    chat = "chat"
 
 class AIOrHumanEnum(str, enum.Enum):
     AI = "AI"
@@ -47,7 +46,6 @@ class BookingStatusEnum(str, enum.Enum):
 
 class CampaignTypeEnum(str, enum.Enum):
     voice = "voice"
-    chat = "chat"
 
 class VoiceSessionStatus(str, enum.Enum):
     ACTIVE = "active"
@@ -228,10 +226,3 @@ class Organization(Base):
     tenant_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
-class Message(Base):
-    __tablename__ = "messages"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    text: Mapped[str] = mapped_column(Text, nullable=False)
-    ts: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)

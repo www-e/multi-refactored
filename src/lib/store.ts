@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import {
   Customer,
-  Conversation,
   EnhancedTicket,
   EnhancedBooking,
   EnhancedCampaign,
@@ -15,7 +14,6 @@ import {
 interface AppState {
   // Core data
   customers: Customer[];
-  conversations: Conversation[];
   calls: Call[]; // Array to hold call data from backend
   tickets: EnhancedTicket[];
   bookings: EnhancedBooking[];
@@ -23,7 +21,6 @@ interface AppState {
   properties: Property[];
   // Loading states
   customersLoading: boolean;
-  conversationsLoading: boolean;
   callsLoading: boolean;
   ticketsLoading: boolean;
   bookingsLoading: boolean;
@@ -33,14 +30,12 @@ interface AppState {
   dashboardKPIs: DashboardKPIs;
   // Actions
   setCustomers: (customers: Customer[]) => void;
-  setConversations: (conversations: Conversation[]) => void;
   setCalls: (calls: any[]) => void;
   setTickets: (tickets: EnhancedTicket[]) => void;
   setBookings: (bookings: EnhancedBooking[]) => void;
   setDashboardData: (data: { kpis: DashboardKPIs }) => void;
   setCampaigns: (campaigns: EnhancedCampaign[]) => void;
   setCustomersLoading: (isLoading: boolean) => void;
-  setConversationsLoading: (isLoading: boolean) => void;
   setCallsLoading: (isLoading: boolean) => void;
   setTicketsLoading: (isLoading: boolean) => void;
   setBookingsLoading: (isLoading: boolean) => void;
@@ -66,14 +61,12 @@ interface AppState {
 
 const initialState = {
   customers: [],
-  conversations: [],
   calls: [],
   tickets: [],
   bookings: [],
   campaigns: [],
   properties: [],
   customersLoading: true,
-  conversationsLoading: true,
   callsLoading: true,
   ticketsLoading: true,
   bookingsLoading: true,
@@ -92,14 +85,12 @@ export const useAppStore = create<AppState>()(
       ...initialState,
       // --- Setter Actions ---
       setCustomers: (customers) => set({ customers, customersLoading: false }),
-      setConversations: (conversations) => set({ conversations, conversationsLoading: false }),
       setCalls: (calls) => set({ calls, callsLoading: false }),
       setTickets: (tickets) => set({ tickets, ticketsLoading: false }),
       setBookings: (bookings) => set({ bookings, bookingsLoading: false }),
       setDashboardData: (data) => set({ dashboardKPIs: data.kpis, dashboardLoading: false }),
       setCampaigns: (campaigns) => set({ campaigns, campaignsLoading: false }),
       setCustomersLoading: (isLoading) => set({ customersLoading: isLoading }),
-      setConversationsLoading: (isLoading) => set({ conversationsLoading: isLoading }),
       setCallsLoading: (isLoading) => set({ callsLoading: isLoading }),
       setTicketsLoading: (isLoading) => set({ ticketsLoading: isLoading }),
       setBookingsLoading: (isLoading) => set({ bookingsLoading: isLoading }),

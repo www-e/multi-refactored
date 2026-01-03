@@ -4,11 +4,10 @@ import { useSession } from 'next-auth/react';
 import { Card } from '@/components/shared/ui/Card';
 import { Button } from '@/components/ui/button';
 import { 
-  Users, 
-  Shield, 
+  Users,
+  Shield,
   Settings,
   BarChart3,
-  MessageSquare,
   Ticket,
   Calendar,
   Phone,
@@ -63,13 +62,6 @@ export default function AdminDashboardPage() {
       icon: BarChart3,
       link: '/admin/analytics',
       color: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-300',
-    },
-    {
-      title: 'المحادثات',
-      description: 'إدارة المحادثات والدردشات',
-      icon: MessageSquare,
-      link: '/admin/conversations',
-      color: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300',
     },
     {
       title: 'التذاكر',

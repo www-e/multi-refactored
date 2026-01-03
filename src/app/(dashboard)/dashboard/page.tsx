@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import {
-  Star, TrendingUp, BarChart3, MessageSquare, Users, Phone
+  Star, TrendingUp, BarChart3, Users, Phone
 } from 'lucide-react';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card, CardHeader, CardTitle } from '@/components/shared/ui/Card';
@@ -253,8 +253,8 @@ export default function DashboardPage() {
               onClick={() => router.push('/conversations')}
               className="flex flex-col items-center p-4 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl text-white hover:scale-105 transition-transform duration-200 cursor-pointer"
             >
-              <MessageSquare className="w-8 h-8 mb-2" />
-              <span className="font-medium text-sm">محاكاة رسالة</span>
+              <BarChart3 className="w-8 h-8 mb-2" />
+              <span className="font-medium text-sm">المحادثات</span>
             </button>
             <button
               onClick={() => router.push('/customers')}

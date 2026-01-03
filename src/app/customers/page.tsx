@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, User, Phone, Mail, MapPin, PhoneCall, MessageSquare, RefreshCw, X, Check, Edit, Trash2 } from 'lucide-react';
+import { Plus, User, Phone, Mail, MapPin, PhoneCall, RefreshCw, X, Check, Edit, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -11,7 +11,6 @@ import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ActionMenu from '@/components/shared/ui/ActionMenu';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
-import CustomerChatModal from '@/components/shared/modals/CustomerChatModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal';
 import { useModalState } from '@/hooks/useModalState';
@@ -23,18 +22,16 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string; phone: string; email?: string } | null>(null);
   const [customerToEdit, setCustomerToEdit] = useState<any>(null);
   const [selectedCustomerDetail, setSelectedCustomerDetail] = useState<Customer | null>(null);
 
-  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, campaigns, setCampaigns, conversations, addCustomer, addTicket, addBooking, removeCustomer, updateCustomer: updateCustomerInStore } = useAppStore();
-  const { getCustomers, getTickets, getBookings, getCampaigns, createCustomer, updateCustomer: apiUpdateCustomer, deleteCustomer: apiDeleteCustomer, createTicket, createBooking, makeCall, makeBulkCalls, sendCustomerMessage, isAuthenticated } = useAuthApi();
+  const { customers, setCustomers, setCustomersLoading, tickets, setTickets, bookings, setBookings, campaigns, setCampaigns, calls, addCustomer, addTicket, addBooking, removeCustomer, updateCustomer: updateCustomerInStore } = useAppStore();
+  const { getCustomers, getTickets, getBookings, getCampaigns, createCustomer, updateCustomer: apiUpdateCustomer, deleteCustomer: apiDeleteCustomer, createTicket, createBooking, makeCall, makeBulkCalls, isAuthenticated } = useAuthApi();
   const { isSubmitting, handleModalSubmit } = useModalState();
 
   // CRITICAL: Fetch ALL data to ensure stats are correct on this page
@@ -65,7 +62,7 @@ export default function CustomersPage() {
     return {
         tickets: tickets.filter(t => t.customerId === customerId).length,
         bookings: bookings.filter(b => b.customerId === customerId).length,
-        calls: conversations.filter(c => c.customerId === customerId).length
+        calls: calls.filter(c => c.customerId === customerId).length
     };
   };
 
@@ -102,17 +99,6 @@ export default function CustomersPage() {
     }
   };
 
-  const handleBulkMessage = () => {
-    if (selectedCustomerIds.length === 0) return;
-
-    if (confirm(`هل ترغب في إرسال رسالة جماعية إلى ${selectedCustomerIds.length} عميل؟`)) {
-      // In a real implementation, this would trigger bulk messaging via service
-      alert('تم بدء المراسلة الجماعية. في الإصدار المنتج، سيتم استخدام خدمة المراسلة الجماعية.');
-      // Reset selection after operation
-      setSelectedCustomerIds([]);
-      setIsSelectMode(false);
-    }
-  };
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -132,16 +118,6 @@ export default function CustomersPage() {
     }
   };
 
-  const handleCustomerMessage = (customerId: string, customerName: string, customerPhone: string, customerEmail?: string) => {
-    // Set the selected customer and open the chat modal
-    setSelectedCustomer({
-      id: customerId,
-      name: customerName,
-      phone: customerPhone,
-      email: customerEmail
-    });
-    setIsChatModalOpen(true);
-  };
 
   const handleDeleteCustomer = (customer: { id: string; name: string }) => {
     setCustomerToDelete(customer);
@@ -179,12 +155,6 @@ export default function CustomersPage() {
                             icon={PhoneCall}
                             label={`اتصال (${selectedCustomerIds.length})`}
                             onClick={handleBulkCall}
-                            disabled={selectedCustomerIds.length === 0}
-                        />
-                        <ActionButton
-                            icon={MessageSquare}
-                            label={`رسالة (${selectedCustomerIds.length})`}
-                            onClick={handleBulkMessage}
                             disabled={selectedCustomerIds.length === 0}
                         />
                         <ActionButton
@@ -349,12 +319,6 @@ export default function CustomersPage() {
                                                         color: 'text-primary'
                                                     },
                                                     {
-                                                        label: 'مراسلة',
-                                                        icon: <MessageSquare size={16} />,
-                                                        onClick: () => handleCustomerMessage(customer.id, customer.name, customer.phone, customer.email),
-                                                        color: 'text-slate-600 dark:text-slate-400'
-                                                    },
-                                                    {
                                                         label: 'تعديل',
                                                         icon: <Edit size={16} />,
                                                         onClick: () => {
@@ -428,13 +392,6 @@ export default function CustomersPage() {
             isSubmitting={isSubmitting}
         />
 
-        {selectedCustomer && (
-          <CustomerChatModal
-            isOpen={isChatModalOpen}
-            onClose={() => setIsChatModalOpen(false)}
-            customer={selectedCustomer}
-          />
-        )}
 
         {selectedCustomerDetail && (
           <CustomerDetailModal

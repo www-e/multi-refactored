@@ -37,13 +37,10 @@ export const useAuthApi = () => {
     deleteTicket: false,
     makeCall: false,
     makeBulkCalls: false,
-    sendCustomerMessage: false,
-    getConversations: false,
     getCalls: false,
     getCall: false,
     getVoiceSessions: false,
     getTranscript: false,
-    getMessages: false,
     getUsers: false,
     createUser: false,
     updateUser: false,
@@ -330,38 +327,6 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
-  const sendCustomerMessage = useCallback(async (data: { customer_id: string; message: string; channel?: string; agentType?: string; }) => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    updateLoadingState('sendCustomerMessage', true);
-    try {
-      const result = await apiClient.sendCustomerMessage(data, accessToken);
-      return result;
-    } finally {
-      updateLoadingState('sendCustomerMessage', false);
-    }
-  }, [accessToken]);
-
-  const getConversations = useCallback(async () => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    updateLoadingState('getConversations', true);
-    try {
-      const result = await apiClient.getConversations(accessToken);
-      return result;
-    } finally {
-      updateLoadingState('getConversations', false);
-    }
-  }, [accessToken]);
-
-  const getConversation = useCallback(async (conversationId: string) => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    updateLoadingState('getConversations', true); // Reuse the same loading state
-    try {
-      const result = await apiClient.getConversation(conversationId, accessToken);
-      return result;
-    } finally {
-      updateLoadingState('getConversations', false);
-    }
-  }, [accessToken]);
 
   const getCalls = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
@@ -404,17 +369,6 @@ export const useAuthApi = () => {
       return result;
     } finally {
       updateLoadingState('getTranscript', false);
-    }
-  }, [accessToken]);
-
-  const getMessages = useCallback(async (conversationId?: string) => {
-    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
-    updateLoadingState('getMessages', true);
-    try {
-      const result = await apiClient.getMessages(accessToken, conversationId);
-      return result;
-    } finally {
-      updateLoadingState('getMessages', false);
     }
   }, [accessToken]);
 
@@ -494,14 +448,10 @@ export const useAuthApi = () => {
     deleteTicket,
     makeCall,
     makeBulkCalls,
-    sendCustomerMessage,
-    getConversations,
     getCalls,
     getCall,
     getVoiceSessions,
     getTranscript,
-    getMessages,
-    getConversation,
 
     // Admin User Management
     getUsers,

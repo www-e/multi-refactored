@@ -173,20 +173,6 @@ export interface Customer {
   updatedAt: string;
 }
 
-export interface Conversation {
-  id: string;
-  type: 'صوت' | 'رسالة';
-  customerId: string;
-  transcript: Array<{ role: 'user' | 'agent'; text: string; ts: number }>;
-  summary: string;
-  entities: EntityBag;
-  sentiment: 'إيجابي' | 'محايد' | 'سلبي';
-  recordingUrl?: string;
-  status: 'مفتوحة' | 'مغلقة' | 'محولة_للبشر';
-  assignedTo?: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface EnhancedTicket {
   id: string;
@@ -218,7 +204,7 @@ export interface EnhancedBooking {
   endDate?: string;
   status: 'معلق' | 'مؤكد' | 'ملغي' | 'مكتمل';
   price: number;
-  source: 'صوت' | 'رسالة';
+  source: 'صوت';
   createdBy: 'AI' | 'بشري';
   createdAt: string;
   updatedAt: string;
@@ -278,11 +264,5 @@ export interface LiveOps {
     customerName: string;
     duration: string;
     status: 'وارد' | 'فائت';
-  }>;
-  aiTransferredChats: Array<{
-    id: string;
-    customerName: string;
-    reason: string;
-    waitingTime: string;
   }>;
 }

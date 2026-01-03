@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { Card } from '@/components/shared/ui/Card';
 
 export default function ClientOnlyPlayground() {
-  const [mode, setMode] = useState<'voice' | 'chat'>('voice');
+  const [mode, setMode] = useState<'voice'>('voice');
   const [transcript, setTranscript] = useState('');
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
@@ -80,12 +80,6 @@ export default function ClientOnlyPlayground() {
                         >
                             <Headphones size={20} /> <span>صوتي</span>
                         </button>
-                        <button 
-                            onClick={() => setMode('chat')}
-                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${mode === 'chat' ? 'bg-primary text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                        >
-                            <MessageSquare size={20} /> <span>نصي</span>
-                        </button>
                     </div>
                 </Card>
 
@@ -135,49 +129,42 @@ export default function ClientOnlyPlayground() {
                         </div>
                     )}
 
-                    {mode === 'voice' ? (
-                        <div className="text-center z-10">
-                            <div className="mb-8 relative">
-                                <button 
-                                    onClick={() => isConnected ? stopVoiceSession() : startVoiceSession('support')}
-                                    className={`w-32 h-32 rounded-full flex items-center justify-center text-white shadow-2xl transition-all transform hover:scale-105 ${
-                                        isConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
-                                    }`}
-                                >
-                                    {isConnected ? <PhoneOff size={48} /> : <Phone size={48} />}
-                                </button>
-                                
-                                {isSpeaking && (
-                                    <div className="absolute -top-4 -right-4 bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg animate-bounce">
-                                        <Volume2 className="text-blue-500" />
-                                    </div>
-                                )}
-                                {isListening && (
-                                    <div className="absolute -top-4 -left-4 bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg animate-pulse">
-                                        <Mic className="text-red-500" />
-                                    </div>
-                                )}
-                            </div>
+                    <div className="text-center z-10">
+                        <div className="mb-8 relative">
+                            <button
+                                onClick={() => isConnected ? stopVoiceSession() : startVoiceSession('support')}
+                                className={`w-32 h-32 rounded-full flex items-center justify-center text-white shadow-2xl transition-all transform hover:scale-105 ${
+                                    isConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
+                            >
+                                {isConnected ? <PhoneOff size={48} /> : <Phone size={48} />}
+                            </button>
 
-                            <h2 className="text-2xl font-bold mb-2">
-                                {isConnected ? 'المكالمة جارية...' : 'جاهز للاتصال'}
-                            </h2>
-                            <p className="text-slate-500 mb-8 max-w-md mx-auto">
-                                {transcript || 'اضغط على الزر لبدء محادثة صوتية مع المساعد الذكي'}
-                            </p>
-                            
-                            {lastSessionId && !isConnected && (
-                                <p className="text-xs text-slate-400 font-mono mt-4">
-                                    Session ID: {lastSessionId}
-                                </p>
+                            {isSpeaking && (
+                                <div className="absolute -top-4 -right-4 bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg animate-bounce">
+                                    <Volume2 className="text-blue-500" />
+                                </div>
+                            )}
+                            {isListening && (
+                                <div className="absolute -top-4 -left-4 bg-white dark:bg-slate-800 p-2 rounded-full shadow-lg animate-pulse">
+                                    <Mic className="text-red-500" />
+                                </div>
                             )}
                         </div>
-                    ) : (
-                        <div className="text-center text-slate-400">
-                            <MessageSquare size={64} className="mx-auto mb-4 opacity-20" />
-                            <p>واجهة المحادثة النصية قيد التطوير</p>
-                        </div>
-                    )}
+
+                        <h2 className="text-2xl font-bold mb-2">
+                            {isConnected ? 'المكالمة جارية...' : 'جاهز للاتصال'}
+                        </h2>
+                        <p className="text-slate-500 mb-8 max-w-md mx-auto">
+                            {transcript || 'اضغط على الزر لبدء محادثة صوتية مع المساعد الذكي'}
+                        </p>
+
+                        {lastSessionId && !isConnected && (
+                            <p className="text-xs text-slate-400 font-mono mt-4">
+                                Session ID: {lastSessionId}
+                            </p>
+                        )}
+                    </div>
                 </Card>
             </div>
         </div>

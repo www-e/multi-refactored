@@ -7,17 +7,6 @@ This document outlines the current development tasks and requirements for the Ag
 
 ### 1. User Interface & Experience Improvements
 
-#### Task 1.1: Chat Page Optimization
-- **Priority:** High
-- **Status:** Pending
-- **Description:** Remove call transcripts from the chat page display
-- **Requirements:**
-  - Display only actual chat conversations with customers
-  - Do not show call transcripts on the chat page
-  - Maintain call records, transcripts, and data on the dedicated calls history page
-  - Ensure no data loss during the transition
-- **Acceptance Criteria:** Chat page shows only chat conversations, call history page retains all call-related data
-
 ### 2. Communication Features
 
 #### Task 2.1: Customer Calling Functionality
@@ -30,17 +19,6 @@ This document outlines the current development tasks and requirements for the Ag
   - Test end-to-end calling functionality
   - Ensure proper error handling for failed calls
 - **Acceptance Criteria:** Clicking "Call Customer" successfully initiates a call to the customer's number
-
-#### Task 2.2: WhatsApp Integration
-- **Priority:** High
-- **Status:** Pending
-- **Description:** Implement and ensure WhatsApp chat functionality for customer communication
-- **Requirements:**
-  - Enable WhatsApp messaging through the customer management interface
-  - Verify message delivery and receipt
-  - Ensure proper authentication with WhatsApp Business API
-  - Test two-way communication capabilities
-- **Acceptance Criteria:** Users can send and receive WhatsApp messages to/from customers through the platform
 
 ### 3. Campaign Management System
 

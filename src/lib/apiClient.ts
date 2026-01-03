@@ -220,7 +220,7 @@ export const createBooking = (data: {
   propertyCode: string;
   startDate: string;
   price: number;
-  source: 'voice' | 'chat';
+  source: 'voice';
 }, token: string): Promise<EnhancedBooking> => {
   return clientFetch('/bookings', token, {
     method: 'POST',
@@ -233,7 +233,7 @@ export const getCampaigns = (token: string): Promise<EnhancedCampaign[]> =>
 
 export const createCampaign = (data: {
   name: string;
-  type: 'voice' | 'chat';
+  type: 'voice';
   objective: 'bookings' | 'renewals' | 'leadgen' | 'upsell';
   audienceQuery?: any;
 }, token: string): Promise<EnhancedCampaign> => {
@@ -369,27 +369,6 @@ export const makeBulkCalls = (
   });
 };
 
-export const sendCustomerMessage = (
-  data: {
-    customer_id: string;
-    message: string;
-    channel?: string;
-    agentType?: string;
-  },
-  token: string
-): Promise<{ response: string; conversationId?: string }> => {
-  if (!data.customer_id || !data.message) {
-    return Promise.reject(new ApiError('Customer ID and message are required'));
-  }
-  const requestData = {
-    ...data,
-    message: data.message.trim()
-  };
-  return clientFetch('/chat/customer', token, {
-    method: 'POST',
-    body: JSON.stringify(requestData),
-  });
-};
 
 export const getConversations = (token: string): Promise<any[]> => {
   return clientFetch('/conversations', token).then((convs: unknown) => {
@@ -397,11 +376,8 @@ export const getConversations = (token: string): Promise<any[]> => {
     return conversations.map((conv: any) => ({
       ...conv,
       customerId: conv.customer_id,
-      type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
+      type: 'صوت',
       createdAt: conv.created_at,
-      transcript: conv.transcript || [],
-      entities: conv.entities || {},
-      sentiment: conv.sentiment || 'محايد',
       recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id),
       status: conv.status || 'مفتوحة',
       assignedTo: conv.assigned_to,
@@ -431,21 +407,6 @@ const transformCall = (call: any) => ({
   sessionStatus: call.session_status
 });
 
-export const getConversation = (conversationId: string, token: string): Promise<any> => {
-  return clientFetch(`/conversations/${conversationId}`, token).then((conv: any) => ({
-    ...conv,
-    customerId: conv.customer_id,
-    type: conv.channel === 'voice' ? 'صوت' : 'رسالة',
-    createdAt: conv.created_at,
-    transcript: conv.transcript || [],
-    entities: conv.entities || {},
-    sentiment: conv.sentiment || 'محايد',
-    recordingUrl: proxifyElevenLabsUrl(conv.recording_url, conv.id),
-    status: conv.status || 'مفتوحة',
-    assignedTo: conv.assigned_to,
-    updatedAt: conv.updated_at || conv.created_at
-  }));
-};
 
 export const getCalls = (token: string): Promise<any[]> => {
   return clientFetch('/calls', token).then((calls: unknown) => {
@@ -497,13 +458,6 @@ export const getTranscript = (conversationId: string, token: string): Promise<Tr
 
 export const getVoiceSession = (sessionId: string, token: string): Promise<any> => {
   return clientFetch(`/voice/sessions/${sessionId}`, token);
-};
-
-export const getMessages = (token: string, conversationId?: string): Promise<any[]> => {
-  const endpoint = conversationId
-    ? `/conversations/${conversationId}/messages`
-    : '/messages';
-  return clientFetch(endpoint, token);
 };
 
 // Admin User Management API functions

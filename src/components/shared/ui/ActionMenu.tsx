@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, PhoneCall, MessageSquare, Eye, Edit, Trash2 } from 'lucide-react';
+import { MoreVertical, PhoneCall, Eye, Edit, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface ActionItem {

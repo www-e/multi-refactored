@@ -88,7 +88,6 @@ export const mapCampaignStatusToEnglish = (status: string): string => {
 export const mapChannelTypeToArabic = (type: string): string => {
   const mapping: Record<string, string> = {
     'voice': 'صوت',
-    'chat': 'رسالة',
     'صوت': 'صوت',
     'رسالة': 'رسالة',
   };
@@ -98,9 +97,7 @@ export const mapChannelTypeToArabic = (type: string): string => {
 export const mapChannelTypeToEnglish = (type: string): string => {
   const mapping: Record<string, string> = {
     'voice': 'voice',
-    'chat': 'chat',
     'صوت': 'voice',
-    'رسالة': 'chat',
   };
   return mapping[type] || type;
 };
@@ -109,9 +106,7 @@ export const mapChannelTypeToEnglish = (type: string): string => {
 export const mapCampaignTypeToArabic = (type: string): string => {
   const mapping: Record<string, string> = {
     'voice': 'صوتية',
-    'chat': 'رسائل',
     'صوتية': 'صوتية',
-    'رسائل': 'رسائل',
   };
   return mapping[type] || type;
 };
@@ -119,9 +114,7 @@ export const mapCampaignTypeToArabic = (type: string): string => {
 export const mapCampaignTypeToEnglish = (type: string): string => {
   const mapping: Record<string, string> = {
     'voice': 'voice',
-    'chat': 'chat',
     'صوتية': 'voice',
-    'رسائل': 'chat',
   };
   return mapping[type] || type;
 };

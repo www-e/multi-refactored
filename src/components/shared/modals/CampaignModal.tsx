@@ -44,7 +44,6 @@ export default function CampaignModal({
       required: true,
       options: [
         { value: 'voice', label: 'صوتية' },
-        { value: 'chat', label: 'رسائل' }
       ],
       layout: 'half'
     },

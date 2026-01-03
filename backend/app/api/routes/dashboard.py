@@ -182,7 +182,6 @@ def get_dashboard_kpis(
             "qualifiedCount": ai_transferred
         },
         "liveOps": {
-            "currentCalls": formatted_active_calls,
-            "aiTransferredChats": formatted_tickets
+            "currentCalls": formatted_active_calls
         }
     }

@@ -30,9 +30,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_conversations_ai_or_human'), 'conversations', ['ai_or_human'], unique=False)
     op.create_index(op.f('ix_conversations_created_at'), 'conversations', ['created_at'], unique=False)
 
-    # Add indexes for Message table
-    op.create_index(op.f('ix_messages_role'), 'messages', ['role'], unique=False)
-    op.create_index(op.f('ix_messages_ts'), 'messages', ['ts'], unique=False)
 
     # Add indexes for Call table
     op.create_index(op.f('ix_calls_direction'), 'calls', ['direction'], unique=False)
@@ -120,9 +117,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_calls_status'), table_name='calls')
     op.drop_index(op.f('ix_calls_direction'), table_name='calls')
 
-    # Drop indexes for Message table
-    op.drop_index(op.f('ix_messages_ts'), table_name='messages')
-    op.drop_index(op.f('ix_messages_role'), table_name='messages')
 
     # Drop indexes for Conversation table
     op.drop_index(op.f('ix_conversations_created_at'), table_name='conversations')
