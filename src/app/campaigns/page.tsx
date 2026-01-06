@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Play, Pause, MoreVertical, Edit, Eye, RefreshCw, BarChart3, Trash2 } from 'lucide-react';
+import { Plus, Play, Pause, MoreVertical, Edit, RefreshCw, BarChart3, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -12,7 +12,7 @@ import { Card } from '@/components/shared/ui/Card';
 import CampaignModal from '@/components/shared/modals/CampaignModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
-import { mapCampaignStatusToArabic } from '@/lib/statusMapper';
+import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
 
 export default function CampaignsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,68 +129,123 @@ export default function CampaignsPage() {
                 <p className="text-slate-500">لا توجد حملات حالياً</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCampaigns.map(campaign => (
-                <Card key={campaign.id} className="hover:shadow-lg transition-all">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getTypeIcon(campaign.type)}</span>
-                        <StatusBadge status={campaign.status as any} />
-                    </div>
-                    <MoreVertical className="text-slate-400 w-5 h-5" />
-                </div>
-                
-                <div className="space-y-3 mb-6">
-                    <h3 className="text-lg font-bold">{campaign.name}</h3>
-                    <div className="flex gap-2">
-                        <StatusBadge status={campaign.objective as any} />
-                        <StatusBadge status={campaign.attribution as any} />
-                    </div>
-                    <p className="text-sm text-slate-500 line-clamp-2">
-                        {typeof campaign.audienceQuery === 'string' ? campaign.audienceQuery : JSON.stringify(campaign.audienceQuery)}
-                    </p>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                    {filteredCampaigns.map(campaign => {
+                        // Prepare campaign data for the card component
+                        const campaignData = {
+                            ...campaign,
+                            type: 'campaign' as const,
+                            campaignType: campaign.type
+                        };
+
+                        return (
+                            <ResponsiveTableCard
+                                key={campaign.id}
+                                item={campaignData}
+                                actions={[
+                                    {
+                                        label: 'تعديل',
+                                        icon: <Edit size={16} />,
+                                        onClick: () => handleEditCampaign(campaign),
+                                        color: 'text-slate-600 dark:text-slate-400'
+                                    },
+                                    {
+                                        label: 'حذف',
+                                        icon: <Trash2 size={16} />,
+                                        onClick: () => handleDeleteCampaign(campaign),
+                                        color: 'text-destructive'
+                                    }
+                                ]}
+                                onCardClick={() => handleEditCampaign(campaign)}
+                                customActionButtons={
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Prevent card click event
+                                            toggleStatus(campaign.id, campaign.status);
+                                        }}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm flex-1 min-w-[100px] ${
+                                            isActive(campaign.status)
+                                            ? 'bg-warning hover:bg-warning/90'
+                                            : 'bg-success hover:bg-success/90'
+                                        }`}
+                                    >
+                                        {isActive(campaign.status) ? <Pause size={16} /> : <Play size={16} />}
+                                        {isActive(campaign.status) ? 'إيقاف' : 'تشغيل'}
+                                    </button>
+                                }
+                            />
+                        );
+                    })}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <div className="text-sm font-bold">{campaign.metrics.reached}</div>
-                        <div className="text-xs text-slate-500">تم الوصول</div>
-                    </div>
-                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <div className="text-sm font-bold text-primary">{campaign.metrics.roas}x</div>
-                        <div className="text-xs text-slate-500">ROAS</div>
-                    </div>
-                </div>
+                {/* Desktop Grid View */}
+                <div className="hidden sm:block">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredCampaigns.map(campaign => (
+                        <Card key={campaign.id} className="hover:shadow-lg transition-all">
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-2xl">{getTypeIcon(campaign.type)}</span>
+                                <StatusBadge status={campaign.status as any} />
+                            </div>
+                            <MoreVertical className="text-slate-400 w-5 h-5" />
+                        </div>
 
-                <div className="flex gap-1 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <button
-                        onClick={() => toggleStatus(campaign.id, campaign.status)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm ${
-                            isActive(campaign.status)
-                            ? 'bg-warning hover:bg-warning/90'
-                            : 'bg-success hover:bg-success/90'
-                        }`}
-                    >
-                        {isActive(campaign.status) ? <Pause size={16} /> : <Play size={16} />}
-                        {isActive(campaign.status) ? 'إيقاف' : 'تشغيل'}
-                    </button>
-                    <button
-                        onClick={() => handleEditCampaign(campaign)}
-                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
-                        title="تعديل"
-                    >
-                        <Edit size={18}/>
-                    </button>
-                    <button
-                        onClick={() => handleDeleteCampaign(campaign)}
-                        className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200"
-                        title="حذف"
-                    >
-                        <Trash2 size={18}/>
-                    </button>
+                        <div className="space-y-3 mb-6">
+                            <h3 className="text-lg font-bold">{campaign.name}</h3>
+                            <div className="flex gap-2">
+                                <StatusBadge status={campaign.objective as any} />
+                                <StatusBadge status={campaign.attribution as any} />
+                            </div>
+                            <p className="text-sm text-slate-500 line-clamp-2">
+                                {typeof campaign.audienceQuery === 'string' ? campaign.audienceQuery : JSON.stringify(campaign.audienceQuery)}
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="text-sm font-bold">{campaign.metrics.reached}</div>
+                                <div className="text-xs text-slate-500">تم الوصول</div>
+                            </div>
+                            <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="text-sm font-bold text-primary">{campaign.metrics.roas}x</div>
+                                <div className="text-xs text-slate-500">ROAS</div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-1 pt-4 border-t border-slate-100 dark:border-slate-700">
+                            <button
+                                onClick={() => toggleStatus(campaign.id, campaign.status)}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-white text-sm ${
+                                    isActive(campaign.status)
+                                    ? 'bg-warning hover:bg-warning/90'
+                                    : 'bg-success hover:bg-success/90'
+                                }`}
+                            >
+                                {isActive(campaign.status) ? <Pause size={16} /> : <Play size={16} />}
+                                {isActive(campaign.status) ? 'إيقاف' : 'تشغيل'}
+                            </button>
+                            <button
+                                onClick={() => handleEditCampaign(campaign)}
+                                className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg hover:bg-slate-200"
+                                title="تعديل"
+                            >
+                                <Edit size={18}/>
+                            </button>
+                            <button
+                                onClick={() => handleDeleteCampaign(campaign)}
+                                className="p-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200"
+                                title="حذف"
+                            >
+                                <Trash2 size={18}/>
+                            </button>
+                        </div>
+                        </Card>
+                    ))}
+                    </div>
                 </div>
-                </Card>
-            ))}
             </div>
         )}
 

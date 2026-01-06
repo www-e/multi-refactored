@@ -7,16 +7,16 @@ import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
-import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ActionMenu from '@/components/shared/ui/ActionMenu';
 import CustomerModal from '@/components/shared/modals/CustomerModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal';
 import { useModalState } from '@/hooks/useModalState';
-import { Customer, EnhancedTicket, EnhancedBooking } from '@/app/(shared)/types';
+import { Customer} from '@/app/(shared)/types';
 import { formatDate } from '@/lib/utils';
 import { mapCallStatusToArabic } from '@/lib/statusMapper';
+import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,7 +215,55 @@ export default function CustomersPage() {
             </div>
         ) : (
             <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                <div className="overflow-x-auto">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                    {filteredCustomers.map((customer, index) => {
+                        const stats = getCustomerStats(customer.id);
+                        const isSelected = selectedCustomerIds.includes(customer.id);
+
+                        // Prepare customer data for the card component
+                        const customerData = {
+                            ...customer,
+                            type: 'customer' as const,
+                            stats
+                        };
+
+                        return (
+                            <ResponsiveTableCard
+                                key={customer.id}
+                                item={customerData}
+                                actions={[
+                                    {
+                                        label: 'اتصال',
+                                        icon: <PhoneCall size={16} />,
+                                        onClick: () => handleCustomerCall(customer.phone, customer.id),
+                                        color: 'text-primary'
+                                    },
+                                    {
+                                        label: 'تعديل',
+                                        icon: <Edit size={16} />,
+                                        onClick: () => {
+                                          setCustomerToEdit(customer);
+                                          setIsEditModalOpen(true);
+                                        },
+                                        color: 'text-slate-600 dark:text-slate-400'
+                                    },
+                                    {
+                                        label: 'حذف',
+                                        icon: <Trash2 size={16} />,
+                                        onClick: () => handleDeleteCustomer({id: customer.id, name: customer.name}),
+                                        color: 'text-destructive'
+                                    }
+                                ]}
+                                onCardClick={() => showCustomerDetails(customer)}
+                                customers={customers}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-slate-50 dark:bg-slate-800/50">
                             <tr>

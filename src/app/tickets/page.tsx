@@ -133,9 +133,134 @@ export default function TicketsPage() {
           </div>
         </div>
 
-        {/* Table View */}
+        {/* Responsive View - Card layout on mobile, table on desktop */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden">
+            {filteredTickets.length === 0 ? (
+              <div className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                لا توجد تذاكر
+              </div>
+            ) : (
+              filteredTickets.map((ticket, index) => {
+                const customerName = getCustomerName(ticket);
+                return (
+                  <div
+                    key={ticket.id}
+                    className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center">
+                        <User className="w-4 h-4 text-slate-400 ml-2" />
+                        <span className="font-medium">{customerName}</span>
+                      </div>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">#{index + 1}</span>
+                    </div>
+
+                    <div className="mb-3">
+                      <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-1">المشكلة:</h4>
+                      <p className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2">
+                        {ticket.issue}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">الفئة:</span>
+                        <p className="text-slate-900 dark:text-slate-100">{ticket.category || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">الأولوية:</span>
+                        <div className="mt-1"><StatusBadge status={ticket.priority} /></div>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">المشروع:</span>
+                        <p className="text-slate-900 dark:text-slate-100">{ticket.project || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400">التاريخ:</span>
+                        <p className="text-slate-900 dark:text-slate-100">{formatDate(ticket.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <div><StatusBadge status={ticket.status} /></div>
+                      <ActionMenu
+                        position="left"
+                        actions={[
+                          // Status update actions based on current ticket status
+                          ...(ticket.status === 'open' ? [
+                            {
+                              label: statusUpdateLoading[ticket.id] === 'in_progress' ? 'جاري التحديث...' : 'بدء المعالجة',
+                              icon: <Edit size={16} />,
+                              onClick: async () => {
+                                setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'in_progress' }));
+                                try {
+                                  await updateTicketStatus(ticket.id, 'in_progress');
+                                  // Update the ticket in the store
+                                  const updatedTicket = { ...ticket, status: 'in_progress' as const };
+                                  updateTicketInStore(ticket.id, updatedTicket);
+                                } catch (error) {
+                                  console.error('Failed to update ticket status:', error);
+                                  alert('فشل تحديث حالة التذكرة. يرجى المحاولة مرة أخرى.');
+                                } finally {
+                                  setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'idle' }));
+                                }
+                              },
+                              disabled: statusUpdateLoading[ticket.id] === 'in_progress',
+                              color: 'text-yellow-600 dark:text-yellow-400'
+                            }
+                          ] : []),
+                          ...(ticket.status === 'in_progress' ? [
+                            {
+                              label: statusUpdateLoading[ticket.id] === 'resolved' ? 'جاري التحديث...' : 'وضع كمحلولة',
+                              icon: <Edit size={16} />,
+                              onClick: async () => {
+                                setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'resolved' }));
+                                try {
+                                  await updateTicketStatus(ticket.id, 'resolved');
+                                  // Update the ticket in the store
+                                  const updatedTicket = { ...ticket, status: 'resolved' as const };
+                                  updateTicketInStore(ticket.id, updatedTicket);
+                                } catch (error) {
+                                  console.error('Failed to update ticket status:', error);
+                                  alert('فشل تحديث حالة التذكرة. يرجى المحاولة مرة أخرى.');
+                                } finally {
+                                  setStatusUpdateLoading(prev => ({ ...prev, [ticket.id]: 'idle' }));
+                                }
+                              },
+                              disabled: statusUpdateLoading[ticket.id] === 'resolved',
+                              color: 'text-green-600 dark:text-green-400'
+                            }
+                          ] : []),
+                          {
+                            label: 'تعديل',
+                            icon: <Edit size={16} />,
+                            onClick: () => {
+                              handleEditTicket(ticket);
+                            },
+                            color: 'text-slate-600 dark:text-slate-400'
+                          },
+                          {
+                            label: 'حذف',
+                            icon: <Trash2 size={16} />,
+                            onClick: () => {
+                              setTicketToDelete(ticket);
+                              setIsDeleteModalOpen(true);
+                            },
+                            color: 'text-destructive'
+                          }
+                        ]}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
                 <tr>

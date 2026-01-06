@@ -2,8 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
   Calendar, Plus, CheckCircle, XCircle,
-  User, Edit, Eye, Trash2, MoreVertical,
-  Phone, Mail, RefreshCw, Search, Filter
+  User, Edit, Eye, Trash2, RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
@@ -16,8 +15,8 @@ import ActionMenu from '@/components/shared/ui/ActionMenu';
 import BookingModal from '@/components/shared/modals/BookingModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
-import { mapBookingStatusToArabic } from '@/lib/statusMapper';
 import { formatDate, formatSAR } from '@/lib/utils';
+import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
 
 export default function BookingsPage() {
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
@@ -199,7 +198,58 @@ export default function BookingsPage() {
 
         {viewMode === 'table' ? (
             <Card className="p-0 overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* Mobile Card View */}
+                <div className="block sm:hidden">
+                    {filteredBookings.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500">لا توجد حجوزات لعرضها</div>
+                    ) : (
+                        filteredBookings.map((booking, index) => {
+                            const customerName = getCustomerName(booking);
+                            const propDisplay = getPropertyDisplay(booking);
+
+                            // Prepare booking data for the card component
+                            const bookingData = {
+                                ...booking,
+                                type: 'booking' as const,
+                                customerName: customerName,
+                                project: propDisplay
+                            };
+
+                            return (
+                                <ResponsiveTableCard
+                                    key={booking.id}
+                                    item={bookingData}
+                                    actions={[
+                                        {
+                                            label: 'عرض التفاصيل',
+                                            icon: <Eye size={16} />,
+                                            onClick: () => setSelectedBooking(booking.id),
+                                            color: 'text-slate-600 dark:text-slate-400'
+                                        },
+                                        {
+                                            label: 'تعديل',
+                                            icon: <Edit size={16} />,
+                                            onClick: () => handleEditBooking(booking),
+                                            color: 'text-slate-600 dark:text-slate-400'
+                                        },
+                                        {
+                                            label: 'حذف',
+                                            icon: <Trash2 size={16} />,
+                                            onClick: () => handleDeleteBooking({id: booking.id, customerName: customerName}),
+                                            color: 'text-destructive'
+                                        }
+                                    ]}
+                                    onCardClick={() => setSelectedBooking(booking.id)}
+                                    customers={customers}
+                                    properties={properties}
+                                />
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-slate-50 dark:bg-slate-800/50">
                             <tr>
