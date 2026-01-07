@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
     tenant_id: str
     created_at: str
 
-@router.get("/admin/users", response_model=List[UserResponse])
+@router.get("/users", response_model=List[UserResponse])
 def get_users(
     current_user: models.User = Depends(deps.require_admin),
     db_session: Session = Depends(deps.get_session)
@@ -54,7 +54,7 @@ def get_users(
         for user in users
     ]
 
-@router.post("/admin/users", response_model=UserResponse)
+@router.post("/users", response_model=UserResponse)
 def create_user(
     user_data: UserCreateRequest,
     current_user: models.User = Depends(deps.require_admin),
@@ -114,7 +114,7 @@ def create_user(
         created_at=db_user.created_at.isoformat() if db_user.created_at else None
     )
 
-@router.put("/admin/users/{user_id}", response_model=UserResponse)
+@router.put("/users/{user_id}", response_model=UserResponse)
 def update_user(
     user_id: str,
     user_data: UserUpdateRequest,
@@ -158,7 +158,7 @@ def update_user(
         created_at=db_user.created_at.isoformat() if db_user.created_at else None
     )
 
-@router.delete("/admin/users/{user_id}")
+@router.delete("/users/{user_id}")
 def delete_user(
     user_id: str,
     current_user: models.User = Depends(deps.require_admin),
