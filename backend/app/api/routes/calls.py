@@ -1,4 +1,5 @@
 import logging
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -7,6 +8,8 @@ from datetime import datetime, timezone
 from pydantic import BaseModel
 from app import models
 from app.api import deps
+from app.services.voice import session_service
+from app.services.twilio_service import get_twilio_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -233,3 +236,118 @@ def get_calls(
 
     logger.info(f"✅ Returning {len(call_responses)} call responses with various data points")
     return call_responses
+
+
+# ============================================================================
+# OUTBOUND CALL INITIATION WITH TWILIO
+# ============================================================================
+
+class OutboundCallRequest(BaseModel):
+    """Request model for initiating outbound calls"""
+    customer_id: str
+    phone: str
+    agent_type: str = "support"  # support or sales
+
+class OutboundCallResponse(BaseModel):
+    """Response model for outbound call initiation"""
+    session_id: str
+    call_sid: Optional[str] = None
+    status: str
+    message: str
+    twilio_configured: bool = False
+
+
+@router.post("/calls/initiate", response_model=OutboundCallResponse)
+async def initiate_outbound_call(
+    call_request: OutboundCallRequest,
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    db_session: Session = Depends(deps.get_session),
+    _=Depends(deps.get_current_user)
+):
+    """
+    Initiate an outbound call to a customer using Twilio
+    
+    Flow:
+    1. Create VoiceSession in database
+    2. Initiate Twilio call to customer's phone
+    3. When customer answers, Twilio connects to ElevenLabs
+    4. ElevenLabs webhook processes conversation after call ends
+    """
+    logger.info(f"📞 Initiating outbound call to customer {call_request.customer_id} at {call_request.phone}")
+    
+    # Get Twilio service
+    twilio_service = get_twilio_service()
+    
+    # Check if Twilio is configured
+    if not twilio_service.is_configured():
+        logger.warning("⚠️ Twilio not configured - creating session only (simulation mode)")
+        # Create session without actual call
+        session = session_service.create_voice_session(
+            db_session=db_session,
+            agent_type=call_request.agent_type,
+            customer_id=call_request.customer_id,
+            tenant_id=tenant_id,
+            customer_phone=call_request.phone
+        )
+        
+        return OutboundCallResponse(
+            session_id=session.id,
+            call_sid=None,
+            status="simulation",
+            message="Twilio not configured. Session created in simulation mode.",
+            twilio_configured=False
+        )
+    
+    # Step 1: Create VoiceSession record
+    try:
+        session = session_service.create_voice_session(
+            db_session=db_session,
+            agent_type=call_request.agent_type,
+            customer_id=call_request.customer_id,
+            tenant_id=tenant_id,
+            customer_phone=call_request.phone
+        )
+        logger.info(f"✅ VoiceSession created: {session.id}")
+    except Exception as e:
+        logger.error(f"❌ Failed to create VoiceSession: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+    
+    # Step 2: Initiate Twilio call
+    try:
+        # Get webhook URL from environment
+        webhook_url = os.getenv("API_URL", "http://localhost:8000")
+        
+        # Initiate the call
+        call_result = twilio_service.initiate_outbound_call(
+            to_phone=call_request.phone,
+            session_id=session.id,
+            webhook_url=webhook_url,
+            agent_type=call_request.agent_type
+        )
+        
+        logger.info(f"✅ Twilio call initiated: SID={call_result['call_sid']}")
+        
+        return OutboundCallResponse(
+            session_id=session.id,
+            call_sid=call_result['call_sid'],
+            status=call_result['status'],
+            message=f"Call initiated to {call_request.phone}",
+            twilio_configured=True
+        )
+        
+    except ValueError as e:
+        # Configuration error
+        logger.error(f"❌ Configuration error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        # Twilio API error
+        logger.error(f"❌ Failed to initiate Twilio call: {e}")
+        
+        # Update session status to failed
+        session.status = models.VoiceSessionStatus.FAILED
+        db_session.commit()
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initiate call: {str(e)}"
+        )

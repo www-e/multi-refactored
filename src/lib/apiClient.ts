@@ -359,6 +359,26 @@ export const makeCall = (
   });
 };
 
+export const initiateOutboundCall = (
+  data: {
+    customer_id: string;
+    phone: string;
+    agent_type?: 'support' | 'sales';
+  },
+  token: string
+): Promise<{
+  session_id: string;
+  call_sid: string | null;
+  status: string;
+  message: string;
+  twilio_configured: boolean;
+}> => {
+  return clientFetch('/calls/initiate', token, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
 export const makeBulkCalls = (
   customer_ids: string[],
   token: string

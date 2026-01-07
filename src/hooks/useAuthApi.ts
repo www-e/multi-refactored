@@ -36,6 +36,7 @@ export const useAuthApi = () => {
     deleteBooking: false,
     deleteTicket: false,
     makeCall: false,
+    initiateOutboundCall: false,
     makeBulkCalls: false,
     getCalls: false,
     getCall: false,
@@ -316,6 +317,17 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  const initiateOutboundCall = useCallback(async (data: { customer_id: string; phone: string; agent_type?: 'support' | 'sales'; }) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('initiateOutboundCall', true);
+    try {
+      const result = await apiClient.initiateOutboundCall(data, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('initiateOutboundCall', false);
+    }
+  }, [accessToken]);
+
   const makeBulkCalls = useCallback(async (customer_ids: string[]) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('makeBulkCalls', true);
@@ -447,6 +459,7 @@ export const useAuthApi = () => {
     deleteBooking,
     deleteTicket,
     makeCall,
+    initiateOutboundCall,
     makeBulkCalls,
     getCalls,
     getCall,
