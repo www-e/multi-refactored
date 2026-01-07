@@ -218,6 +218,9 @@ export default function AdminUsersPage() {
         }}
         title="إضافة مستخدم جديد"
         description="أدخل معلومات المستخدم الجديد"
+        onSubmit={async () => await handleCreateUser()}
+        disableSubmit={!Object.values(passwordRequirements).every(req => req) || !passwordMatch}
+        submitLabel="إنشاء المستخدم"
       >
         <div className="space-y-4 py-4">
           <div>
@@ -366,24 +369,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 space-x-reverse mt-6">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowCreateDialog(false);
-              setNewUser({ email: '', password: '', name: '', role: 'user' });
-              setConfirmPassword('');
-            }}
-          >
-            إلغاء
-          </Button>
-          <Button
-            onClick={handleCreateUser}
-            disabled={!Object.values(passwordRequirements).every(req => req) || !passwordMatch}
-          >
-            إنشاء المستخدم
-          </Button>
-        </div>
+
       </GenericModal>
 
       {/* Edit User Modal */}
@@ -396,6 +382,8 @@ export default function AdminUsersPage() {
         }}
         title="تعديل المستخدم"
         description="تعديل معلومات المستخدم"
+        onSubmit={async () => await handleUpdateUser()}
+        submitLabel="حفظ التغييرات"
       >
         <div className="space-y-4 py-4">
           <div>
@@ -442,21 +430,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-2 space-x-reverse mt-6">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowEditDialog(false);
-              setEditingUser(null);
-              setUpdatedUser({ name: '', role: '', is_active: true });
-            }}
-          >
-            إلغاء
-          </Button>
-          <Button onClick={handleUpdateUser}>
-            حفظ التغييرات
-          </Button>
-        </div>
+
       </GenericModal>
 
       {/* Delete Confirmation Modal */}

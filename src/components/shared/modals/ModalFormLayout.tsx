@@ -32,8 +32,9 @@ export default function ModalFormLayout({
   isOpen,
   maxWidth = 'lg',
   destructive = false,
-  showSubmitButton
-}: ModalFormLayoutProps) {
+  showSubmitButton,
+  disableSubmit = false,
+}: ModalFormLayoutProps & { disableSubmit?: boolean }) {
   if (!isOpen) return null;
 
   const maxWidthClasses = {
@@ -82,7 +83,7 @@ export default function ModalFormLayout({
             {onSubmit && showSubmitButtonFinal && (
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || disableSubmit}
                 className={destructive ? "bg-red-600 hover:bg-red-700 text-white" : ""}
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}

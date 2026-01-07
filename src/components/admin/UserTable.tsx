@@ -96,6 +96,7 @@ export default function UserTable({ users, onEdit, onDelete, onAddUser }: UserTa
           <table className="w-full">
             <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
+                <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">#</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الاسم</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">البريد الإلكتروني</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">الدور</th>
@@ -107,13 +108,14 @@ export default function UserTable({ users, onEdit, onDelete, onAddUser }: UserTa
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan={7} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                     {searchTerm ? 'لا توجد مستخدمين مطابقين للبحث' : 'لا توجد مستخدمين'}
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                filteredUsers.map((user, index) => (
                   <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{index + 1}</td>
                     <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{user.name}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{user.email}</td>
                     <td className="px-4 py-3">

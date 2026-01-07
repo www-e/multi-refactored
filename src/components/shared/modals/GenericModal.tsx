@@ -51,8 +51,9 @@ export default function GenericModal<T extends Record<string, any>>({
   children,
   onFormChange,
   viewMode = false,
-  customContent
-}: GenericModalProps<T>) {
+  customContent,
+  disableSubmit = false
+}: GenericModalProps<T> & { disableSubmit?: boolean }) {
   // Initialize form data based on fields and initialData (only when not in view mode)
   const initializeFormData = useCallback(() => {
     const formData: Record<string, any> = {};
@@ -185,6 +186,7 @@ export default function GenericModal<T extends Record<string, any>>({
       onCancel={onClose}
       maxWidth={maxWidth}
       showSubmitButton={!viewMode} // Hide submit button in view mode
+      disableSubmit={disableSubmit}
     >
       {viewMode && customContent ? (
         customContent
