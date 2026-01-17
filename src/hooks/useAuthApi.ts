@@ -328,18 +328,25 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
-  const makeBulkCalls = useCallback(async (customer_ids: string[]) => {
+  const makeBulkCalls = useCallback(async (
+    customer_ids: string[],
+    campaignData?: {
+      scriptContent?: string;
+      agentType?: 'support' | 'sales';
+      concurrencyLimit?: number;
+      useKnowledgeBase?: boolean;
+      customSystemPrompt?: string;
+    }
+  ) => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('makeBulkCalls', true);
     try {
-      const result = await apiClient.makeBulkCalls(customer_ids, accessToken);
+      const result = await apiClient.makeBulkCalls(customer_ids, accessToken, campaignData);
       return result;
     } finally {
       updateLoadingState('makeBulkCalls', false);
     }
   }, [accessToken]);
-
-
   const getCalls = useCallback(async () => {
     if (!accessToken) return Promise.reject(new Error("Not authenticated"));
     updateLoadingState('getCalls', true);

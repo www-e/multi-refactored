@@ -266,3 +266,136 @@ export interface LiveOps {
     status: 'وارد' | 'فائت';
   }>;
 }
+
+// ============================================================================
+// BULK CALL CAMPAIGN TYPES
+// ============================================================================
+
+export interface BulkCallScript {
+  id: string;
+  name: string;
+  description?: string;
+  content: string; // Markdown or plain text
+  variables: string[]; // e.g., ['customer_name', 'neighborhood', 'project']
+  agentType: 'support' | 'sales';
+  createdAt: string;
+  updatedAt: string;
+  isTemplate?: boolean;
+}
+
+export interface BulkCallCampaign {
+  id: string;
+  name: string;
+  description?: string;
+  scriptId: string;
+  scriptContent: string;
+  customerIds: string[];
+  agentType: 'support' | 'sales';
+  concurrencyLimit: number; // Max simultaneous calls
+  status: 'draft' | 'queued' | 'running' | 'completed' | 'failed' | 'paused';
+  scheduledFor?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BulkCallProgress {
+  campaignId: string;
+  totalCalls: number;
+  completedCalls: number;
+  successfulCalls: number;
+  failedCalls: number;
+  inProgressCalls: number;
+  currentCallIndex: number;
+  estimatedTimeRemaining?: number; // seconds
+  currentCustomer?: {
+    id: string;
+    name: string;
+    phone: string;
+  };
+}
+
+export interface BulkCallResult {
+  callId: string;
+  customerId: string;
+  customerName: string;
+  phone: string;
+  status: 'success' | 'failed' | 'voicemail' | 'no_answer' | 'busy';
+  duration?: number; // seconds
+  recordingUrl?: string;
+  error?: string;
+  timestamp: string;
+}
+
+export interface BulkCallCampaignResults {
+  campaignId: string;
+  results: BulkCallResult[];
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+    avgDuration?: number;
+    totalDuration?: number;
+    completedAt: string;
+  }
+}
+// ============================================================================
+// SCRIPTS MANAGEMENT TYPES
+// ============================================================================
+
+export interface Script extends BulkCallScript {
+  category: 'marketing' | 'support' | 'renewal' | 'general' | 'custom';
+  tags: string[];
+  usageCount: number;
+  lastUsedAt?: string;
+  createdBy: string;
+  isActive: boolean;
+  successRate?: number; // Percentage of successful calls using this script
+  avgCallDuration?: number; // Average call duration in seconds
+}
+
+export interface ScriptCategory {
+  id: string;
+  name: string;
+  nameAr: string;
+  description: string;
+  icon: string;
+  count: number;
+}
+
+export const SCRIPT_CATEGORIES: ScriptCategory[] = [
+  {
+    id: 'marketing',
+    name: 'Marketing',
+    nameAr: 'تسويق',
+    description: 'Promotional scripts for new projects and offers',
+    icon: '📢',
+    count: 0
+  },
+  {
+    id: 'support',
+    name: 'Support',
+    nameAr: 'دعم',
+    description: 'Customer service and support scripts',
+    icon: '🎧',
+    count: 0
+  },
+  {
+    id: 'renewal',
+    name: 'Renewal',
+    nameAr: 'تجديد',
+    description: 'Contract renewal and retention scripts',
+    icon: '🔄',
+    count: 0
+  },
+  {
+    id: 'general',
+    name: 'General',
+    nameAr: 'عام',
+    description: 'General purpose and inquiry scripts',
+    icon: '💬',
+    count: 0
+  }
+];

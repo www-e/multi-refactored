@@ -381,11 +381,27 @@ export const initiateOutboundCall = (
 
 export const makeBulkCalls = (
   customer_ids: string[],
-  token: string
-): Promise<{ initiated_calls: number; created_calls: number; results?: any[] }> => {
+  token: string,
+  campaignData?: {
+    scriptContent?: string;
+    agentType?: 'support' | 'sales';
+    concurrencyLimit?: number;
+    useKnowledgeBase?: boolean;
+    customSystemPrompt?: string;
+  }
+): Promise<{ initiated_calls: number; created_calls: number; created_count?: number; results?: any[] }> => {
   return clientFetch('/calls/bulk', token, {
     method: 'POST',
-    body: JSON.stringify({ customer_ids }),
+    body: JSON.stringify({
+      customer_ids,
+      ...(campaignData && {
+        script_content: campaignData.scriptContent,
+        agent_type: campaignData.agentType,
+        concurrency_limit: campaignData.concurrencyLimit,
+        use_knowledge_base: campaignData.useKnowledgeBase,
+        custom_system_prompt: campaignData.customSystemPrompt
+      })
+    }),
   });
 };
 

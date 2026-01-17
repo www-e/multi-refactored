@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Enum, Boolean, JSON, Text, Float
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 import enum
 from typing import Any
@@ -55,6 +55,40 @@ class VoiceSessionStatus(str, enum.Enum):
 class UserRoleEnum(str, enum.Enum):
     user = "user"
     admin = "admin"
+
+# ============================================================================
+# BULK CALLING FEATURE - NEW MODELS
+# ============================================================================
+
+class BulkCallStatusEnum(str, enum.Enum):
+    """Status for bulk call campaigns"""
+    queued = "queued"
+    running = "running"
+    paused = "paused"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+class BulkCallResultStatusEnum(str, enum.Enum):
+    """Status for individual bulk call results"""
+    queued = "queued"
+    in_progress = "in_progress"
+    success = "success"
+    failed = "failed"
+    voicemail = "voicemail"
+    no_answer = "no_answer"
+    busy = "busy"
+    cancelled = "cancelled"
+
+class BulkCallOutcomeEnum(str, enum.Enum):
+    """Outcome classification for successful calls"""
+    interested = "interested"
+    not_interested = "not_interested"
+    follow_up_requested = "follow_up_requested"
+    appointment_booked = "appointment_booked"
+    information_only = "information_only"
+    wrong_number = "wrong_number"
+    do_not_call = "do_not_call"
 
 class Customer(Base):
     __tablename__ = "customers"
@@ -225,4 +259,135 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     tenant_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+# ============================================================================
+# BULK CALLING FEATURE - DATABASE MODELS
+# ============================================================================
+
+class BulkCallScript(Base):
+    """Reusable scripts for bulk calling campaigns"""
+    __tablename__ = "bulk_call_scripts"
+    
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    
+    # Script details
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # Script configuration
+    variables: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # List of variable names
+    agent_type: Mapped[str] = mapped_column(String, nullable=False)  # 'sales' or 'support'
+    
+    # Categorization
+    category: Mapped[str] = mapped_column(String, default="general")  # marketing, support, renewal, general, custom
+    tags: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # List of tags
+    
+    # Usage tracking
+    usage_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # Metadata
+    created_by: Mapped[str] = mapped_column(String, nullable=False)
+    is_template: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class BulkCallCampaign(Base):
+    """Bulk call campaign tracking"""
+    __tablename__ = "bulk_call_campaigns"
+    
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    
+    # Campaign details
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[BulkCallStatusEnum] = mapped_column(Enum(BulkCallStatusEnum), default=BulkCallStatusEnum.queued)
+    
+    # Customer targeting
+    customer_ids: Mapped[dict] = mapped_column(JSON, nullable=False)  # List of customer IDs
+    total_calls: Mapped[int] = mapped_column(Integer, nullable=False)
+    
+    # Progress tracking
+    completed_calls: Mapped[int] = mapped_column(Integer, default=0)
+    failed_calls: Mapped[int] = mapped_column(Integer, default=0)
+    successful_calls: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Script configuration
+    script_id: Mapped[str | None] = mapped_column(String, ForeignKey("bulk_call_scripts.id"), nullable=True)
+    script_content: Mapped[str] = mapped_column(Text, nullable=False)
+    
+    # Agent configuration
+    agent_type: Mapped[str] = mapped_column(String, nullable=False)  # 'sales' or 'support'
+    concurrency_limit: Mapped[int] = mapped_column(Integer, default=3)
+    
+    # Knowledge base and AI configuration
+    use_knowledge_base: Mapped[bool] = mapped_column(Boolean, default=True)
+    custom_system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # Relationships
+    script: Mapped["BulkCallScript"] = relationship("BulkCallScript", backref="campaigns")
+    
+    def calculate_progress(self) -> float:
+        """Calculate campaign progress percentage"""
+        if self.total_calls == 0:
+            return 0.0
+        return round((self.completed_calls / self.total_calls) * 100, 2)
+
+class BulkCallResult(Base):
+    """Individual call results for bulk campaigns"""
+    __tablename__ = "bulk_call_results"
+    
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    campaign_id: Mapped[str] = mapped_column(String, ForeignKey("bulk_call_campaigns.id"), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    
+    # Call reference
+    call_id: Mapped[str] = mapped_column(String, ForeignKey("calls.id"), nullable=True)
+    conversation_id: Mapped[str] = mapped_column(String, ForeignKey("conversations.id"), nullable=True)
+    
+    # Customer information (denormalized for performance)
+    customer_id: Mapped[str] = mapped_column(String, ForeignKey("customers.id"), nullable=False)
+    customer_name: Mapped[str] = mapped_column(String, nullable=False)
+    customer_phone: Mapped[str] = mapped_column(String, nullable=False)
+    
+    # Call status and outcome
+    status: Mapped[BulkCallResultStatusEnum] = mapped_column(
+        Enum(BulkCallResultStatusEnum), 
+        default=BulkCallResultStatusEnum.queued,
+        nullable=False
+    )
+    outcome: Mapped[BulkCallOutcomeEnum | None] = mapped_column(Enum(BulkCallOutcomeEnum), nullable=True)
+    
+    # Call details
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recording_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    
+    # Twilio integration
+    twilio_call_sid: Mapped[str | None] = mapped_column(String, nullable=True)
+    twilio_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    
+    # AI session reference
+    voice_session_id: Mapped[str | None] = mapped_column(String, ForeignKey("voice_sessions.id"), nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    campaign: Mapped["BulkCallCampaign"] = relationship("BulkCallCampaign", backref="results")
+    call: Mapped["Call"] = relationship("Call", backref="bulk_result")
+    customer: Mapped["Customer"] = relationship("Customer", backref="bulk_call_results")
+    conversation: Mapped["Conversation"] = relationship("Conversation", backref="bulk_results")
+    voice_session: Mapped["VoiceSession"] = relationship("VoiceSession", backref="bulk_results")
 

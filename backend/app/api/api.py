@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, campaigns, calls, conversations, voice_sessions, transcripts, admin_users, twilio
+from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, campaigns, calls, conversations, voice_sessions, transcripts, admin_users, twilio, bulk_campaigns
 
 api_router = APIRouter()
 
@@ -18,3 +18,4 @@ api_router.include_router(voice_sessions.router, tags=["Voice Sessions"])
 api_router.include_router(transcripts.router, tags=["Transcripts"])
 api_router.include_router(admin_users.router, tags=["Admin Users"], prefix="/admin")
 api_router.include_router(twilio.router, tags=["Twilio"])
+api_router.include_router(bulk_campaigns.router, tags=["Bulk Campaigns"], prefix="/api")
