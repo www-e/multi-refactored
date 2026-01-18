@@ -6,7 +6,7 @@ import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
-import { formatDate } from '@/lib/utils';
+import { formatTableDate, formatDateTime } from '@/lib/utils';
 import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { Card } from '@/components/shared/ui/Card';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
@@ -179,7 +179,7 @@ export default function CallsPage() {
                             )}
                           </div>
                           <p className="text-xs text-slate-400 mt-1 text-right">
-                            {formatDate(call.createdAt)}
+                            {formatTableDate(call.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -252,7 +252,7 @@ export default function CallsPage() {
                               <div>
                                 <h4 className="text-sm font-medium text-slate-500 mb-1">تاريخ البدء</h4>
                                 <p className="font-medium">
-                                  {new Date(selectedCall.createdAt).toLocaleString('ar-EG')}
+                                  {formatDateTime(selectedCall.createdAt)}
                                 </p>
                               </div>
                               <div>

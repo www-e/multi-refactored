@@ -15,7 +15,7 @@ import CustomerDetailModal from '@/components/shared/modals/CustomerDetailModal'
 import BulkCallModal from '@/components/shared/modals/BulkCallModal';
 import { useModalState } from '@/hooks/useModalState';
 import { Customer } from '@/app/(shared)/types';
-import { formatDate } from '@/lib/utils';
+import { formatTableDate } from '@/lib/utils';
 import { mapCallStatusToArabic } from '@/lib/statusMapper';
 import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
 
@@ -362,7 +362,7 @@ export default function CustomersPage() {
                         <td className="hidden md:table-cell p-4 text-center font-bold">{stats.tickets}</td>
                         <td className="hidden md:table-cell p-4 text-center font-bold">{stats.bookings}</td>
                         <td className="hidden md:table-cell p-4 text-sm text-slate-500">
-                          {formatDate(customer.createdAt)}
+                          {formatTableDate(customer.createdAt)}
                         </td>
                         <td className="p-4">
                           <ActionMenu

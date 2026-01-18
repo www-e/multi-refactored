@@ -26,6 +26,25 @@ export function CreateScriptModal({ onClose, onSubmit }: CreateScriptModalProps)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Available variables that can be used in scripts
+  const availableVariables = [
+    { name: 'customer_name', label: 'اسم العميل', description: 'الاسم الكامل للعميل' },
+    { name: 'customer_phone', label: 'رقم هاتف العميل', description: 'رقم الهاتف للتواصل' },
+    { name: 'company_name', label: 'اسم الشركة', description: 'اسم الشركة أو المشروع' },
+    { name: 'appointment_date', label: 'تاريخ الموعد', description: 'تاريخ الحجز أو الموعد' },
+    { name: 'appointment_time', label: 'وقت الموعد', description: 'وقت الحجز أو الموعد' },
+    { name: 'service_name', label: 'اسم الخدمة', description: 'نوع الخدمة المطلوبة' },
+    { name: 'agent_name', label: 'اسم الموظف', description: 'اسم ممثل خدمة العملاء' },
+    { name: 'ticket_number', label: 'رقم التذكرة', description: 'رقم تذكرة الدعم' },
+    { name: 'campaign_name', label: 'اسم الحملة', description: 'اسم الحملة التسويقية' },
+    { name: 'offer_name', label: 'اسم العرض', description: 'اسم العرض أو الترويج' },
+    { name: 'discount_percentage', label: 'نسبة الخصم', description: 'نسبة الخصم المتاحة' },
+    { name: 'expiry_date', label: 'تاريخ الانتهاء', description: 'تاريخ انتهاء العرض' },
+    { name: 'call_duration', label: 'مدة المكالمة', description: 'مدة المكالمة بالدقائق' },
+    { name: 'previous_purchase', label: 'الشراء السابق', description: 'تفاصيل آخر شراء' },
+    { name: 'balance_due', label: 'المبلغ المستحق', description: 'المبلغ المتبقي للسداد' },
+  ];
+
   // Detect variables when content changes
   useEffect(() => {
     const vars = extractVariables(formData.content);
@@ -60,6 +79,33 @@ export function CreateScriptModal({ onClose, onSubmit }: CreateScriptModalProps)
       ...formData,
       tags: formData.tags.filter(tag => tag !== tagToRemove),
     });
+  };
+  const handleInsertVariable = (variableName: string) => {
+    // Insert variable at cursor position or append to end
+    const textarea = document.activeElement as HTMLTextAreaElement;
+    if (textarea && textarea.tagName === 'TEXTAREA') {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = formData.content;
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+      const insertion = `{${variableName}}`;
+      
+      const newContent = before + insertion + after;
+      setFormData({ ...formData, content: newContent });
+      
+      // Set cursor position after inserted variable
+      setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + insertion.length;
+      }, 0);
+    } else {
+      // Fallback - append to end
+      setFormData({
+        ...formData,
+        content: formData.content + `{${variableName}}`,
+      });
+    }
   };
 
   return (
@@ -184,6 +230,32 @@ export function CreateScriptModal({ onClose, onSubmit }: CreateScriptModalProps)
                 استخدم المتغيرات بالصيغة: {'{variable_name}'}
               </p>
             </div>
+
+            {/* Available Variables */}
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+              <h4 className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-3">
+                المتغيرات المتاحة (اضغط للإدراج):
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {availableVariables.map((variable) => (
+                  <button
+                    key={variable.name}
+                    type="button"
+                    onClick={() => handleInsertVariable(variable.name)}
+                    className="flex flex-col items-start p-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700 transition-colors text-right"
+                    title={variable.description}
+                  >
+                    <span className="text-sm font-mono text-amber-700 dark:text-amber-300 font-medium">
+                      {'{'}{variable.name}{'}'}
+                    </span>
+                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                      {variable.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
 
             {/* Detected Variables */}
             {detectedVariables.length > 0 && (

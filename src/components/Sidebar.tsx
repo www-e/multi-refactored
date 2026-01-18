@@ -2,11 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   LayoutDashboard,
-  MessageSquare,
   Ticket,
   Calendar,
   Users,
@@ -22,7 +21,7 @@ import {
   ChevronRight,
   LogOut,
   UserCog,
-  ChevronDown
+  FileText
 } from 'lucide-react'
 
 // Define navigation structure with optional grouping
@@ -81,6 +80,17 @@ const navigation = [
         href: '/analytics',
         icon: TrendingUp,
         description: 'تقارير الأداء والمؤشرات'
+      }
+    ]
+  },
+  {
+    name: 'المحتوى',
+    items: [
+      {
+        name: 'السكريبتات',
+        href: '/scripts',
+        icon: FileText,
+        description: 'إدارة مكتبة السكريبتات'
       }
     ]
   },

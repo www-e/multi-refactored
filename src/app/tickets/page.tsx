@@ -11,7 +11,7 @@ import ActionMenu from '@/components/shared/ui/ActionMenu';
 import TicketModal from '@/components/shared/modals/TicketModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
-import { formatDate } from '@/lib/utils';
+import { formatTableDate } from '@/lib/utils';
 import { mapTicketPriorityToArabic } from '@/lib/statusMapper';
 
 export default function TicketsPage() {
@@ -179,7 +179,7 @@ export default function TicketsPage() {
                       </div>
                       <div>
                         <span className="text-slate-500 dark:text-slate-400">التاريخ:</span>
-                        <p className="text-slate-900 dark:text-slate-100">{formatDate(ticket.createdAt)}</p>
+                        <p className="text-slate-900 dark:text-slate-100">{formatTableDate(ticket.createdAt)}</p>
                       </div>
                     </div>
 
@@ -315,7 +315,7 @@ export default function TicketsPage() {
                           {ticket.project || '-'}
                         </td>
                         <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-500 dark:text-slate-300">
-                          {formatDate(ticket.createdAt)}
+                          {formatTableDate(ticket.createdAt)}
                         </td>
                         <td className="px-4 py-3">
                           <ActionMenu

@@ -15,7 +15,7 @@ import ActionMenu from '@/components/shared/ui/ActionMenu';
 import BookingModal from '@/components/shared/modals/BookingModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
-import { formatDate, formatSAR } from '@/lib/utils';
+import { formatTableDate, formatSAR } from '@/lib/utils';
 import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
 
 export default function BookingsPage() {
@@ -285,8 +285,8 @@ export default function BookingsPage() {
                                         <td className="p-4">
                                             <p className="font-medium">{propDisplay}</p>
                                         </td>
-                                        <td className="p-4 text-sm">{formatDate(booking.startDate)}</td>
-                                        <td className="p-4 text-sm">{formatDate(booking.createdAt)}</td>
+                                        <td className="p-4 text-sm">{formatTableDate(booking.startDate)}</td>
+                                        <td className="p-4 text-sm">{formatTableDate(booking.createdAt)}</td>
                                         <td className="p-4 font-semibold text-primary">{formatSAR(booking.price || 0)}</td>
                                         <td className="p-4"><StatusBadge status={booking.source} type="icon"/></td>
                                         <td className="p-4"><StatusBadge status={booking.status} /></td>
@@ -412,14 +412,14 @@ export default function BookingsPage() {
                     <Card key={booking.id} className="p-4">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                           <StatusBadge status={booking.createdBy} />
-                          <span className="text-xs text-slate-500">{formatDate(booking.createdAt)}</span>
+                          <span className="text-xs text-slate-500">{formatTableDate(booking.createdAt)}</span>
                       </div>
                       <div className="space-y-2 mb-4">
                           <h4 className="font-semibold">{customerName}</h4>
                           <p className="text-sm text-slate-600">{propDisplay}</p>
                           <div className="text-sm space-y-1">
-                              <p className="text-slate-600">موعد الحجز: {formatDate(booking.startDate)}</p>
-                              <p className="text-slate-600">تاريخ الإنشاء: {formatDate(booking.createdAt)}</p>
+                              <p className="text-slate-600">موعد الحجز: {formatTableDate(booking.startDate)}</p>
+                              <p className="text-slate-600">تاريخ الإنشاء: {formatTableDate(booking.createdAt)}</p>
                           </div>
                           <p className="text-lg font-bold text-primary">{formatSAR(booking.price || 0)}</p>
                       </div>

@@ -26,6 +26,25 @@ export function EditScriptModal({ script, onClose, onSubmit }: EditScriptModalPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Available variables that can be used in scripts
+  const availableVariables = [
+    { name: 'customer_name', label: 'اسم العميل', description: 'الاسم الكامل للعميل' },
+    { name: 'customer_phone', label: 'رقم هاتف العميل', description: 'رقم الهاتف للتواصل' },
+    { name: 'company_name', label: 'اسم الشركة', description: 'اسم الشركة أو المشروع' },
+    { name: 'appointment_date', label: 'تاريخ الموعد', description: 'تاريخ الحجز أو الموعد' },
+    { name: 'appointment_time', label: 'وقت الموعد', description: 'وقت الحجز أو الموعد' },
+    { name: 'service_name', label: 'اسم الخدمة', description: 'نوع الخدمة المطلوبة' },
+    { name: 'agent_name', label: 'اسم الموظف', description: 'اسم ممثل خدمة العملاء' },
+    { name: 'ticket_number', label: 'رقم التذكرة', description: 'رقم تذكرة الدعم' },
+    { name: 'campaign_name', label: 'اسم الحملة', description: 'اسم الحملة التسويقية' },
+    { name: 'offer_name', label: 'اسم العرض', description: 'اسم العرض أو الترويج' },
+    { name: 'discount_percentage', label: 'نسبة الخصم', description: 'نسبة الخصم المتاحة' },
+    { name: 'expiry_date', label: 'تاريخ الانتهاء', description: 'تاريخ انتهاء العرض' },
+    { name: 'call_duration', label: 'مدة المكالمة', description: 'مدة المكالمة بالدقائق' },
+    { name: 'previous_purchase', label: 'الشراء السابق', description: 'تفاصيل آخر شراء' },
+    { name: 'balance_due', label: 'المبلغ المستحق', description: 'المبلغ المتبقي للسداد' },
+  ];
+
   // Detect variables when content changes
   useEffect(() => {
     const vars = extractVariables(formData.content);
@@ -60,6 +79,34 @@ export function EditScriptModal({ script, onClose, onSubmit }: EditScriptModalPr
       ...formData,
       tags: formData.tags.filter(tag => tag !== tagToRemove),
     });
+  const handleInsertVariable = (variableName: string) => {
+    // Insert variable at cursor position or append to end
+    const textarea = document.activeElement as HTMLTextAreaElement;
+    if (textarea && textarea.tagName === 'TEXTAREA') {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = formData.content;
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+      const insertion = `{${variableName}}`;
+      
+      const newContent = before + insertion + after;
+      setFormData({ ...formData, content: newContent });
+      
+      // Set cursor position after inserted variable
+      setTimeout(() => {
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + insertion.length;
+      }, 0);
+    } else {
+      // Fallback - append to end
+      setFormData({
+        ...formData,
+        content: formData.content + `{${variableName}}`,
+      });
+    }
+  };
+
   };
 
   return (
