@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -122,17 +122,6 @@ const navigation = [
       }
     ]
   },
-  {
-    name: 'الإدارة',
-    items: [
-      {
-        name: 'إدارة المستخدمين',
-        href: '/admin/users',
-        icon: Users,
-        description: 'إدارة حسابات المستخدمين'
-      }
-    ]
-  }
 ]
 
 interface SidebarProps {
