@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Plus, RefreshCw, User, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Plus, RefreshCw, User, Edit, Trash2, ExternalLink, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -9,6 +9,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import ActionMenu from '@/components/shared/ui/ActionMenu';
 import TicketModal from '@/components/shared/modals/TicketModal';
+import TicketDetailModal from '@/components/shared/modals/TicketDetailModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import { formatTableDate } from '@/lib/utils';
@@ -404,6 +405,7 @@ export default function TicketsPage() {
             isOpen={isAddModalOpen}
             onClose={() => setIsAddModalOpen(false)}
             title="إنشاء تذكرة"
+            
             customers={customers}
             onSubmit={async (data) => {
                 await handleModalSubmit(async () => {
@@ -422,8 +424,9 @@ export default function TicketsPage() {
               setTicketToEdit(null);
             }}
             title="تعديل التذكرة"
-            customers={customers}
+            
             ticket={ticketToEdit}
+            customers={customers}
             onSubmit={async (data) => {
                 if (!ticketToEdit) return;
                 await handleModalSubmit(async () => {
@@ -436,18 +439,14 @@ export default function TicketsPage() {
             isSubmitting={isSubmitting}
         />
 
-        <TicketModal
+        {/* Ticket Detail Modal */}
+        <TicketDetailModal
             isOpen={isViewModalOpen}
             onClose={() => {
               setIsViewModalOpen(false);
               setTicketToView(null);
             }}
-            title="تفاصيل التذكرة"
-            customers={customers}
             ticket={ticketToView}
-            viewMode={true}
-            onSubmit={async (data) => {}} // No submit needed for view mode
-            isSubmitting={false}
         />
 
         <DeleteConfirmModal

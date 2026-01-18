@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Play, Pause, MoreVertical, Edit, RefreshCw, BarChart3, Trash2 } from 'lucide-react';
+import { Plus, Play, Pause, MoreVertical, Edit, RefreshCw, BarChart3, Trash2, Eye } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useAuthApi } from '@/hooks/useAuthApi';
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
@@ -10,6 +10,7 @@ import { SearchFilterBar } from '@/components/shared/data/SearchFilterBar';
 import { StatusBadge } from '@/components/shared/ui/StatusBadge';
 import { Card } from '@/components/shared/ui/Card';
 import CampaignModal from '@/components/shared/modals/CampaignModal';
+import CampaignDetailModal from '@/components/shared/modals/CampaignDetailModal';
 import DeleteConfirmModal from '@/components/shared/modals/DeleteConfirmModal';
 import { useModalState } from '@/hooks/useModalState';
 import ResponsiveTableCard from '@/components/shared/data/ResponsiveTableCard';
@@ -19,6 +20,8 @@ export default function CampaignsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [campaignToView, setCampaignToView] = useState<any>(null);
   const [campaignToEdit, setCampaignToEdit] = useState<any>(null);
   const [campaignToDelete, setCampaignToDelete] = useState<any>(null);
 
@@ -56,6 +59,10 @@ export default function CampaignsPage() {
   };
 
   const handleDeleteCampaign = (campaign: any) => {
+  const handleViewCampaign = (campaign: any) => {
+    setCampaignToView(campaign);
+    setIsViewModalOpen(true);
+  };
     setCampaignToDelete(campaign);
     setIsDeleteModalOpen(true);
   };

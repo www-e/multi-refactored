@@ -58,7 +58,12 @@ export default function ScriptsPage() {
       setScripts(uiScripts);
     } catch (err) {
       console.error('Failed to load scripts:', err);
-      setError('فشل في تحميل السكريبتات. يرجى المحاولة مرة أخرى.');
+      // Check if it's a connection error
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('لا يمكن الاتصال بالخادم. يرجى التأكد من تشغيل خادم الواجهة الخلفية على المنفذ 8000.');
+      } else {
+        setError('فشل في تحميل السكريبتات. يرجى المحاولة مرة أخرى.');
+      }
     } finally {
       setIsLoading(false);
     }

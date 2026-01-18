@@ -454,14 +454,6 @@ export default function CustomersPage() {
             customer={selectedCustomerDetail}
             tickets={tickets}
             bookings={bookings}
-            createTicket={createTicket}
-            createBooking={createBooking}
-            updateCustomer={apiUpdateCustomer}
-            deleteCustomer={apiDeleteCustomer}
-            addTicket={addTicket}
-            addBooking={addBooking}
-            updateCustomerInStore={updateCustomerInStore}
-            removeCustomerFromStore={removeCustomer}
           />
         )}
 
