@@ -6,12 +6,13 @@ import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { Script, SCRIPT_CATEGORIES } from '@/app/(shared)/types';
 import { formatDate } from '@/lib/utils';
-import { scriptsApi, BulkCallScript, extractVariables } from '@/lib/api/bulk-campaigns';
+import { extractVariables } from '@/lib/api/bulk-campaigns';
+import { useAuthApi } from '@/hooks/useAuthApi';
 import { CreateScriptModal } from '@/components/scripts/CreateScriptModal';
 import { EditScriptModal } from '@/components/scripts/EditScriptModal';
 
 // Convert API script to UI script
-const toUiScript = (apiScript: BulkCallScript): Script => ({
+const toUiScript = (apiScript: any): Script => ({
   id: apiScript.id,
   name: apiScript.name,
   description: apiScript.description,
@@ -20,13 +21,13 @@ const toUiScript = (apiScript: BulkCallScript): Script => ({
   agentType: apiScript.agent_type as 'sales' | 'support',
   category: (apiScript.category || 'custom') as 'marketing' | 'support' | 'renewal' | 'general' | 'custom',
   tags: apiScript.tags || [],
-  usageCount: apiScript.usage_count,
+  usageCount: apiScript.usage_count || 0,
   lastUsedAt: apiScript.last_used_at,
   createdBy: apiScript.created_by,
-  isActive: apiScript.is_active,
+  isActive: apiScript.is_active ?? true,
   createdAt: apiScript.created_at,
   updatedAt: apiScript.updated_at,
-  isTemplate: apiScript.is_template,
+  isTemplate: apiScript.is_template ?? false,
 });
 
 export default function ScriptsPage() {
@@ -47,23 +48,23 @@ export default function ScriptsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedScript, setSelectedScript] = useState<Script | null>(null);
 
+  // Use the authenticated API hook
+  const { getScripts, createScript, updateScript, deleteScript, duplicateScript, isAuthenticated } = useAuthApi();
+
   // Load scripts from API
   const loadScripts = async () => {
+    if (!isAuthenticated) return;
+    
     setIsLoading(true);
     setError(null);
     
     try {
-      const apiScripts = await scriptsApi.getAll();
+      const apiScripts = await getScripts();
       const uiScripts = apiScripts.map(toUiScript);
       setScripts(uiScripts);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load scripts:', err);
-      // Check if it's a connection error
-      if (err instanceof TypeError && err.message.includes('fetch')) {
-        setError('لا يمكن الاتصال بالخادم. يرجى التأكد من تشغيل خادم الواجهة الخلفية على المنفذ 8000.');
-      } else {
-        setError('فشل في تحميل السكريبتات. يرجى المحاولة مرة أخرى.');
-      }
+      setError(err.message || 'فشل في تحميل السكريبتات. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +72,7 @@ export default function ScriptsPage() {
 
   useEffect(() => {
     loadScripts();
-  }, []);
+  }, [isAuthenticated]);
 
   // Filter and sort scripts
   useEffect(() => {
@@ -111,11 +112,11 @@ export default function ScriptsPage() {
     setError(null);
 
     try {
-      await scriptsApi.delete(scriptId);
+      await deleteScript(scriptId);
       setScripts(scripts.filter(s => s.id !== scriptId));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to delete script:', err);
-      setError('فشل في حذف السكريبت. يرجى المحاولة مرة أخرى.');
+      setError(err.message || 'فشل في حذف السكريبت. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsDeleting(null);
     }
@@ -126,12 +127,12 @@ export default function ScriptsPage() {
     setError(null);
 
     try {
-      const duplicated = await scriptsApi.duplicate(script.id);
+      const duplicated = await duplicateScript(script.id);
       const uiScript = toUiScript(duplicated);
       setScripts([...scripts, uiScript]);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to duplicate script:', err);
-      setError('فشل في نسخ السكريبت. يرجى المحاولة مرة أخرى.');
+      setError(err.message || 'فشل في نسخ السكريبت. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsDuplicating(null);
     }
@@ -140,14 +141,14 @@ export default function ScriptsPage() {
   const handleCreateScript = async (data: any) => {
     try {
       const variables = extractVariables(data.content);
-      const newScript = await scriptsApi.create({
+      const newScript = await createScript({
         ...data,
         variables,
       });
       const uiScript = toUiScript(newScript);
       setScripts([...scripts, uiScript]);
       setShowCreateModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create script:', err);
       throw err;
     }
@@ -158,7 +159,7 @@ export default function ScriptsPage() {
 
     try {
       const variables = extractVariables(data.content);
-      const updated = await scriptsApi.update(selectedScript.id, {
+      const updated = await updateScript(selectedScript.id, {
         ...data,
         variables,
       });
@@ -166,7 +167,7 @@ export default function ScriptsPage() {
       setScripts(scripts.map(s => s.id === selectedScript.id ? uiScript : s));
       setShowEditModal(false);
       setSelectedScript(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update script:', err);
       throw err;
     }

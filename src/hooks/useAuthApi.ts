@@ -46,6 +46,11 @@ export const useAuthApi = () => {
     createUser: false,
     updateUser: false,
     deleteUser: false,
+    getScripts: false,
+    createScript: false,
+    updateScript: false,
+    deleteScript: false,
+    duplicateScript: false,
   });
 
   const updateLoadingState = (operation: keyof typeof loadingStates, isLoading: boolean) => {
@@ -436,6 +441,139 @@ export const useAuthApi = () => {
     }
   }, [accessToken]);
 
+  // Scripts API functions - using fetch with session token
+  const getScripts = useCallback(async () => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getScripts', true);
+    try {
+      const response = await fetch('/api/scripts', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch scripts');
+      }
+      const data = await response.json();
+      return data.scripts || [];
+    } finally {
+      updateLoadingState('getScripts', false);
+    }
+  }, [accessToken]);
+
+  const createScript = useCallback(async (script: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('createScript', true);
+    try {
+      const response = await fetch('/api/scripts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(script),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create script');
+      }
+      return response.json();
+    } finally {
+      updateLoadingState('createScript', false);
+    }
+  }, [accessToken]);
+
+  const updateScript = useCallback(async (id: string, script: any) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('updateScript', true);
+    try {
+      const response = await fetch(`/api/scripts/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(script),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update script');
+      }
+      return response.json();
+    } finally {
+      updateLoadingState('updateScript', false);
+    }
+  }, [accessToken]);
+
+  const deleteScript = useCallback(async (id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('deleteScript', true);
+    try {
+      const response = await fetch(`/api/scripts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete script');
+      }
+    } finally {
+      updateLoadingState('deleteScript', false);
+    }
+  }, [accessToken]);
+
+  const duplicateScript = useCallback(async (id: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('duplicateScript', true);
+    try {
+      // Get original script
+      const getResponse = await fetch(`/api/scripts/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!getResponse.ok) {
+        const error = await getResponse.json();
+        throw new Error(error.detail || 'Failed to fetch script');
+      }
+      const original = await getResponse.json();
+      
+      // Create duplicate
+      const duplicate = {
+        name: `${original.name} (نسخة)`,
+        description: original.description,
+        content: original.content,
+        agent_type: original.agent_type,
+        category: original.category,
+        tags: original.tags,
+        variables: original.variables,
+        is_template: false,
+      };
+      
+      const createResponse = await fetch('/api/scripts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(duplicate),
+      });
+      if (!createResponse.ok) {
+        const error = await createResponse.json();
+        throw new Error(error.detail || 'Failed to create script');
+      }
+      return createResponse.json();
+    } finally {
+      updateLoadingState('duplicateScript', false);
+    }
+  }, [accessToken]);
+
   return {
     loadingStates,
     isAuthenticated: status === 'authenticated' && !!accessToken,
@@ -478,5 +616,12 @@ export const useAuthApi = () => {
     createUser,
     updateUser,
     deleteUser,
+
+    // Scripts API
+    getScripts,
+    createScript,
+    updateScript,
+    deleteScript,
+    duplicateScript,
   };
 };
