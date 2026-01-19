@@ -1,9 +1,10 @@
 /**
  * Bulk Campaigns API Service
  * Handles all API calls for scripts, campaigns, and results
+ * Uses Next.js API routes (server-side proxy to backend)
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ? `${process.env.NEXT_PUBLIC_BACKEND_URL}api` : 'http://localhost:8000/api';
+import { clientFetch, ApiError } from '@/lib/apiClient';
 
 export interface BulkCallScript {
   id: string;
@@ -89,91 +90,52 @@ export interface CreateCampaignRequest {
 }
 
 /**
+ * Helper function to get access token from localStorage
+ */
+const getAccessToken = (): string => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new ApiError('غير مصروف. يرجى تسجيل الدخول.', 401);
+  }
+  return token;
+};
+
+/**
  * Scripts API
  */
 export const scriptsApi = {
   // Get all scripts
   getAll: async (): Promise<BulkCallScript[]> => {
-    const response = await fetch(`${API_BASE_URL}/scripts`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch scripts');
-    }
-
-    const data = await response.json();
+    const data = await clientFetch<{ scripts?: BulkCallScript[] }>('/scripts', getAccessToken());
     return data.scripts || [];
   },
 
   // Get single script
   getById: async (id: string): Promise<BulkCallScript> => {
-    const response = await fetch(`${API_BASE_URL}/scripts/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch script');
-    }
-
-    return response.json();
+    return clientFetch<BulkCallScript>(`/scripts/${id}`, getAccessToken());
   },
 
   // Create new script
   create: async (script: CreateScriptRequest): Promise<BulkCallScript> => {
-    const response = await fetch(`${API_BASE_URL}/scripts`, {
+    return clientFetch<BulkCallScript>('/scripts', getAccessToken(), {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(script),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to create script');
-    }
-
-    return response.json();
   },
 
   // Update script
   update: async (id: string, script: Partial<CreateScriptRequest>): Promise<BulkCallScript> => {
-    const response = await fetch(`${API_BASE_URL}/scripts/${id}`, {
+    return clientFetch<BulkCallScript>(`/scripts/${id}`, getAccessToken(), {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(script),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to update script');
-    }
-
-    return response.json();
   },
 
   // Delete script
   delete: async (id: string): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/scripts/${id}`, {
+    await clientFetch<void>(`/scripts/${id}`, getAccessToken(), {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete script');
-    }
   },
 
   // Duplicate script
@@ -199,69 +161,29 @@ export const scriptsApi = {
 export const campaignsApi = {
   // Get all campaigns
   getAll: async (): Promise<BulkCallCampaign[]> => {
-    const response = await fetch(`${API_BASE_URL}/campaigns/bulk`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch campaigns');
-    }
-
-    const data = await response.json();
+    const data = await clientFetch<{ campaigns?: BulkCallCampaign[] }>('/campaigns/bulk', getAccessToken());
     return data.campaigns || [];
   },
 
   // Get single campaign
   getById: async (id: string): Promise<BulkCallCampaign> => {
-    const response = await fetch(`${API_BASE_URL}/campaigns/bulk/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch campaign');
-    }
-
-    return response.json();
+    return clientFetch<BulkCallCampaign>(`/campaigns/bulk/${id}`, getAccessToken());
   },
 
   // Create and execute campaign
   create: async (campaign: CreateCampaignRequest): Promise<BulkCallCampaign> => {
-    const response = await fetch(`${API_BASE_URL}/campaigns/bulk`, {
+    return clientFetch<BulkCallCampaign>('/campaigns/bulk', getAccessToken(), {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(campaign),
     });
-
-    if (!response.ok) {
-      throw new Error('Failed to create campaign');
-    }
-
-    return response.json();
   },
 
   // Get campaign results
   getResults: async (campaignId: string): Promise<BulkCallResult[]> => {
-    const response = await fetch(`${API_BASE_URL}/campaigns/bulk/${campaignId}/results`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch campaign results');
-    }
-
-    const data = await response.json();
+    const data = await clientFetch<{ results?: BulkCallResult[] }>(
+      `/campaigns/bulk/${campaignId}/results`,
+      getAccessToken()
+    );
     return data.results || [];
   },
 };

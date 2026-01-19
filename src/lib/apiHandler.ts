@@ -343,6 +343,15 @@ export async function handleSessionPostApi(
   return handleSessionBasedApi(req, endpoint, 'POST', body, config);
 }
 
+export async function handleSessionPutApi(
+  req: NextRequest,
+  endpoint: string,
+  config: ApiHandlerConfig = {}
+): Promise<NextResponse> {
+  const body = await req.json();
+  return handleSessionBasedApi(req, endpoint, 'PUT', body, config);
+}
+
 export async function handleSessionPatchApi(
   req: NextRequest,
   endpoint: string,

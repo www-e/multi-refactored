@@ -27,7 +27,7 @@ export class ApiError extends Error {
   }
 }
 
-async function clientFetch<T>(
+export async function clientFetch<T>(
   endpoint: string,
   accessToken: string,
   options?: RequestInit
