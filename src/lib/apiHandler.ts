@@ -247,13 +247,14 @@ export async function handleDeleteApi(
   }, config);
 }
 
-// Handler for APIs using getServerSession for authentication
+// Handler for APIs using getServerSession for authentication with automatic token refresh
 export async function handleSessionBasedApi(
   req: NextRequest,
   endpoint: string,
   method: HttpMethod,
   body?: any,
-  config: ApiHandlerConfig = {}
+  config: ApiHandlerConfig = {},
+  retryCount: number = 0
 ): Promise<NextResponse> {
   // Import dynamically to avoid circular dependencies
   const { getServerSession } = await import('next-auth/next');
@@ -262,6 +263,8 @@ export async function handleSessionBasedApi(
   const session = await getServerSession(authOptions);
   // @ts-ignore
   const accessToken = session?.accessToken;
+  // @ts-ignore
+  const refreshToken = session?.refreshToken;
 
   if (!accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -287,6 +290,75 @@ export async function handleSessionBasedApi(
         body: JSON.stringify(body)
       })
     });
+
+    // Handle 401 Unauthorized - attempt token refresh and retry once
+    if (response.status === 401 && retryCount === 0 && refreshToken) {
+      console.warn(`🔄 Received 401, attempting token refresh for ${method} ${endpoint}`);
+      
+      try {
+        const refreshResponse = await fetch(`${backendUrl}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+
+        if (refreshResponse.ok) {
+          const refreshedTokens = await refreshResponse.json();
+          console.log(`✅ Token refreshed successfully, retrying ${method} ${endpoint}`);
+          
+          // Retry the original request with new token
+          headersObj['Authorization'] = `Bearer ${refreshedTokens.access_token}`;
+          const retryResponse = await fetch(`${backendUrl}${endpoint}`, {
+            method,
+            headers: headersObj,
+            ...(method !== 'GET' && method !== 'HEAD' && body !== undefined && {
+              body: JSON.stringify(body)
+            })
+          });
+
+          const contentType = retryResponse.headers.get('content-type');
+          let data;
+
+          if (contentType && contentType.includes('application/json')) {
+            data = await retryResponse.json();
+          } else {
+            const responseText = await retryResponse.text();
+            if (responseText.includes('<!DOCTYPE html') || responseText.includes('<html')) {
+              console.error(`HTML error page received from backend service on ${method} ${endpoint}:`, retryResponse.status, responseText.substring(0, 200) + '...');
+              return NextResponse.json({
+                detail: `Received HTML error page instead of JSON response: ${retryResponse.status}`,
+                html_preview: responseText.substring(0, 200) + '...'
+              }, { status: retryResponse.status });
+            } else {
+              console.error(`Non-JSON response from backend service on ${method} ${endpoint}:`, retryResponse.status, responseText);
+              return NextResponse.json({
+                detail: `Backend returned non-JSON response: ${responseText}`
+              }, { status: retryResponse.status });
+            }
+          }
+
+          if (!retryResponse.ok) {
+            return NextResponse.json({ detail: data.detail || `Failed to ${method} ${endpoint}` }, { status: retryResponse.status });
+          }
+
+          // Add new tokens to response headers so client can update session
+          const finalResponse = NextResponse.json(data, { status: method === 'POST' ? 201 : 200 });
+          finalResponse.headers.set('X-New-Access-Token', refreshedTokens.access_token);
+          finalResponse.headers.set('X-New-Refresh-Token', refreshedTokens.refresh_token);
+          return finalResponse;
+        } else {
+          console.error(`❌ Token refresh failed: ${refreshResponse.status}`);
+        }
+      } catch (refreshError) {
+        console.error(`❌ Error during token refresh:`, refreshError);
+      }
+
+      // If refresh failed, return original 401
+      return NextResponse.json({ 
+        detail: 'Session expired. Please log in again.',
+        code: 'TOKEN_EXPIRED'
+      }, { status: 401 });
+    }
 
     const contentType = response.headers.get('content-type');
     let data;

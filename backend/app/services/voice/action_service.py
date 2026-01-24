@@ -13,7 +13,7 @@ def generate_id(prefix: str) -> str:
 
 def get_val(data: Dict[str, Any], key: str) -> str:
     obj = data.get(key)
-    if obj is None:
+    if obj is None or obj == "None":
         return ""
     if isinstance(obj, dict):
         return str(obj.get("value", "")).strip()
