@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/scripts", response_model=ScriptResponse)
+@router.post("/", response_model=ScriptResponse)
 def create_script(
     request: ScriptCreateRequest,
     db: Session = Depends(deps.get_session),
@@ -66,7 +66,7 @@ def create_script(
     )
 
 
-@router.get("/scripts", response_model=List[ScriptResponse])
+@router.get("/", response_model=List[ScriptResponse])
 def get_scripts(
     category: Optional[str] = None,
     db: Session = Depends(deps.get_session),
@@ -106,7 +106,7 @@ def get_scripts(
     ]
 
 
-@router.get("/scripts/{script_id}", response_model=ScriptResponse)
+@router.get("/{script_id}", response_model=ScriptResponse)
 def get_script(
     script_id: str,
     db: Session = Depends(deps.get_session),
@@ -143,7 +143,7 @@ def get_script(
     )
 
 
-@router.put("/scripts/{script_id}", response_model=ScriptResponse)
+@router.put("/{script_id}", response_model=ScriptResponse)
 def update_script(
     script_id: str,
     request: ScriptUpdateRequest,
@@ -187,7 +187,7 @@ def update_script(
     )
 
 
-@router.delete("/scripts/{script_id}")
+@router.delete("/{script_id}")
 def delete_script(
     script_id: str,
     db: Session = Depends(deps.get_session),
