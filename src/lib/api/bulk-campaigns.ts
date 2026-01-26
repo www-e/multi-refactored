@@ -140,18 +140,9 @@ export const scriptsApi = {
 
   // Duplicate script
   duplicate: async (id: string): Promise<BulkCallScript> => {
-    const original = await scriptsApi.getById(id);
-    const duplicate: CreateScriptRequest = {
-      name: `${original.name} (نسخة)`,
-      description: original.description,
-      content: original.content,
-      agent_type: original.agent_type,
-      category: original.category,
-      tags: original.tags,
-      variables: original.variables,
-      is_template: false,
-    };
-    return scriptsApi.create(duplicate);
+    return clientFetch<BulkCallScript>(`/scripts/${id}/duplicate`, getAccessToken(), {
+      method: 'POST',
+    });
   },
 };
 

@@ -206,3 +206,56 @@ def delete_script(
     logger.info(f"✅ Script deleted: {script_id}")
     
     return {"message": "Script deleted successfully", "script_id": script_id}
+
+
+@router.post("/{script_id}/duplicate", response_model=ScriptResponse)
+def duplicate_script(
+    script_id: str,
+    db: Session = Depends(deps.get_session),
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    _=Depends(deps.get_current_user)
+):
+    """Duplicate an existing script"""
+    logger.info(f"📋 Duplicating script: {script_id}")
+    
+    # Get the original script
+    original_script = BulkCallScriptService.get_script(db, script_id, tenant_id)
+    
+    if not original_script:
+        logger.warning(f"❌ Script not found for duplication: {script_id}")
+        raise HTTPException(status_code=404, detail="Script not found")
+    
+    # Create duplicate with modified name
+    duplicate_script = BulkCallScriptService.create_script(
+        db=db,
+        tenant_id=tenant_id,
+        name=f"{original_script.name} (نسخة)",
+        content=original_script.content,
+        agent_type=original_script.agent_type,
+        description=original_script.description,
+        category=original_script.category,
+        tags=original_script.tags,
+        variables=original_script.variables,
+        is_template=False,  # Duplicates are never templates
+        created_by=original_script.created_by
+    )
+    
+    logger.info(f"✅ Script duplicated: {duplicate_script.id} (from {script_id})")
+    
+    return ScriptResponse(
+        id=duplicate_script.id,
+        name=duplicate_script.name,
+        description=duplicate_script.description,
+        content=duplicate_script.content,
+        variables=duplicate_script.variables,
+        agent_type=duplicate_script.agent_type,
+        category=duplicate_script.category,
+        tags=duplicate_script.tags,
+        usage_count=duplicate_script.usage_count,
+        last_used_at=duplicate_script.last_used_at.isoformat() if duplicate_script.last_used_at else None,
+        created_by=duplicate_script.created_by,
+        is_template=duplicate_script.is_template,
+        is_active=duplicate_script.is_active,
+        created_at=duplicate_script.created_at.isoformat(),
+        updated_at=duplicate_script.updated_at.isoformat()
+    )
