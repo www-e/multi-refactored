@@ -1,18 +1,15 @@
-"""Merge all migration branches
+"""Merge all migration branches into single linear chain
 
-This migration consolidates the branched migration chains into a single linear path.
-Branches being merged:
-- Branch A: 0e1f2e45b7c8 (remove_pending_approval_status)
-- Branch B: 8a1b3c5d7e9a (add_tenant_isolation_to_all_tables) which includes:
-  - 7a1b3c5d7e9f (add_tenant_id_to_calls_table)
-  - cee4b064007c (make_voice_session_customer_id_nullable)
-  - fix_call_created_at (fix call created at)
+This migration consolidates all branched migrations into a single linear path.
+It merges two development branches that were created independently:
+- Branch A: Remove pending_approval status (0e1f2e45)
+- Branch B: Tenant isolation + call fixes (fix_call_created_at)
 
-This resolves the multiple heads issue that was causing deployment failures.
+After this merge, all future migrations will follow a single linear path.
 
 Revision ID: 20260310_merge
-Revises: 0e1f2e45b7c8, 8a1b3c5d7e9a
-Create Date: 2026-03-10 17:00:00.000000
+Revises: 0e1f2e45b7c8, fix_call_created_at
+Create Date: 2026-03-10 20:15:00.000000
 
 """
 from typing import Sequence, Union
@@ -23,7 +20,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '20260310_merge'
-down_revision: Union[str, None] = ('0e1f2e45b7c8', '8a1b3c5d7e9a')
+down_revision: Union[str, None] = ('0e1f2e45b7c8', 'fix_call_created_at')
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
