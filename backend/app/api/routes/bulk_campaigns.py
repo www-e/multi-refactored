@@ -383,27 +383,30 @@ def get_bulk_campaigns(
         tenant_id=tenant_id,
         status=status_enum
     )
-    
-    return [
-        CampaignResponse(
-            id=c.id,
-            name=c.name,
-            status=c.status.value,
-            total_calls=c.total_calls,
-            completed_calls=c.completed_calls,
-            failed_calls=c.failed_calls,
-            successful_calls=c.successful_calls,
-            progress=c.calculate_progress(),
-            agent_type=c.agent_type,
-            concurrency_limit=c.concurrency_limit,
-            use_knowledge_base=c.use_knowledge_base,
-            custom_system_prompt=c.custom_system_prompt,
-            created_at=c.created_at.isoformat(),
-            started_at=c.started_at.isoformat() if c.started_at else None,
-            completed_at=c.completed_at.isoformat() if c.completed_at else None
-        )
-        for c in campaigns
-    ]
+
+    # Return with campaigns wrapper to match frontend expectation
+    return {
+        "campaigns": [
+            CampaignResponse(
+                id=c.id,
+                name=c.name,
+                status=c.status.value,
+                total_calls=c.total_calls,
+                completed_calls=c.completed_calls,
+                failed_calls=c.failed_calls,
+                successful_calls=c.successful_calls,
+                progress=c.calculate_progress(),
+                agent_type=c.agent_type,
+                concurrency_limit=c.concurrency_limit,
+                use_knowledge_base=c.use_knowledge_base,
+                custom_system_prompt=c.custom_system_prompt,
+                created_at=c.created_at.isoformat(),
+                started_at=c.started_at.isoformat() if c.started_at else None,
+                completed_at=c.completed_at.isoformat() if c.completed_at else None
+            )
+            for c in campaigns
+        ]
+    }
 
 @router.get("/campaigns/bulk/{campaign_id}", response_model=CampaignWithResultsResponse)
 def get_bulk_campaign_with_results(
@@ -471,26 +474,65 @@ def get_campaign_results(
         raise HTTPException(status_code=404, detail="Campaign not found")
     
     results = BulkCallResultService.get_results_for_campaign(db, campaign_id, tenant_id)
-    
-    return [
-        CallResultResponse(
-            id=r.id,
-            campaign_id=r.campaign_id,
-            customer_id=r.customer_id,
-            customer_name=r.customer_name,
-            customer_phone=r.customer_phone,
-            status=r.status.value,
-            outcome=r.outcome.value if r.outcome else None,
-            duration_seconds=r.duration_seconds,
-            recording_url=r.recording_url,
-            error_message=r.error_message,
-            twilio_call_sid=r.twilio_call_sid,
-            twilio_status=r.twilio_status,
-            created_at=r.created_at.isoformat(),
-            updated_at=r.updated_at.isoformat()
+
+    # Return with results wrapper to match frontend expectation
+    return {
+        "results": [
+            CallResultResponse(
+                id=r.id,
+                campaign_id=r.campaign_id,
+                customer_id=r.customer_id,
+                customer_name=r.customer_name,
+                customer_phone=r.customer_phone,
+                status=r.status.value,
+                outcome=r.outcome.value if r.outcome else None,
+                duration_seconds=r.duration_seconds,
+                recording_url=r.recording_url,
+                error_message=r.error_message,
+                twilio_call_sid=r.twilio_call_sid,
+                twilio_status=r.twilio_status,
+                created_at=r.created_at.isoformat(),
+                updated_at=r.updated_at.isoformat()
+            )
+            for r in results
+        ]
+    }
+
+@router.delete("/campaigns/bulk/{campaign_id}")
+def delete_bulk_campaign(
+    campaign_id: str,
+    db: Session = Depends(deps.get_session),
+    tenant_id: str = Depends(deps.get_current_tenant_id),
+    _=Depends(deps.get_current_user)
+):
+    """Delete a bulk campaign and all its related data"""
+    logger.info(f"🗑️ Deleting campaign: {campaign_id}")
+
+    # Check if campaign exists
+    campaign = BulkCallCampaignService.get_campaign(db, campaign_id, tenant_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=404,
+            detail="Campaign not found"
         )
-        for r in results
-    ]
+
+    # Check if campaign is running
+    if campaign.status == models.BulkCallStatusEnum.running:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a running campaign. Please stop it first."
+        )
+
+    # Delete the campaign
+    success = BulkCallCampaignService.delete_campaign(db, campaign_id, tenant_id)
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete campaign"
+        )
+
+    return {"message": "Campaign deleted successfully"}
 
 
 # ============================================================================

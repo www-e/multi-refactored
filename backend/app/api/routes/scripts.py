@@ -81,29 +81,32 @@ def get_scripts(
         tenant_id=tenant_id,
         category=category
     )
-    
+
     logger.info(f"✅ Found {len(scripts)} scripts")
-    
-    return [
-        ScriptResponse(
-            id=s.id,
-            name=s.name,
-            description=s.description,
-            content=s.content,
-            variables=s.variables,
-            agent_type=s.agent_type,
-            category=s.category,
-            tags=s.tags,
-            usage_count=s.usage_count,
-            last_used_at=s.last_used_at.isoformat() if s.last_used_at else None,
-            created_by=s.created_by,
-            is_template=s.is_template,
-            is_active=s.is_active,
-            created_at=s.created_at.isoformat(),
-            updated_at=s.updated_at.isoformat()
-        )
-        for s in scripts
-    ]
+
+    # Return with scripts wrapper to match frontend expectation
+    return {
+        "scripts": [
+            ScriptResponse(
+                id=s.id,
+                name=s.name,
+                description=s.description,
+                content=s.content,
+                variables=s.variables,
+                agent_type=s.agent_type,
+                category=s.category,
+                tags=s.tags,
+                usage_count=s.usage_count,
+                last_used_at=s.last_used_at.isoformat() if s.last_used_at else None,
+                created_by=s.created_by,
+                is_template=s.is_template,
+                is_active=s.is_active,
+                created_at=s.created_at.isoformat(),
+                updated_at=s.updated_at.isoformat()
+            )
+            for s in scripts
+        ]
+    }
 
 
 @router.get("/{script_id}", response_model=ScriptResponse)

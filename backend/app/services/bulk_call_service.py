@@ -292,9 +292,49 @@ class BulkCallCampaignService:
         
         db.commit()
         db.refresh(campaign)
-        
+
         logger.info(f"✅ Campaign {campaign_id} progress: {campaign.calculate_progress()}%")
         return campaign
+
+    @staticmethod
+    def delete_campaign(
+        db: Session,
+        campaign_id: str,
+        tenant_id: str
+    ) -> bool:
+        """Delete a campaign and all its related data"""
+        try:
+            # Get the campaign
+            campaign = db.query(models.BulkCallCampaign).filter(
+                models.BulkCallCampaign.id == campaign_id,
+                models.BulkCallCampaign.tenant_id == tenant_id
+            ).first()
+
+            if not campaign:
+                logger.warning(f"⚠️ Campaign not found: {campaign_id}")
+                return False
+
+            # Check if campaign is running
+            if campaign.status == models.BulkCallStatusEnum.running:
+                logger.warning(f"⚠️ Cannot delete running campaign: {campaign_id}")
+                raise ValueError("Cannot delete a running campaign. Please stop it first.")
+
+            # Delete all related call results first
+            db.query(models.BulkCallResult).filter(
+                models.BulkCallResult.campaign_id == campaign_id
+            ).delete()
+
+            # Delete the campaign
+            db.delete(campaign)
+            db.commit()
+
+            logger.info(f"✅ Deleted campaign: {campaign_id}")
+            return True
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"❌ Error deleting campaign {campaign_id}: {e}")
+            raise
 
 
 # ============================================================================

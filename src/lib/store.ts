@@ -128,10 +128,10 @@ export const useAppStore = create<AppState>()(
         campaigns: state.campaigns.filter(c => c.id !== id)
       })),
       runCampaign: (id) => set((state) => ({
-        campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'نشطة' } : c)
+        campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'running' } : c)
       })),
       stopCampaign: (id) => set((state) => ({
-        campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'موقوفة' } : c)
+        campaigns: state.campaigns.map(c => c.id === id ? { ...c, status: 'paused' } : c)
       })),
     }),
     {

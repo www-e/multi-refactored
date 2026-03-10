@@ -152,18 +152,18 @@ export const scriptsApi = {
 export const campaignsApi = {
   // Get all campaigns
   getAll: async (): Promise<BulkCallCampaign[]> => {
-    const data = await clientFetch<{ campaigns?: BulkCallCampaign[] }>('/campaigns/bulk', getAccessToken());
+    const data = await clientFetch<{ campaigns?: BulkCallCampaign[] }>('/campaigns', getAccessToken());
     return data.campaigns || [];
   },
 
   // Get single campaign
   getById: async (id: string): Promise<BulkCallCampaign> => {
-    return clientFetch<BulkCallCampaign>(`/campaigns/bulk/${id}`, getAccessToken());
+    return clientFetch<BulkCallCampaign>(`/campaigns/${id}`, getAccessToken());
   },
 
   // Create and execute campaign
   create: async (campaign: CreateCampaignRequest): Promise<BulkCallCampaign> => {
-    return clientFetch<BulkCallCampaign>('/campaigns/bulk', getAccessToken(), {
+    return clientFetch<BulkCallCampaign>('/campaigns', getAccessToken(), {
       method: 'POST',
       body: JSON.stringify(campaign),
     });
@@ -172,10 +172,17 @@ export const campaignsApi = {
   // Get campaign results
   getResults: async (campaignId: string): Promise<BulkCallResult[]> => {
     const data = await clientFetch<{ results?: BulkCallResult[] }>(
-      `/campaigns/bulk/${campaignId}/results`,
+      `/campaigns/${campaignId}/results`,
       getAccessToken()
     );
     return data.results || [];
+  },
+
+  // Delete campaign
+  delete: async (id: string): Promise<void> => {
+    await clientFetch<void>(`/campaigns/${id}`, getAccessToken(), {
+      method: 'DELETE',
+    });
   },
 };
 

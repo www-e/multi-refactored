@@ -7,6 +7,7 @@ import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { Card } from '@/components/shared/ui/Card';
 import { campaignsApi, BulkCallCampaign as ApiCampaign, BulkCallResult as ApiCallResult } from '@/lib/api/bulk-campaigns';
 import { formatDate } from '@/lib/utils';
+import { CAMPAIGN_STATUS_LABELS, CALL_RESULT_STATUS_LABELS, getCallOutcomeLabel } from '@/lib/campaignStatus';
 
 // UI Types
 interface BulkCallCampaign {
@@ -143,12 +144,12 @@ export default function BulkCampaignProgressPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      queued: { bg: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', label: 'في قائمة الانتظار', icon: Clock },
-      running: { bg: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', label: 'قيد التشغيل', icon: Play },
-      paused: { bg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', label: 'متوقف مؤقتاً', icon: Pause },
-      completed: { bg: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', label: 'مكتمل', icon: CheckCircle2 },
-      failed: { bg: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', label: 'فشل', icon: XCircle },
-      cancelled: { bg: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400', label: 'ملغي', icon: XCircle },
+      queued: { bg: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', label: CAMPAIGN_STATUS_LABELS.queued, icon: Clock },
+      running: { bg: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', label: CAMPAIGN_STATUS_LABELS.running, icon: Play },
+      paused: { bg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', label: CAMPAIGN_STATUS_LABELS.paused, icon: Pause },
+      completed: { bg: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', label: CAMPAIGN_STATUS_LABELS.completed, icon: CheckCircle2 },
+      failed: { bg: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', label: CAMPAIGN_STATUS_LABELS.failed, icon: XCircle },
+      cancelled: { bg: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400', label: CAMPAIGN_STATUS_LABELS.cancelled, icon: XCircle },
     };
     const badge = badges[status as keyof typeof badges] || badges.queued;
     const Icon = badge.icon;
@@ -162,14 +163,14 @@ export default function BulkCampaignProgressPage() {
 
   const getCallStatusBadge = (status: string) => {
     const badges = {
-      success: { bg: 'bg-green-100 text-green-700', label: 'نجح' },
-      failed: { bg: 'bg-red-100 text-red-700', label: 'فشل' },
-      voicemail: { bg: 'bg-purple-100 text-purple-700', label: 'بريد صوتي' },
-      no_answer: { bg: 'bg-amber-100 text-amber-700', label: 'لا إجابة' },
-      busy: { bg: 'bg-orange-100 text-orange-700', label: 'مشغول' },
-      queued: { bg: 'bg-slate-100 text-slate-700', label: 'في الانتظار' },
-      in_progress: { bg: 'bg-blue-100 text-blue-700', label: 'قيد التنفيذ' },
-      cancelled: { bg: 'bg-gray-100 text-gray-700', label: 'ملغي' },
+      success: { bg: 'bg-green-100 text-green-700', label: CALL_RESULT_STATUS_LABELS.success },
+      failed: { bg: 'bg-red-100 text-red-700', label: CALL_RESULT_STATUS_LABELS.failed },
+      voicemail: { bg: 'bg-purple-100 text-purple-700', label: CALL_RESULT_STATUS_LABELS.voicemail },
+      no_answer: { bg: 'bg-amber-100 text-amber-700', label: CALL_RESULT_STATUS_LABELS.no_answer },
+      busy: { bg: 'bg-orange-100 text-orange-700', label: CALL_RESULT_STATUS_LABELS.busy },
+      queued: { bg: 'bg-slate-100 text-slate-700', label: CALL_RESULT_STATUS_LABELS.queued },
+      in_progress: { bg: 'bg-blue-100 text-blue-700', label: CALL_RESULT_STATUS_LABELS.in_progress },
+      cancelled: { bg: 'bg-gray-100 text-gray-700', label: CALL_RESULT_STATUS_LABELS.cancelled },
     };
     const badge = badges[status as keyof typeof badges];
     return (
@@ -220,11 +221,11 @@ export default function BulkCampaignProgressPage() {
               className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               <option value="all">جميع الحالات</option>
-              <option value="queued">في الانتظار</option>
-              <option value="running">قيد التشغيل</option>
-              <option value="paused">متوقف</option>
-              <option value="completed">مكتمل</option>
-              <option value="failed">فشل</option>
+              <option value="queued">{CAMPAIGN_STATUS_LABELS.queued}</option>
+              <option value="running">{CAMPAIGN_STATUS_LABELS.running}</option>
+              <option value="paused">{CAMPAIGN_STATUS_LABELS.paused}</option>
+              <option value="completed">{CAMPAIGN_STATUS_LABELS.completed}</option>
+              <option value="failed">{CAMPAIGN_STATUS_LABELS.failed}</option>
             </select>
           </div>
         </div>
@@ -386,7 +387,7 @@ export default function BulkCampaignProgressPage() {
 
                           {result.outcome && (
                             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                              النتيجة: {result.outcome}
+                              النتيجة: {getCallOutcomeLabel(result.outcome as any)}
                             </div>
                           )}
 

@@ -46,7 +46,6 @@ export default function CustomersPage() {
             getCustomers().then(setCustomers),
             getTickets().then(setTickets),
             getBookings().then(setBookings),
-            getCampaigns().then(setCampaigns),
           ]);
         } catch (error) {
           console.error('Error fetching customer data:', error);
@@ -56,7 +55,7 @@ export default function CustomersPage() {
       };
       fetchData();
     }
-  }, [isAuthenticated, getCustomers, setCustomers, getTickets, setTickets, getBookings, setBookings, getCampaigns, setCampaigns, setCustomersLoading]);
+  }, [isAuthenticated, getCustomers, setCustomers, getTickets, setTickets, getBookings, setBookings, setCustomersLoading]);
 
   const getCustomerStats = (customerId: string) => {
     return {

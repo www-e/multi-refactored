@@ -65,6 +65,8 @@ backend/dev.db
 backend/*.db
 
 # Logs
+CLAUDE.md
+deliverables/
 *.log
 logs/*.log
 backend/uvicorn.log
@@ -81,6 +83,7 @@ build-output.txt
 .DS_Store
 .DS_Store?
 ._*
+.claude/
 .Spotlight-V100
 .Trashes
 ehthumbs.db

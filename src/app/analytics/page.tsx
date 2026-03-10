@@ -156,10 +156,10 @@ export default function AnalyticsPage() {
                     {campaigns.map((campaign) => (
                       <tr key={campaign.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                         <td className="p-3 font-medium">{campaign.name}</td>
-                        <td className="p-3">{campaign.metrics.reached}</td>
-                        <td className="p-3">{campaign.metrics.engaged}</td>
-                        <td className="p-3">{campaign.metrics.revenue.toLocaleString()} ر.س</td>
-                        <td className="p-3 text-primary font-bold">{campaign.metrics.roas}x</td>
+                        <td className="p-3">{campaign.metrics?.reached ?? 0}</td>
+                        <td className="p-3">{campaign.metrics?.engaged ?? 0}</td>
+                        <td className="p-3">{(campaign.metrics?.revenue ?? 0).toLocaleString()} ر.س</td>
+                        <td className="p-3 text-primary font-bold">{campaign.metrics?.roas ?? 0}x</td>
                       </tr>
                     ))}
                     {campaigns.length === 0 && (

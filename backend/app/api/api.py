@@ -1,6 +1,6 @@
 # backend/app/api/api.py
 from fastapi import APIRouter
-from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, campaigns, calls, conversations, voice_sessions, transcripts, admin_users, twilio, bulk_campaigns, scripts
+from app.api.routes import auth, dashboard, bookings, tickets, voice, customers, calls, conversations, voice_sessions, transcripts, admin_users, twilio, bulk_campaigns, scripts
 
 api_router = APIRouter()
 
@@ -11,12 +11,13 @@ api_router.include_router(bookings.router, tags=["Bookings"])
 api_router.include_router(tickets.router, tags=["Tickets"])
 api_router.include_router(voice.router, tags=["Voice & ElevenLabs"])
 api_router.include_router(customers.router, tags=["Customers"])
-api_router.include_router(campaigns.router, tags=["Campaigns"])
+# Removed old basic campaigns router - now using bulk campaigns only
 api_router.include_router(calls.router, tags=["Calls"])
 api_router.include_router(conversations.router, tags=["Conversations"])
 api_router.include_router(voice_sessions.router, tags=["Voice Sessions"])
 api_router.include_router(transcripts.router, tags=["Transcripts"])
 api_router.include_router(admin_users.router, tags=["Admin Users"], prefix="/admin")
 api_router.include_router(twilio.router, tags=["Twilio"])
-api_router.include_router(bulk_campaigns.router, tags=["Bulk Campaigns"])
-api_router.include_router(scripts.router, prefix="/api/scripts", tags=["Scripts"])
+# Bulk campaigns is now the main campaign system
+api_router.include_router(bulk_campaigns.router, tags=["Campaigns"])
+api_router.include_router(scripts.router, prefix="/scripts", tags=["Scripts"])

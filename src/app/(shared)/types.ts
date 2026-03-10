@@ -215,12 +215,26 @@ export interface EnhancedBooking {
 export interface EnhancedCampaign {
   id: string;
   name: string;
-  type: 'صوتية' | 'رسائل';
-  objective: 'حجوزات' | 'تجديدات' | 'ترويج';
-  audienceQuery: string;
-  status: 'نشطة' | 'موقوفة' | 'مكتملة';
+  status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  total_calls: number;
+  completed_calls: number;
+  failed_calls: number;
+  successful_calls: number;
+  progress: number;
+  agent_type: 'sales' | 'support';
+  concurrency_limit: number;
+  use_knowledge_base: boolean;
+  custom_system_prompt?: string;
+  script_content: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  // Legacy fields for backward compatibility
+  type?: 'صوتية' | 'رسائل';
+  objective?: 'حجوزات' | 'تجديدات' | 'ترويج';
+  audienceQuery?: string;
   scheduledAt?: string;
-  metrics: {
+  metrics?: {
     reached: number;
     engaged: number;
     qualified: number;
@@ -228,9 +242,8 @@ export interface EnhancedCampaign {
     revenue: number;
     roas: number;
   };
-  attribution: 'AI' | 'بشري';
-  createdAt: string;
-  updatedAt: string;
+  attribution?: 'AI' | 'بشري';
+  updatedAt?: string;
 }
 
 export interface DashboardKPIs {
