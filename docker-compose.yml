@@ -1,8 +1,9 @@
 version: "3.9"
 
 services:
-  # renamed to avoid conflict with other postgres instances
-  agentic_db:
+  # PostgreSQL Database
+  # Service name matches container_name for consistency
+  agentic_portal_db:
     image: postgres:15-alpine
     container_name: agentic_portal_db
     environment:
@@ -20,7 +21,9 @@ services:
       timeout: 5s
       retries: 5
 
-  agentic_backend:
+  # Backend API Service
+  # Service name matches container_name for consistency
+  agentic_portal_backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -38,13 +41,15 @@ services:
       # IF 8000 IS TAKEN BY OTHER PROJECTS, CHANGE THE LEFT SIDE (e.g., "8001:8000")
       - "8000:8000"
     depends_on:
-      agentic_db:
+      agentic_portal_db:
         condition: service_healthy
     restart: always
     networks:
       - agentic_net
 
-  agentic_frontend:
+  # Frontend Web Service
+  # Service name matches container_name for consistency
+  agentic_portal_frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
@@ -63,7 +68,7 @@ services:
       # Map host 3001 to container 3001
       - "3001:3001"
     depends_on:
-      - agentic_backend
+      - agentic_portal_backend
     restart: always
     networks:
       - agentic_net
