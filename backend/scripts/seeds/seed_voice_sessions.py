@@ -91,7 +91,7 @@ class VoiceSessionSeeder(BaseSeeder):
         for i in range(count):
             if customer_data and i < len(customer_data):
                 customer_id = customer_data[i].get('customer_id')
-                phone = customer_data.get('phone', customer_data[i].get('customer_phone'))
+                phone = customer_data[i].get('phone') or customer_data[i].get('customer_phone') or self.generate_phone()
             else:
                 customer_id = None
                 phone = self.generate_phone()

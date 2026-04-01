@@ -97,15 +97,23 @@ class CallSeeder(BaseSeeder):
             
             # Some calls have recording URLs (simulated)
             has_recording = random.choice([True, True, True, False])  # 75% have recordings
-            recording_url = f"https://recordings.navaia.sa/call_{call_id}.mp3" if has_recording else None
-            
+
             call_id = self.seed_call(
                 conversation_id=conversation_id,
                 status=status,
                 direction=direction,
                 created_at=created_at,
-                recording_url=recording_url
+                recording_url=None  # Will update after getting call_id
             )
+
+            # Update recording URL with the actual call_id
+            if has_recording:
+                from app.models import Call
+                call = self.db.query(Call).filter(Call.id == call_id).first()
+                if call:
+                    call.recording_url = f"https://recordings.navaia.sa/call_{call_id}.mp3"
+                    self.db.commit()
+
             call_ids.append(call_id)
         
         self.log(f"✅ Created {count} calls")

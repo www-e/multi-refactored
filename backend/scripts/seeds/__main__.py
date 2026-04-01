@@ -11,6 +11,7 @@ from typing import Dict, Any
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.db import SessionLocal
+from app.models import Customer
 from .base_seeder import SeededData
 
 # Import all seeders

@@ -15,6 +15,12 @@ class OrganizationSeeder(BaseSeeder):
         Seed an organization for the tenant
         Returns the organization ID
         """
+        # Check if organization already exists for this tenant
+        existing = self.db.query(Organization).filter(Organization.tenant_id == self.tenant_id).first()
+        if existing:
+            self.log(f"⚠️  Organization for tenant '{self.tenant_id}' already exists", "WARN")
+            return existing.id
+        
         org_id = self.generate_id("org")
         
         organization = Organization(
