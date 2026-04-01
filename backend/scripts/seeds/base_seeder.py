@@ -36,8 +36,12 @@ class BaseSeeder:
         """Generate email from name"""
         domains = ["gmail.com", "outlook.com", "yahoo.com", "navaia.com"]
         name_part = name.replace(" ", ".").lower()
-        # Remove Arabic characters for email
-        name_part = ''.join(c for c in name_part if c.isascii() or c == '.')
+        # Remove non-ASCII characters but keep only alphanumeric and dots
+        name_part = ''.join(c for c in name_part if c.isalnum() or c == '.')
+        # Remove leading/trailing periods and consecutive periods
+        name_part = name_part.strip('.')
+        name_part = '.'.join(part for part in name_part.split('.') if part)
+        # If nothing valid remains, generate a random user ID
         if not name_part:
             name_part = f"user{random.randint(1000, 9999)}"
         domain = random.choice(domains)
