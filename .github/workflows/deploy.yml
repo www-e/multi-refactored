@@ -61,7 +61,7 @@ jobs:
 
               if [ "$AVAILABLE_MB_AFTER" -lt 1024 ]; then
                 echo "❌ Still insufficient space after cleanup"
-                echo "has_space=false" >> $GITHUB_OUTPUT
+                echo "::error::Insufficient disk space after cleanup"
                 exit 1
               fi
             fi
@@ -73,14 +73,13 @@ jobs:
               docker system prune -f
             fi
 
-            echo "has_space=true" >> $GITHUB_OUTPUT
-            echo "disk_available=${AVAILABLE_MB}MB" >> $GITHUB_OUTPUT
+            # Output the disk space value (accessible via action output parsing)
+            echo "DISK_AVAILABLE=${AVAILABLE_MB}MB"
 
   deploy_and_verify:
     name: Build, Deploy & Health Check
     needs: pre_deploy_checks
     runs-on: ubuntu-latest
-    if: needs.pre_deploy_checks.outputs.has_space == 'true'
 
     steps:
       - name: Executing remote SSH commands
@@ -100,7 +99,7 @@ jobs:
             FRONTEND_CONTAINER="agentic_portal_frontend"
 
             echo "🚀 Starting deployment process..."
-            echo "💾 Available disk space: ${{ needs.pre_deploy_checks.outputs.disk_available }}"
+            echo "💾 Disk space check passed, proceeding with deployment..."
 
             # --- NAVIGATE TO PROJECT ---
             cd $PROJECT_DIR || exit 1
@@ -292,16 +291,3 @@ jobs:
             echo "✅ Commit: $CURRENT_COMMIT"
             echo "✅ Disk Space: ${FINAL_SPACE_MB}MB available"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-  # Optional: Notify on failure
-  notify_on_failure:
-    name: Notify deployment failure
-    needs: deploy_and_verify
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send failure notification
-        run: |
-          echo "🚨 DEPLOYMENT FAILED!"
-          # Add your notification here (email, Slack, Discord webhook, etc.)
-          # curl -X POST ${{ secrets.SLACK_WEBHOOK }} -d 'text="Deployment failed"'
