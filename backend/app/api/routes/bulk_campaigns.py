@@ -65,6 +65,9 @@ class ScriptResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ScriptListResponse(BaseModel):
+    scripts: List[ScriptResponse]
+
 class CampaignCreateRequest(BaseModel):
     name: str
     customer_ids: List[str]
@@ -97,6 +100,9 @@ class CampaignResponse(BaseModel):
 
 class CampaignWithResultsResponse(CampaignResponse):
     results: List[dict]
+
+class CampaignListResponse(BaseModel):
+    campaigns: List[CampaignResponse]
 
 class CallResultResponse(BaseModel):
     id: str
@@ -163,7 +169,7 @@ def create_script(
         updated_at=script.updated_at.isoformat()
     )
 
-@router.get("/scripts", response_model=List[ScriptResponse])
+@router.get("/scripts", response_model=ScriptListResponse)
 def get_scripts(
     category: Optional[str] = None,
     db: Session = Depends(deps.get_session),
@@ -178,27 +184,29 @@ def get_scripts(
         tenant_id=tenant_id,
         category=category
     )
-    
-    return [
-        ScriptResponse(
-            id=s.id,
-            name=s.name,
-            description=s.description,
-            content=s.content,
-            variables=s.variables,
-            agent_type=s.agent_type,
-            category=s.category,
-            tags=s.tags,
-            usage_count=s.usage_count,
-            last_used_at=s.last_used_at.isoformat() if s.last_used_at else None,
-            created_by=s.created_by,
-            is_template=s.is_template,
-            is_active=s.is_active,
-            created_at=s.created_at.isoformat(),
-            updated_at=s.updated_at.isoformat()
-        )
-        for s in scripts
-    ]
+
+    return {
+        "scripts": [
+            ScriptResponse(
+                id=s.id,
+                name=s.name,
+                description=s.description,
+                content=s.content,
+                variables=s.variables,
+                agent_type=s.agent_type,
+                category=s.category,
+                tags=s.tags,
+                usage_count=s.usage_count,
+                last_used_at=s.last_used_at.isoformat() if s.last_used_at else None,
+                created_by=s.created_by,
+                is_template=s.is_template,
+                is_active=s.is_active,
+                created_at=s.created_at.isoformat(),
+                updated_at=s.updated_at.isoformat()
+            )
+            for s in scripts
+        ]
+    }
 
 @router.get("/scripts/{script_id}", response_model=ScriptResponse)
 def get_script(
@@ -360,7 +368,7 @@ def create_bulk_campaign(
         completed_at=campaign.completed_at.isoformat() if campaign.completed_at else None
     )
 
-@router.get("/campaigns/bulk", response_model=List[CampaignResponse])
+@router.get("/campaigns/bulk", response_model=CampaignListResponse)
 def get_bulk_campaigns(
     status: Optional[str] = None,
     db: Session = Depends(deps.get_session),
@@ -369,7 +377,7 @@ def get_bulk_campaigns(
 ):
     """Get all bulk campaigns for tenant"""
     logger.info(f"Fetching bulk campaigns for tenant: {tenant_id}")
-    
+
     # Convert string status to enum if provided
     status_enum = None
     if status:
@@ -377,7 +385,7 @@ def get_bulk_campaigns(
             status_enum = models.BulkCallStatusEnum(status)
         except ValueError:
             pass
-    
+
     campaigns = BulkCallCampaignService.get_campaigns(
         db=db,
         tenant_id=tenant_id,
