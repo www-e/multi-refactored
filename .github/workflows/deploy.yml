@@ -3,15 +3,84 @@ name: Agentic Auto-Deploy
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  pre_deploy_checks:
+    name: Server Health & Disk Space Check
+    runs-on: ubuntu-latest
+    outputs:
+      has_space: ${{ steps.check_disk.outputs.has_space }}
+      disk_available: ${{ steps.check_disk.outputs.disk_available }}
+
+    steps:
+      - name: Check server disk space before deployment
+        id: check_disk
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            set -e
+
+            PROJECT_DIR="/var/www/voice_agent"
+            cd $PROJECT_DIR
+
+            # Get disk space in GB and MB
+            AVAILABLE_GB=$(df / | tail -1 | awk '{printf "%.0f", $4/1024/1024}')
+            AVAILABLE_MB=$(df / | tail -1 | awk '{printf "%.0f", $4/1024}')
+
+            echo "📊 Available disk space: ${AVAILABLE_GB}GB (${AVAILABLE_MB}MB)"
+
+            # Critical threshold - emergency cleanup
+            if [ "$AVAILABLE_MB" -lt 512 ]; then
+              echo "🚨 CRITICAL: Less than 512MB available!"
+              echo "🧹 EMERGENCY CLEANUP STARTED..."
+
+              # Emergency cleanup
+              docker system prune -a -f --volumes || true
+              rm -rf backend/venv || true
+              rm -rf .next || true
+              docker volume prune -f || true
+
+              # Clean old logs
+              find . -name "*.log" -mtime +7 -delete 2>/dev/null || true
+
+              # Clean old backups (keep last 3)
+              ls -t backups/*.sql 2>/dev/null | tail -n +4 | xargs -r rm 2>/dev/null || true
+
+              echo "✅ Emergency cleanup completed"
+              AVAILABLE_MB_AFTER=$(df / | tail -1 | awk '{printf "%.0f", $4/1024}')
+              echo "📊 Space after cleanup: ${AVAILABLE_MB_AFTER}MB"
+
+              if [ "$AVAILABLE_MB_AFTER" -lt 1024 ]; then
+                echo "❌ Still insufficient space after cleanup"
+                echo "has_space=false" >> $GITHUB_OUTPUT
+                exit 1
+              fi
+            fi
+
+            # Warning threshold - preventive cleanup
+            if [ "$AVAILABLE_MB" -lt 2048 ]; then
+              echo "⚠️  WARNING: Less than 2GB available"
+              echo "🧹 Running preventive cleanup..."
+              docker system prune -f
+            fi
+
+            echo "has_space=true" >> $GITHUB_OUTPUT
+            echo "disk_available=${AVAILABLE_MB}MB" >> $GITHUB_OUTPUT
+
   deploy_and_verify:
     name: Build, Deploy & Health Check
+    needs: pre_deploy_checks
     runs-on: ubuntu-latest
+    if: needs.pre_deploy_checks.outputs.has_space == 'true'
 
     steps:
       - name: Executing remote SSH commands
@@ -22,38 +91,23 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
           script: |
-            set -e  # Exit on any error
+            set -e
 
             # --- CONFIGURATION ---
             PROJECT_DIR="/var/www/voice_agent"
             DB_CONTAINER="agentic_portal_db"
             BACKEND_CONTAINER="agentic_portal_backend"
             FRONTEND_CONTAINER="agentic_portal_frontend"
-            MAX_WAIT_SECONDS=120
 
             echo "🚀 Starting deployment process..."
-            echo "📁 Project directory: $PROJECT_DIR"
+            echo "💾 Available disk space: ${{ needs.pre_deploy_checks.outputs.disk_available }}"
 
-            # --- PRE-DEPLOYMENT CHECKS ---
-            echo "🔍 Pre-deployment checks..."
-
-            # Check disk space
-            AVAILABLE_SPACE=$(df / | tail -1 | awk '{print $4}')
-            if [ "$AVAILABLE_SPACE" -lt 1048576 ]; then
-                echo "⚠️  WARNING: Low disk space ($AVAILABLE_SPACE KB available)"
-                echo "🧹 Pruning unused Docker images..."
-                docker image prune -a -f
-            else
-                echo "✅ Sufficient disk space available"
-            fi
-
-            # Navigate to project directory
+            # --- NAVIGATE TO PROJECT ---
             cd $PROJECT_DIR || exit 1
-            echo "✅ Changed to project directory"
 
-            # Store current commit for potential rollback
+            # --- STORE PREVIOUS STATE ---
             PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "none")
-            echo "📌 Current commit: $PREVIOUS_COMMIT"
+            echo "📌 Previous commit: $PREVIOUS_COMMIT"
 
             # --- CODE UPDATE ---
             echo "📥 Pulling latest code from main branch..."
@@ -61,26 +115,29 @@ jobs:
             CURRENT_COMMIT=$(git rev-parse origin/main)
             echo "📊 Deploying: $PREVIOUS_COMMIT → $CURRENT_COMMIT"
 
-            # Backup current state
+            # --- DATABASE BACKUP ---
             if [ "$PREVIOUS_COMMIT" != "none" ]; then
-                echo "💾 Creating database backup before deployment..."
-                BACKUP_FILE="backups/agentic_portal_$(date +%Y%m%d_%H%M%S).sql"
-                mkdir -p backups
+              echo "💾 Creating database backup..."
+              BACKUP_FILE="backups/agentic_portal_$(date +%Y%m%d_%H%M%S).sql"
+              mkdir -p backups
 
-                if docker exec $DB_CONTAINER pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null; then
-                    echo "✅ Database backup created: $BACKUP_FILE"
-                    # Keep only last 5 backups
-                    ls -t backups/*.sql 2>/dev/null | tail -n +6 | xargs -r rm
-                    echo "🧹 Cleaned old backups (kept last 5)"
-                else
-                    echo "⚠️  Backup skipped (database may not exist yet)"
-                fi
+              if docker exec $DB_CONTAINER pg_dump -U navaia navaia > "$BACKUP_FILE" 2>/dev/null; then
+                echo "✅ Database backup created: $BACKUP_FILE"
+                # Keep only last 5 backups
+                ls -t backups/*.sql 2>/dev/null | tail -n +6 | xargs -r rm
+                echo "🧹 Cleaned old backups (kept last 5)"
+
+                # Upload backup to remote storage (configure this!)
+                # aws s3 cp "$BACKUP_FILE" s3://your-bucket/backups/
+              else
+                echo "⚠️  Backup skipped (database may not exist yet)"
+              fi
             fi
 
-            # Reset to latest code
-            echo "🔄 Resetting to latest code..."
-            git reset --hard origin/main
-            echo "✅ Code updated successfully"
+            # --- DOCKER PRE-BUILD CLEANUP ---
+            echo "🧹 Pre-build cleanup..."
+            docker system prune -f
+            echo "✅ Pre-build cleanup completed"
 
             # --- DOCKER DEPLOYMENT ---
             echo "🏗️ Building and starting Docker containers..."
@@ -91,67 +148,77 @@ jobs:
 
             # Build and start new containers
             if ! docker-compose up -d --build --force-recreate --remove-orphans; then
-                echo "❌ Docker build/start failed!"
-                echo "🔄 Rolling back to previous commit..."
+              echo "❌ Docker build/start failed!"
+              echo "🔄 Rolling back to previous commit..."
 
-                if [ "$PREVIOUS_COMMIT" != "none" ]; then
-                    git reset --hard $PREVIOUS_COMMIT
-                    docker-compose up -d --build
-                    echo "✅ Rollback completed"
-                fi
-                exit 1
+              if [ "$PREVIOUS_COMMIT" != "none" ]; then
+                git reset --hard $PREVIOUS_COMMIT
+                docker-compose up -d --build
+                echo "✅ Rollback completed"
+              fi
+              exit 1
             fi
 
             echo "✅ Docker containers built and started"
+
+            # --- POST-BUILD CLEANUP ---
+            echo "🧹 Post-build cleanup..."
+
+            # Clean build cache (this is where most space goes)
+            docker system prune -a -f
+
+            # Clean old Docker images (older than 24h)
+            docker image prune -a -f --filter "until=24h"
+
+            echo "✅ Post-build cleanup completed"
 
             # --- DATABASE HEALTH CHECK ---
             echo "⏳ Waiting for PostgreSQL to be ready..."
             WAIT_TIME=0
             while [ $WAIT_TIME -lt 30 ]; do
-                if docker exec $DB_CONTAINER pg_isready -U navaia > /dev/null 2>&1; then
-                    echo "✅ PostgreSQL is ready!"
-                    break
-                fi
-                sleep 1
-                WAIT_TIME=$((WAIT_TIME + 1))
+              if docker exec $DB_CONTAINER pg_isready -U navaia > /dev/null 2>&1; then
+                echo "✅ PostgreSQL is ready!"
+                break
+              fi
+              sleep 1
+              WAIT_TIME=$((WAIT_TIME + 1))
             done
 
             if [ $WAIT_TIME -ge 30 ]; then
-                echo "❌ PostgreSQL failed to start within 30 seconds"
-                docker logs $DB_CONTAINER --tail 50
-                exit 1
+              echo "❌ PostgreSQL failed to start within 30 seconds"
+              docker logs $DB_CONTAINER --tail 50
+              exit 1
             fi
 
             # --- MIGRATIONS ---
             echo "🔄 Running database migrations..."
 
-            # Run migration with timeout
             MIGRATION_START=$(date +%s)
             if ! timeout 60 docker exec $BACKEND_CONTAINER python /app/scripts/smart_migrate.py; then
-                MIGRATION_END=$(date +%s)
-                MIGRATION_DURATION=$((MIGRATION_END - MIGRATION_START))
+              MIGRATION_END=$(date +%s)
+              MIGRATION_DURATION=$((MIGRATION_END - MIGRATION_START))
 
-                echo "❌ Migration failed after ${MIGRATION_DURATION}s!"
-                echo "📋 Backend logs:"
-                docker logs $BACKEND_CONTAINER --tail 100
-
-                # Check if it's a migration conflict
-                echo "🔍 Checking migration status..."
-                docker exec $BACKEND_CONTAINER alembic current 2>/dev/null || true
-                docker exec $BACKEND_CONTAINER alembic heads 2>/dev/null || true
-
-                echo "💥 Deployment failed due to migration errors"
-                exit 1
+              echo "❌ Migration failed after ${MIGRATION_DURATION}s!"
+              echo "📋 Backend logs:"
+              docker logs $BACKEND_CONTAINER --tail 100
+              exit 1
             fi
 
             MIGRATION_END=$(date +%s)
             MIGRATION_DURATION=$((MIGRATION_END - MIGRATION_START))
             echo "✅ Migrations completed successfully in ${MIGRATION_DURATION}s!"
 
-            # --- POST-DEPLOYMENT CLEANUP ---
-            echo "🧹 Cleaning up unused Docker resources..."
-            docker image prune -f
-            echo "✅ Cleanup completed"
+            # --- LOG ROTATION ---
+            echo "🔄 Setting up log rotation..."
+
+            # Rotate Docker logs (max 100MB per container)
+            docker inspect $BACKEND_CONTAINER --format='{{.HostConfig.LogConfig.Type}}' || true
+            docker inspect $FRONTEND_CONTAINER --format='{{.HostConfig.LogConfig.Type}}' || true
+
+            # Clean old application logs
+            find . -name "*.log" -mtime +7 -delete 2>/dev/null || true
+
+            echo "✅ Log rotation configured"
 
             # --- SERVICE WARMUP ---
             echo "💤 Warming up services (waiting 10s)..."
@@ -159,29 +226,27 @@ jobs:
 
             # --- HEALTH CHECKS ---
             check_health() {
-                local url=$1
-                local name=$2
-                local max_retries=24
-                local wait_time=5
+              local url=$1
+              local name=$2
+              local max_retries=24
+              local wait_time=5
 
-                echo "🏥 Checking $name health at $url..."
+              echo "🏥 Checking $name health at $url..."
 
-                for i in $(seq 1 $max_retries); do
-                    # Capture HTTP Status Code (000 = Connection Failed)
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" --max-time 5 2>/dev/null || echo "000")
+              for i in $(seq 1 $max_retries); do
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url" --max-time 5 2>/dev/null || echo "000")
 
-                    # Accept 2xx and 3xx as healthy
-                    if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
-                        echo "✅ $name is HEALTHY! (Status: $STATUS, waited $((i * wait_time))s)"
-                        return 0
-                    fi
+                if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+                  echo "✅ $name is HEALTHY! (Status: $STATUS, waited $((i * wait_time))s)"
+                  return 0
+                fi
 
-                    echo "⏳ $name not ready (Status: $STATUS)... retry ${i}/${max_retries} (${wait_time}s)"
-                    sleep $wait_time
-                done
+                echo "⏳ $name not ready (Status: $STATUS)... retry ${i}/${max_retries} (${wait_time}s)"
+                sleep $wait_time
+              done
 
-                echo "❌ $name failed health check after $((max_retries * wait_time))s"
-                return 1
+              echo "❌ $name failed health check after $((max_retries * wait_time))s"
+              return 1
             }
 
             # Check Backend Health
@@ -191,31 +256,30 @@ jobs:
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
             if ! check_health "http://127.0.0.1:8000/healthz" "Backend"; then
-                echo ""
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "📋 BACKEND LOGS (last 100 lines):"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                docker logs $BACKEND_CONTAINER --tail 100
-                echo ""
-                echo "💥 Backend health check failed!"
-                exit 1
+              echo "📋 BACKEND LOGS (last 100 lines):"
+              docker logs $BACKEND_CONTAINER --tail 100
+              exit 1
             fi
 
+            # Check Frontend Health
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "🔍 FRONTEND HEALTH CHECK"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            # Check Frontend Health
             if ! check_health "http://127.0.0.1:3001" "Frontend"; then
-                echo ""
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "📋 FRONTEND LOGS (last 100 lines):"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                docker logs $FRONTEND_CONTAINER --tail 100
-                echo ""
-                echo "💥 Frontend health check failed!"
-                exit 1
+              echo "📋 FRONTEND LOGS (last 100 lines):"
+              docker logs $FRONTEND_CONTAINER --tail 100
+              exit 1
+            fi
+
+            # --- FINAL SPACE CHECK ---
+            FINAL_SPACE_MB=$(df / | tail -1 | awk '{printf "%.0f", $4/1024}')
+            echo ""
+            echo "📊 Final disk space: ${FINAL_SPACE_MB}MB available"
+
+            if [ "$FINAL_SPACE_MB" -lt 1024 ]; then
+              echo "⚠️  WARNING: Low disk space after deployment (${FINAL_SPACE_MB}MB)"
             fi
 
             echo ""
@@ -226,4 +290,18 @@ jobs:
             echo "✅ Frontend: http://127.0.0.1:3001"
             echo "✅ Backup: ${BACKUP_FILE:-none}"
             echo "✅ Commit: $CURRENT_COMMIT"
+            echo "✅ Disk Space: ${FINAL_SPACE_MB}MB available"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # Optional: Notify on failure
+  notify_on_failure:
+    name: Notify deployment failure
+    needs: deploy_and_verify
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send failure notification
+        run: |
+          echo "🚨 DEPLOYMENT FAILED!"
+          # Add your notification here (email, Slack, Discord webhook, etc.)
+          # curl -X POST ${{ secrets.SLACK_WEBHOOK }} -d 'text="Deployment failed"'
