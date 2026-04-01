@@ -90,57 +90,46 @@ export interface CreateCampaignRequest {
 }
 
 /**
- * Helper function to get access token from localStorage
- */
-const getAccessToken = (): string => {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    throw new ApiError('غير مصروف. يرجى تسجيل الدخول.', 401);
-  }
-  return token;
-};
-
-/**
  * Scripts API
  */
 export const scriptsApi = {
   // Get all scripts
-  getAll: async (): Promise<BulkCallScript[]> => {
-    const data = await clientFetch<{ scripts?: BulkCallScript[] }>('/scripts', getAccessToken());
+  getAll: async (token: string): Promise<BulkCallScript[]> => {
+    const data = await clientFetch<{ scripts?: BulkCallScript[] }>('/scripts', token);
     return data.scripts || [];
   },
 
   // Get single script
-  getById: async (id: string): Promise<BulkCallScript> => {
-    return clientFetch<BulkCallScript>(`/scripts/${id}`, getAccessToken());
+  getById: async (id: string, token: string): Promise<BulkCallScript> => {
+    return clientFetch<BulkCallScript>(`/scripts/${id}`, token);
   },
 
   // Create new script
-  create: async (script: CreateScriptRequest): Promise<BulkCallScript> => {
-    return clientFetch<BulkCallScript>('/scripts', getAccessToken(), {
+  create: async (script: CreateScriptRequest, token: string): Promise<BulkCallScript> => {
+    return clientFetch<BulkCallScript>('/scripts', token, {
       method: 'POST',
       body: JSON.stringify(script),
     });
   },
 
   // Update script
-  update: async (id: string, script: Partial<CreateScriptRequest>): Promise<BulkCallScript> => {
-    return clientFetch<BulkCallScript>(`/scripts/${id}`, getAccessToken(), {
+  update: async (id: string, script: Partial<CreateScriptRequest>, token: string): Promise<BulkCallScript> => {
+    return clientFetch<BulkCallScript>(`/scripts/${id}`, token, {
       method: 'PUT',
       body: JSON.stringify(script),
     });
   },
 
   // Delete script
-  delete: async (id: string): Promise<void> => {
-    await clientFetch<void>(`/scripts/${id}`, getAccessToken(), {
+  delete: async (id: string, token: string): Promise<void> => {
+    await clientFetch<void>(`/scripts/${id}`, token, {
       method: 'DELETE',
     });
   },
 
   // Duplicate script
-  duplicate: async (id: string): Promise<BulkCallScript> => {
-    return clientFetch<BulkCallScript>(`/scripts/${id}/duplicate`, getAccessToken(), {
+  duplicate: async (id: string, token: string): Promise<BulkCallScript> => {
+    return clientFetch<BulkCallScript>(`/scripts/${id}/duplicate`, token, {
       method: 'POST',
     });
   },
@@ -151,36 +140,36 @@ export const scriptsApi = {
  */
 export const campaignsApi = {
   // Get all campaigns
-  getAll: async (): Promise<BulkCallCampaign[]> => {
-    const data = await clientFetch<{ campaigns?: BulkCallCampaign[] }>('/campaigns', getAccessToken());
+  getAll: async (token: string): Promise<BulkCallCampaign[]> => {
+    const data = await clientFetch<{ campaigns?: BulkCallCampaign[] }>('/campaigns', token);
     return data.campaigns || [];
   },
 
   // Get single campaign
-  getById: async (id: string): Promise<BulkCallCampaign> => {
-    return clientFetch<BulkCallCampaign>(`/campaigns/${id}`, getAccessToken());
+  getById: async (id: string, token: string): Promise<BulkCallCampaign> => {
+    return clientFetch<BulkCallCampaign>(`/campaigns/${id}`, token);
   },
 
   // Create and execute campaign
-  create: async (campaign: CreateCampaignRequest): Promise<BulkCallCampaign> => {
-    return clientFetch<BulkCallCampaign>('/campaigns', getAccessToken(), {
+  create: async (campaign: CreateCampaignRequest, token: string): Promise<BulkCallCampaign> => {
+    return clientFetch<BulkCallCampaign>('/campaigns', token, {
       method: 'POST',
       body: JSON.stringify(campaign),
     });
   },
 
   // Get campaign results
-  getResults: async (campaignId: string): Promise<BulkCallResult[]> => {
+  getResults: async (campaignId: string, token: string): Promise<BulkCallResult[]> => {
     const data = await clientFetch<{ results?: BulkCallResult[] }>(
       `/campaigns/${campaignId}/results`,
-      getAccessToken()
+      token
     );
     return data.results || [];
   },
 
   // Delete campaign
-  delete: async (id: string): Promise<void> => {
-    await clientFetch<void>(`/campaigns/${id}`, getAccessToken(), {
+  delete: async (id: string, token: string): Promise<void> => {
+    await clientFetch<void>(`/campaigns/${id}`, token, {
       method: 'DELETE',
     });
   },

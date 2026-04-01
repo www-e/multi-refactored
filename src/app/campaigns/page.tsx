@@ -5,11 +5,12 @@ import { Plus, PhoneCall, Users, Clock, CheckCircle2, XCircle, AlertCircle, Refr
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { Card } from '@/components/shared/ui/Card';
-import { campaignsApi, BulkCallCampaign as ApiCampaign, BulkCallResult as ApiCallResult } from '@/lib/api/bulk-campaigns';
+import { BulkCallCampaign as ApiCampaign, BulkCallResult as ApiCallResult } from '@/lib/api/bulk-campaigns';
 import { formatDate } from '@/lib/utils';
 import { CreateBulkCampaignModal } from '@/components/campaigns/CreateBulkCampaignModal';
 import { CampaignResultsDrawer } from '@/components/campaigns/CampaignResultsDrawer';
 import { CAMPAIGN_STATUS_LABELS, CAMPAIGN_STATUS_BADGES, getCampaignStatusLabel } from '@/lib/campaignStatus';
+import { useAuthApi } from '@/hooks/useAuthApi';
 
 // UI Types
 interface BulkCallCampaign {
@@ -77,6 +78,7 @@ const toUiCallResult = (apiResult: ApiCallResult): CallResult => ({
 });
 
 export default function CampaignsPage() {
+  const { getCampaigns, deleteCampaign, getCampaignResults } = useAuthApi();
   const [campaigns, setCampaigns] = useState<BulkCallCampaign[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<BulkCallCampaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<BulkCallCampaign | null>(null);
@@ -94,7 +96,7 @@ export default function CampaignsPage() {
   // Load campaigns from API
   const loadCampaigns = async () => {
     try {
-      const apiCampaigns = await campaignsApi.getAll();
+      const apiCampaigns = await getCampaigns();
       const uiCampaigns = apiCampaigns.map(toUiCampaign);
       setCampaigns(uiCampaigns);
       setError(null);
@@ -110,7 +112,7 @@ export default function CampaignsPage() {
   const loadCallResults = async (campaignId: string) => {
     setIsLoadingResults(true);
     try {
-      const apiResults = await campaignsApi.getResults(campaignId);
+      const apiResults = await getCampaignResults(campaignId);
       const uiResults = apiResults.map(toUiCallResult);
       setCallResults(uiResults);
     } catch (err) {
@@ -174,8 +176,8 @@ export default function CampaignsPage() {
     if (!confirm(`هل أنت متأكد من حذف الحملة "${campaign.name}"؟`)) return;
 
     try {
-      // Call the delete API
-      await campaignsApi.delete(campaign.id);
+      // Call the delete API via hook
+      await deleteCampaign(campaign.id);
 
       // Remove from local state
       setCampaigns(campaigns.filter(c => c.id !== campaign.id));

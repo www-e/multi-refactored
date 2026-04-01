@@ -367,8 +367,8 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
   const getSidebarPosition = () => {
     if (isMobile) {
       return isOpen
-        ? 'translate-x-0 opacity-100'
-        : 'translate-x-full opacity-0 pointer-events-none';
+        ? 'translate-x-0 opacity-100 will-change-transform'
+        : 'translate-x-[110%] opacity-0 pointer-events-none will-change-transform';
     }
     return 'translate-x-0'; // Desktop sidebar is always visible
   };
@@ -376,20 +376,33 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
   return (
     <>
       {/* Mobile Overlay - only shown when sidebar is open on mobile */}
-      {isMobile && isOpen && (
+      {isMobile && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300"
+          className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
+            isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
+          style={{
+            WebkitTransform: 'translateZ(0)',
+            transform: 'translateZ(0)',
+          } as React.CSSProperties}
         />
       )}
 
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        className={`fixed right-0 top-0 h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-l border-slate-200/50 dark:border-slate-700/50 z-50 transition-all duration-300 ease-in-out flex flex-col ${
+        className={`fixed right-0 top-0 h-full bg-white dark:bg-slate-900 border-l border-slate-200/50 dark:border-slate-700/50 z-50 transition-all duration-300 ease-in-out flex flex-col ${
           getSidebarWidth()
         } ${getSidebarPosition()}`}
+        style={{
+          WebkitTransform: 'translateZ(0)',
+          transform: 'translateZ(0)',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          backgroundColor: isMobile ? 'rgb(255, 255, 255)' : undefined,
+        } as React.CSSProperties}
         role="navigation"
         aria-label="القائمة الجانبية"
       >
@@ -451,7 +464,13 @@ export default function Sidebar({ isOpen, setIsOpen, isCollapsed, setIsCollapsed
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 overflow-y-auto p-2 ${isCollapsed && !isMobile ? 'p-1' : 'p-4'}`} aria-label="قائمة التنقل">
+        <nav
+          className={`flex-1 overflow-y-auto p-2 ${isCollapsed && !isMobile ? 'p-1' : 'p-4'}`}
+          style={{
+            WebkitOverflowScrolling: 'touch',
+          } as React.CSSProperties}
+          aria-label="قائمة التنقل"
+        >
           {navigation.map((group) => (
             <NavigationGroup
               key={group.name}

@@ -5,9 +5,10 @@ import { PhoneCall, Users, Clock, CheckCircle2, XCircle, AlertCircle, RefreshCw,
 import { PageHeader } from '@/components/shared/layouts/PageHeader';
 import { ActionButton } from '@/components/shared/ui/ActionButton';
 import { Card } from '@/components/shared/ui/Card';
-import { campaignsApi, BulkCallCampaign as ApiCampaign, BulkCallResult as ApiCallResult } from '@/lib/api/bulk-campaigns';
+import { BulkCallCampaign as ApiCampaign, BulkCallResult as ApiCallResult } from '@/lib/api/bulk-campaigns';
 import { formatDate } from '@/lib/utils';
 import { CAMPAIGN_STATUS_LABELS, CALL_RESULT_STATUS_LABELS, getCallOutcomeLabel } from '@/lib/campaignStatus';
+import { useAuthApi } from '@/hooks/useAuthApi';
 
 // UI Types
 interface BulkCallCampaign {
@@ -71,6 +72,7 @@ const toUiCallResult = (apiResult: ApiCallResult): CallResult => ({
 });
 
 export default function BulkCampaignProgressPage() {
+  const { getCampaigns, getCampaignResults } = useAuthApi();
   const [campaigns, setCampaigns] = useState<BulkCallCampaign[]>([]);
   const [filteredCampaigns, setFilteredCampaigns] = useState<BulkCallCampaign[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<BulkCallCampaign | null>(null);
@@ -85,7 +87,7 @@ export default function BulkCampaignProgressPage() {
   // Load campaigns from API
   const loadCampaigns = async () => {
     try {
-      const apiCampaigns = await campaignsApi.getAll();
+      const apiCampaigns = await getCampaigns();
       const uiCampaigns = apiCampaigns.map(toUiCampaign);
       setCampaigns(uiCampaigns);
       setError(null);
@@ -101,7 +103,7 @@ export default function BulkCampaignProgressPage() {
   const loadCallResults = async (campaignId: string) => {
     setIsLoadingResults(true);
     try {
-      const apiResults = await campaignsApi.getResults(campaignId);
+      const apiResults = await getCampaignResults(campaignId);
       const uiResults = apiResults.map(toUiCallResult);
       setCallResults(uiResults);
     } catch (err) {

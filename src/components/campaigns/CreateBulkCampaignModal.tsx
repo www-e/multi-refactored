@@ -32,7 +32,7 @@ export function CreateBulkCampaignModal({ isOpen, onClose, onSuccess }: CreateBu
   // Preview data
   const [filteredCustomers, setFilteredCustomers] = useState<any[]>([]);
 
-  const { getCustomers, getScripts } = useAuthApi();
+  const { getCustomers, getScripts, createCampaign } = useAuthApi();
 
   // Load customers and scripts when modal opens
   useEffect(() => {
@@ -78,7 +78,7 @@ export function CreateBulkCampaignModal({ isOpen, onClose, onSuccess }: CreateBu
         script_id: selectedScriptId || undefined,
       };
 
-      await campaignsApi.create(campaignData);
+      await createCampaign(campaignData);
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'فشل إنشاء الحملة. يرجى المحاولة مرة أخرى.');

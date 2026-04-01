@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { X, PhoneCall, FileText, Trash2, Settings, Users, Clock, AlertCircle, ChevronRight, ChevronLeft, Info, Sparkles, Zap, Shield, BookOpen, Loader2 } from 'lucide-react';
 import { Customer } from '@/app/(shared)/types';
 import Tooltip, { HelpText, FieldHelp } from '../ui/Tooltip';
-import { scriptsApi, campaignsApi, BulkCallScript } from '@/lib/api/bulk-campaigns';
+import { BulkCallScript } from '@/lib/api/bulk-campaigns';
+import { useAuthApi } from '@/hooks/useAuthApi';
 
 interface BulkCallModalProps {
   isOpen: boolean;
@@ -115,6 +116,7 @@ export default function BulkCallModal({
   onStartCampaign,
   isSubmitting = false
 }: BulkCallModalProps) {
+  const { getScripts } = useAuthApi();
   const [step, setStep] = useState<'script' | 'settings' | 'confirm'>('script');
   const [scriptContent, setScriptContent] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -143,7 +145,7 @@ export default function BulkCallModal({
   const loadScripts = async () => {
     setIsLoadingScripts(true);
     try {
-      const scripts = await scriptsApi.getAll();
+      const scripts = await getScripts();
       setSavedScripts(scripts);
     } catch (error) {
       console.error('Failed to load scripts:', error);

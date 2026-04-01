@@ -32,6 +32,7 @@ export const useAuthApi = () => {
     createCampaign: false,
     updateCampaign: false,
     deleteCampaign: false,
+    getCampaignResults: false,
     updateBooking: false,
     updateTicket: false,
     deleteBooking: false,
@@ -229,7 +230,7 @@ export const useAuthApi = () => {
     updateLoadingState('getCampaigns', true);
     try {
       // Use bulk campaigns API
-      const result = await campaignsApi.getAll();
+      const result = await campaignsApi.getAll(accessToken);
       return result;
     } finally {
       updateLoadingState('getCampaigns', false);
@@ -241,7 +242,7 @@ export const useAuthApi = () => {
     updateLoadingState('createCampaign', true);
     try {
       // Use bulk campaigns API
-      const result = await campaignsApi.create(data);
+      const result = await campaignsApi.create(data, accessToken);
       return result;
     } finally {
       updateLoadingState('createCampaign', false);
@@ -254,7 +255,7 @@ export const useAuthApi = () => {
     try {
       // Note: Bulk campaigns don't have update endpoint, so we'll just return the existing campaign
       // In a real implementation, you might want to add update functionality
-      const result = await campaignsApi.getById(id);
+      const result = await campaignsApi.getById(id, accessToken);
       return result;
     } finally {
       updateLoadingState('updateCampaign', false);
@@ -266,10 +267,21 @@ export const useAuthApi = () => {
     updateLoadingState('deleteCampaign', true);
     try {
       // Use the bulk campaigns API delete endpoint
-      await campaignsApi.delete(id);
+      await campaignsApi.delete(id, accessToken);
       return { success: true };
     } finally {
       updateLoadingState('deleteCampaign', false);
+    }
+  }, [accessToken]);
+
+  const getCampaignResults = useCallback(async (campaignId: string) => {
+    if (!accessToken) return Promise.reject(new Error("Not authenticated"));
+    updateLoadingState('getCampaignResults', true);
+    try {
+      const result = await campaignsApi.getResults(campaignId, accessToken);
+      return result;
+    } finally {
+      updateLoadingState('getCampaignResults', false);
     }
   }, [accessToken]);
 
@@ -605,6 +617,7 @@ export const useAuthApi = () => {
     createCampaign,
     updateCampaign,
     deleteCampaign,
+    getCampaignResults,
     updateBooking,
     updateTicket,
     deleteBooking,

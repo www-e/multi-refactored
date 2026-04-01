@@ -49,7 +49,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
       />
 
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-700/50">
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200/50 dark:border-slate-700/50"
+        style={{
+          WebkitTransform: 'translateZ(0)',
+          transform: 'translateZ(0)',
+        } as React.CSSProperties}
+      >
         <div className="flex items-center justify-between p-4">
           <button
             onClick={() => setSidebarOpen(true)}
@@ -71,7 +77,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         }`}
         style={{
           // Add CSS variable for sidebar width to be used in other components if needed
-          '--sidebar-width': isMobile ? '0px' : (sidebarCollapsed ? '5rem' : '16rem')
+          '--sidebar-width': isMobile ? '0px' : (sidebarCollapsed ? '5rem' : '16rem'),
+          position: 'relative',
+          zIndex: 10,
         } as React.CSSProperties}
       >
         <div className="min-h-screen">
